@@ -5,6 +5,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{6D56BBD2-9FB4-430E-9455-EBDA05333CD4}"
 ProjectSection(SolutionItems) = preProject
 	.gitignore = .gitignore
+	README.md = README.md
 EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Distributed.SourceGenerators", "src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj", "{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}"
