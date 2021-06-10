@@ -1,0 +1,56 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3ABFBA00-F00A-42DD-9945-FFB165156740}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{6D56BBD2-9FB4-430E-9455-EBDA05333CD4}"
+ProjectSection(SolutionItems) = preProject
+	.gitignore = .gitignore
+EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Distributed.SourceGenerators", "src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj", "{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt", "src\Nyris.Crdt\Nyris.Crdt.csproj", "{3E0DE9B7-4931-486B-ABD6-9E0513E6B092}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Distributed", "src\Nyris.Crdt.Distributed\Nyris.Crdt.Distributed.csproj", "{D3A6EE4A-0D79-46A3-B960-FEC518808897}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{6B8C04E5-DE4A-49CF-BDDF-23A846D44770}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.AspNetExample", "samples\Nyris.Crdt.AspNetExample\Nyris.Crdt.AspNetExample.csproj", "{B7E7196B-C640-49F7-BEAD-7A2D4A4492C9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp", "samples\ConsoleApp\ConsoleApp.csproj", "{D1E45236-9756-4C8C-B4EF-C4DD810E04EC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{3E0DE9B7-4931-486B-ABD6-9E0513E6B092} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{D3A6EE4A-0D79-46A3-B960-FEC518808897} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{B7E7196B-C640-49F7-BEAD-7A2D4A4492C9} = {6B8C04E5-DE4A-49CF-BDDF-23A846D44770}
+		{D1E45236-9756-4C8C-B4EF-C4DD810E04EC} = {6B8C04E5-DE4A-49CF-BDDF-23A846D44770}
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E0DE9B7-4931-486B-ABD6-9E0513E6B092}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E0DE9B7-4931-486B-ABD6-9E0513E6B092}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E0DE9B7-4931-486B-ABD6-9E0513E6B092}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E0DE9B7-4931-486B-ABD6-9E0513E6B092}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3A6EE4A-0D79-46A3-B960-FEC518808897}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3A6EE4A-0D79-46A3-B960-FEC518808897}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3A6EE4A-0D79-46A3-B960-FEC518808897}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3A6EE4A-0D79-46A3-B960-FEC518808897}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7E7196B-C640-49F7-BEAD-7A2D4A4492C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7E7196B-C640-49F7-BEAD-7A2D4A4492C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7E7196B-C640-49F7-BEAD-7A2D4A4492C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7E7196B-C640-49F7-BEAD-7A2D4A4492C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1E45236-9756-4C8C-B4EF-C4DD810E04EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1E45236-9756-4C8C-B4EF-C4DD810E04EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1E45236-9756-4C8C-B4EF-C4DD810E04EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1E45236-9756-4C8C-B4EF-C4DD810E04EC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
