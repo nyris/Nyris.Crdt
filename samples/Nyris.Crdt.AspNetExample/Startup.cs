@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Nyris.Crdt.Distributed;
+using ProtoBuf.Grpc.Server;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -13,8 +14,7 @@ namespace Nyris.Crdt.AspNetExample
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDistributedCrdts();
-            services.AddSingleton<ManagedCrdtContext, MyContext>();
+            services.AddManagedCrdts<MyContext>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

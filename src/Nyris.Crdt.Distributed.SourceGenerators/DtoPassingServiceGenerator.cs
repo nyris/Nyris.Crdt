@@ -1,14 +1,26 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Scriban;
 
 namespace Nyris.Crdt.Distributed.SourceGenerators
 {
+    /// <summary>
+    /// Some useful resources:
+    ///  - https://www.meziantou.net/working-with-types-in-a-roslyn-analyzer.htm
+    /// </summary>
     [Generator]
     public class DtoPassingServiceGenerator : ISourceGenerator
     {
+        // TODO: currently it does not seem possible to reference another project from source generator project, fix when possible
+        private const string ManagedCRDTTypeName = "ManagedCRDT";
+
+        private StringBuilder _log = new("/*");
+
         /// <inheritdoc />
         public void Initialize(GeneratorInitializationContext context)
         {
@@ -20,40 +32,70 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
         {
             if (context.SyntaxReceiver is not SyntaxReceiver receiver) return;
 
-            var builder = new StringBuilder().AppendLine("/*");
+            var crdtInfos = GetCrdtInfos(context, receiver.Candidates);
 
-            builder.AppendLine("\nUsing directives:\n");
-            foreach (var usingDirective in receiver.UsingStatements)
-            {
-                builder.AppendLine(usingDirective);
-            }
-            builder.AppendLine("*/");
-
-            context.AddSource("Logs", SourceText.From(builder.ToString(), Encoding.UTF8));
-
-            foreach (var (typeName, location, nArgs) in receiver.ManagedCRDTWithUnknownNumberOfGenericArguments)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor(
-                    "SourceGenerator",
-                    "ManagedCRDT type has unexpected number of generic type arguments",
-                    "ManagedCRDT type was expected to have 3 generic arguments, but have {0}. {1} will not be ignored",
-                    "Expectations",
-                    DiagnosticSeverity.Warning, true), location, nArgs, typeName));
-            }
-
-            receiver.UsingStatements.Remove("using Nyris.Crdt.Distributed;"); // generated files are already in that namespace
-            var usingStatements = receiver.UsingStatements.OrderBy(u => u).ToList();
-
-            foreach (var templateFileName in new[] {"DtoPassingServiceTemplate.sbntxt", "IDtoPassingServiceTemplate.sbntxt"})
+            foreach (var templateFileName in new[] {"DtoPassingServiceTemplate.sbntxt",
+                "IDtoPassingServiceTemplate.sbntxt",
+                "ServiceCollectionExtensionsTemplate.sbntxt"})
             {
                 var template = Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName);
                 var text = template.Render(new
                 {
-                    receiver.CrdtTypes,
-                    UsingStatements = usingStatements
+                    CrdtInfos = crdtInfos
                 }, member => member.Name);
                 var source = SourceText.From(text, Encoding.UTF8);
                 context.AddSource(templateFileName.Replace("Template.sbntxt", ".generated.cs"), source);
+            }
+
+            _log.AppendLine("*/");
+            context.AddSource("Logs", SourceText.From(_log.ToString(), Encoding.UTF8));
+        }
+
+        private List<CrdtInfo> GetCrdtInfos(GeneratorExecutionContext context, IEnumerable<ClassDeclarationSyntax> candidates)
+        {
+            var crdtInfos = new List<CrdtInfo>();
+            foreach (var candidateClass in candidates)
+            {
+                _log.AppendLine("Analysing class: " + candidateClass.Identifier.ToFullString());
+                var namedTypeSymbol = context.Compilation.GetSemanticModel(candidateClass.SyntaxTree).GetDeclaredSymbol(candidateClass);
+                if (namedTypeSymbol == null)
+                {
+                    _log.AppendLine("Something went wrong - semantic model did not produce an INamedTypeSymbol");
+                    continue;
+                }
+
+                if (namedTypeSymbol.IsGenericType)
+                {
+                    _log.AppendLine("Class is generic - skipping");
+                    continue;
+                }
+
+                TraverseNamedTypeSymbolInheritanceChain(namedTypeSymbol, crdtInfos);
+            }
+
+            return crdtInfos;
+        }
+
+        private void TraverseNamedTypeSymbolInheritanceChain(INamedTypeSymbol symbol, List<CrdtInfo> crdtInfos)
+        {
+            var current = symbol.BaseType;
+            while (current != null && current.ToDisplayString() != "object")
+            {
+                if (current.Name == ManagedCRDTTypeName)
+                {
+                    _log.AppendLine($"Class {symbol.Name} determined to be a ManagedCRDT. " +
+                                    "Generated gRPC service will include transport operations for it's dto");
+                    var allArgumentsString = string.Join(", ",
+                        current.TypeArguments.Select(symbol => symbol.ToDisplayString()));
+                    var dtoString = current.TypeArguments.Last().ToDisplayString();
+
+                    crdtInfos.Add(new CrdtInfo(crdtTypeName: symbol.ToDisplayString(),
+                        allArgumentsString: allArgumentsString,
+                        dtoTypeName: dtoString));
+                    return;
+                }
+
+                current = current.BaseType;
             }
         }
     }

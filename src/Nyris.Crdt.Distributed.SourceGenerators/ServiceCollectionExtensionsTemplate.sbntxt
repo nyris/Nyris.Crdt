@@ -1,0 +1,29 @@
+using Microsoft.Extensions.DependencyInjection;
+using Nyris.Crdt.Distributed.Extensions;
+using ProtoBuf.Grpc.Server;
+
+namespace Nyris.Crdt.Distributed
+{
+    internal static class ServiceCollectionExtensions
+    {
+        public static IServiceCollection AddManagedCrdts<TContext>(this IServiceCollection services)
+            where TContext : ManagedCrdtContext
+        {
+            services.AddCodeFirstGrpc(options =>
+            {
+                options.EnableDetailedErrors = true;
+            });
+
+            services.AddInternals<IDtoPassingService>();
+
+            services.AddSingleton<TContext>();
+            services.AddSingleton<ManagedCrdtContext, TContext>(sp => sp.GetRequiredService<TContext>());
+
+            {{~ for type in CrdtInfos ~}}
+            services.AddSender<IDtoPassingService, {{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>();
+            {{~ end ~}}
+
+            return services;
+        }
+    }
+}

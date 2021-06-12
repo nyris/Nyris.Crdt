@@ -1,28 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFrameworks>net5.0</TargetFrameworks>
+        <LangVersion>9</LangVersion>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Grpc.Net.Client" Version="2.36.0" />
+        <PackageReference Include="protobuf-net" Version="2.4.6" />
         <PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="1.0.152" />
-    </ItemGroup>
-
-    <PropertyGroup>
-        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <!-- Don't include the output from a previous source generator execution into future runs; the */** trick here ensures that there's
-        at least one subdirectory, which is our key that it's coming from a source generator as opposed to something that is coming from
-        some other tool. -->
-        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/*/**/*.cs" />
     </ItemGroup>
     
     <ItemGroup>
         <ProjectReference Include="..\Nyris.Crdt\Nyris.Crdt.csproj" />
-<!--        <ProjectReference Include="..\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />-->
+    </ItemGroup>
+    
+    <ItemGroup>
+      <Compile Remove="obj\**" />
+    </ItemGroup>
+    
+    <ItemGroup>
+      <EmbeddedResource Remove="obj\**" />
+    </ItemGroup>
+    
+    <ItemGroup>
+      <None Remove="obj\**" />
     </ItemGroup>
 </Project>

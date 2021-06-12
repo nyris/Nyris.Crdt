@@ -1,7 +1,9 @@
 using System;
+using ProtoBuf;
 
 namespace Nyris.Crdt
 {
+    [ProtoContract]
     public readonly struct VersionedSignedItem<TActorId, TItem> : IEquatable<VersionedSignedItem<TActorId, TItem>>
         where TActorId : IEquatable<TActorId>
         where TItem : IEquatable<TItem>
@@ -13,8 +15,13 @@ namespace Nyris.Crdt
             Item = item;
         }
 
+        [ProtoMember(1)]
         public TItem Item { get; }
+
+        [ProtoMember(2)]
         public uint Version { get; }
+
+        [ProtoMember(3)]
         public TActorId Actor { get; }
 
         public override string ToString() => $"({Item.ToString()}, v: {Version}, a: {Actor})";

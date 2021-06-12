@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Nyris.Crdt.Distributed;
+using Nyris.Crdt.Distributed.Crdts;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -30,7 +31,7 @@ namespace Nyris.Crdt.AspNetExample
         public override List<int> ToDto() => Value.ToList();
 
         public static readonly ICRDTFactory<GrowthSet, HashSet<int>, List<int>>
-            FactoryInstance = new GrowthSetFactory();
+            DefaultFactory = new GrowthSetFactory();
 
         private sealed class GrowthSetFactory : ICRDTFactory<GrowthSet, HashSet<int>, List<int>>
         {

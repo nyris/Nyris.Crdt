@@ -1,10 +1,22 @@
-﻿namespace Nyris.Crdt.Distributed
+﻿using Nyris.Crdt.Distributed.Model;
+
+namespace Nyris.Crdt.Distributed.Crdts
 {
+    /// <summary>
+    /// Base type for all managedCRDTs. When inheriting, do not forget to call <see cref="StateChanged"/> in all update methods.
+    /// </summary>
+    /// <remarks>
+    ///     DO NOT CHANGE THIS TYPE'S NAME LIGHTLY
+    ///     It is used without referencing the type directly (or project at all) in the SourceGenerator project as const string.
+    /// </remarks>
+    /// <typeparam name="TImplementation"></typeparam>
+    /// <typeparam name="TRepresentation"></typeparam>
+    /// <typeparam name="TDto"></typeparam>
     public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : ICRDT<TImplementation, TRepresentation, TDto>
         where TImplementation : ICRDT<TImplementation, TRepresentation, TDto>
     {
-        internal readonly int InstanceId;
-        private AsyncQueue<WithId<TDto>>? _queue;
+        public readonly int InstanceId;
+        private readonly AsyncQueue<WithId<TDto>> _queue;
 
         /// <summary>
         /// Constructor.
@@ -15,6 +27,7 @@
         /// distinguish which instance was updated. </param>
         protected ManagedCRDT(int instanceId)
         {
+            _queue = Queues.GetQueue<TDto>(GetType());
             InstanceId = instanceId;
         }
 
@@ -29,9 +42,6 @@
         /// <inheritdoc />
         public abstract TDto ToDto();
 
-        protected void StateChanged()
-        {
-            // get queue by type and instance id
-        }
+        protected void StateChanged() => _queue.Enqueue(ToDto().WithId(InstanceId));
     }
 }

@@ -1,8 +1,14 @@
 namespace Nyris.Crdt
 {
-    public interface ICRDTFactory<T, TRepresentation, TDto>
-        where T : ICRDT<T, TRepresentation, TDto>
+    public interface ICRDTFactory<out TCRDT, out TImplementation, TRepresentation, in TDto>
+        where TCRDT : ICRDT<TImplementation, TRepresentation, TDto>
+        where TImplementation : ICRDT<TImplementation, TRepresentation, TDto>
     {
-        T Create(TDto dto);
+        TCRDT Create(TDto dto);
+    }
+
+    public interface ICRDTFactory<out TCRDT, TRepresentation, in TDto> : ICRDTFactory<TCRDT, TCRDT, TRepresentation, TDto>
+        where TCRDT : ICRDT<TCRDT, TRepresentation, TDto>
+    {
     }
 }

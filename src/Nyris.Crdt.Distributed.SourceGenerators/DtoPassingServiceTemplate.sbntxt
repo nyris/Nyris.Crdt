@@ -9,9 +9,7 @@
 
 using System;
 using System.Threading.Tasks;
-{{~ for using in UsingStatements ~}}
-{{ using }}
-{{~ end ~}}
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed
 {
@@ -23,13 +21,12 @@ namespace Nyris.Crdt.Distributed
         {
             _context = context;
         }
+        {{~ for type in CrdtInfos ~}}
 
-        {{~ for type in CrdtTypes ~}}
         public async Task<{{ type.DtoTypeName }}> SendAsync(WithId<{{ type.DtoTypeName }}> dto)
         {
-            return _context.Merge<{{ type.CrdtTypeName }}, {{ type.CrdtRepresentationTypeName }}, {{ type.DtoTypeName }}>(dto);
+            return _context.Merge<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
         }
-
         {{~ end ~}}
     }
 }

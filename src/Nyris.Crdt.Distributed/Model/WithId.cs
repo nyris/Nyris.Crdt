@@ -1,6 +1,6 @@
 using ProtoBuf;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Model
 {
     [ProtoContract]
     public sealed class WithId<TDto>

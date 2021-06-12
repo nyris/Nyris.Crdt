@@ -10,19 +10,11 @@
 using System;
 using System.Threading.Tasks;
 using System.ServiceModel;
-{{~ for using in UsingStatements ~}}
-{{ using }}
-{{~ end ~}}
 
 namespace Nyris.Crdt.Distributed
 {
     [ServiceContract]
-    public interface IDtoPassingService
+    public interface IDtoPassingService {{ if CrdtInfos.size > 0 }}:{{ end }}{{for type in CrdtInfos}}{{ if for.index > 0 }},{{end}} IProxy<{{type.DtoTypeName}}>{{end}}
     {
-        {{~ for type in CrdtTypes ~}}
-        [OperationContract]
-        Task<{{ type.DtoTypeName }}> SendAsync(WithId<{{ type.DtoTypeName }}> dto);
-
-        {{~ end ~}}
     }
 }
