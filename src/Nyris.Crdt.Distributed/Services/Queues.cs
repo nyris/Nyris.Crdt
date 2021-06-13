@@ -1,9 +1,8 @@
-
 using System;
 using System.Collections.Concurrent;
 using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Services
 {
     internal static class Queues
     {

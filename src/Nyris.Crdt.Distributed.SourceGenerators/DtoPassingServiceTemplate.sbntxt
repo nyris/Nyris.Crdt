@@ -8,6 +8,7 @@
 //------------------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Model;
 
@@ -21,11 +22,21 @@ namespace Nyris.Crdt.Distributed
         {
             _context = context;
         }
+
+        public IAsyncEnumerable<WithId<TypeNameAndHash>> GetHashesAsync()
+        {
+            return _context.GetHashesAsync();
+        }
         {{~ for type in CrdtInfos ~}}
 
-        public async Task<{{ type.DtoTypeName }}> SendAsync(WithId<{{ type.DtoTypeName }}> dto)
+        async IAsyncEnumerable<WithId<{{ type.DtoTypeName }}>> IProxy<{{type.DtoTypeName}}>.EnumerateCrdtAsync(TypeNameAndInstanceId nameAndInstanceId)
         {
-            return _context.Merge<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
+            throw new NotImplementedException();
+        }
+
+        public Task<{{ type.DtoTypeName }}> SendAsync(WithId<{{ type.DtoTypeName }}> dto)
+        {
+            return _context.MergeAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
         }
         {{~ end ~}}
     }

@@ -12,7 +12,7 @@ namespace Nyris.Crdt.Distributed.Services
 {
     internal sealed class SenderService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
         where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
-        where TImplementation : ICRDT<TImplementation, TRepresentation, TDto>
+        where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
         where TGrpcService : class
     {
         private readonly ManagedCrdtContext _context;
@@ -51,7 +51,7 @@ namespace Nyris.Crdt.Distributed.Services
                         }
 
                         var response = await proxy.SendAsync(dto);
-                        _context.Merge<TCrdt, TImplementation, TRepresentation, TDto>(response.WithId(dto.Id));
+                        _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response.WithId(dto.Id));
                     }
                 }
                 catch (Exception e)

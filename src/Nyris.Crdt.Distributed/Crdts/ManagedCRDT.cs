@@ -1,10 +1,13 @@
-﻿using Nyris.Crdt.Distributed.Extensions;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Services;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
     /// <summary>
-    /// Base type for all managedCRDTs. When inheriting, do not forget to call <see cref="StateChanged"/> in all update methods.
+    /// Base type for all managedCRDTs. When inheriting, do not forget to call <see cref="StateChangedAsync"/> in all update methods.
     /// </summary>
     /// <remarks>
     ///     DO NOT CHANGE THIS TYPE'S NAME LIGHTLY
@@ -13,8 +16,8 @@ namespace Nyris.Crdt.Distributed.Crdts
     /// <typeparam name="TImplementation"></typeparam>
     /// <typeparam name="TRepresentation"></typeparam>
     /// <typeparam name="TDto"></typeparam>
-    public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : ICRDT<TImplementation, TRepresentation, TDto>
-        where TImplementation : ICRDT<TImplementation, TRepresentation, TDto>
+    public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : IAsyncCRDT<TImplementation, TRepresentation, TDto>, IHashableAndHaveUniqueName
+        where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
     {
         public readonly int InstanceId;
         private readonly AsyncQueue<WithId<TDto>> _queue;
@@ -38,11 +41,20 @@ namespace Nyris.Crdt.Distributed.Crdts
         public abstract TRepresentation Value { get; }
 
         /// <inheritdoc />
-        public abstract MergeResult Merge(TImplementation other);
+        public abstract Task<MergeResult> MergeAsync(TImplementation other);
 
         /// <inheritdoc />
-        public abstract TDto ToDto();
+        public abstract Task<TDto> ToDtoAsync();
 
-        protected void StateChanged() => _queue.Enqueue(ToDto().WithId(InstanceId));
+        /// <inheritdoc />
+        public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync();
+
+        protected async Task StateChangedAsync() => _queue.Enqueue((await ToDtoAsync()).WithId(InstanceId));
+
+        /// <inheritdoc />
+        public abstract string TypeName { get; }
+
+        /// <inheritdoc />
+        public abstract Task<string> GetHashAsync();
     }
 }

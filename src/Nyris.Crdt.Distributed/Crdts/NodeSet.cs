@@ -14,11 +14,14 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
         }
 
-        public static readonly ICRDTFactory<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto> DefaultFactory = new Factory();
+        public static readonly IAsyncCRDTFactory<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto> DefaultFactory = new Factory();
 
-        private sealed class Factory : ICRDTFactory<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto>
+        private sealed class Factory : IAsyncCRDTFactory<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto>
         {
             public NodeSet Create(Dto dto) => new (dto);
         }
+
+        /// <inheritdoc />
+        public override string TypeName { get; } = nameof(NodeSet);
     }
 }

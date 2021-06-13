@@ -21,20 +21,24 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly ManagedCrdtContext _context;
         private readonly IEnumerable<IDiscoveryStrategy> _strategies;
         private readonly ILogger<DiscoveryService<TGrpcService>> _logger;
+        private readonly NodeInfo _thisNode;
 
         /// <inheritdoc />
         public DiscoveryService(ManagedCrdtContext context,
             IEnumerable<IDiscoveryStrategy> strategies,
-            ILogger<DiscoveryService<TGrpcService>> logger)
+            ILogger<DiscoveryService<TGrpcService>> logger,
+            NodeInfo thisNode)
         {
             _strategies = strategies;
             _logger = logger;
+            _thisNode = thisNode;
             _context = context;
         }
 
         /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            await _context.Nodes.AddAsync(_thisNode, _thisNode.Id);
             await foreach (var (address, name) in GetAllUris(stoppingToken))
             {
                 _logger.LogDebug("Attempting to connect to {NodeName} at {NodeAddress}", name, address);
@@ -45,8 +49,9 @@ namespace Nyris.Crdt.Distributed.Services
                     throw new InitializationException($"Internal error: specified {nameof(TGrpcService)} does not implement IProxy<NodeSet.Dto>");
                 }
 
-                var response = await proxy.SendAsync(_context.Nodes.ToDto().WithId(_context.Nodes.InstanceId));
-                _context.Merge<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>,
+                var dto = await _context.Nodes.ToDtoAsync();
+                var response = await proxy.SendAsync(dto.WithId(_context.Nodes.InstanceId));
+                _context.MergeAsync<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>,
                     HashSet<NodeInfo>, OptimizedObservedRemoveSet<NodeId, NodeInfo>.Dto>(
                     response.WithId(_context.Nodes.InstanceId));
             }

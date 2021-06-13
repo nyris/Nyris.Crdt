@@ -100,7 +100,7 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        public MergeResult Merge(OptimizedObservedRemoveSet<TActorId, TItem> other)
+        public MergeResult MergeAsync(OptimizedObservedRemoveSet<TActorId, TItem> other)
         {
             if (GetHashCode() == other.GetHashCode())
             {

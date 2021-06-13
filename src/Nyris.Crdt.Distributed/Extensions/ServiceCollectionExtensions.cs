@@ -26,7 +26,7 @@ namespace Nyris.Crdt.Distributed.Extensions
 
         public static IServiceCollection AddSender<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>(this IServiceCollection services)
             where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
-            where TImplementation : ICRDT<TImplementation, TRepresentation, TDto>
+            where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
             where TGrpcService : class
             => services.AddHostedService<SenderService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>>();
     }

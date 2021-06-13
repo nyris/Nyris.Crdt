@@ -9,7 +9,7 @@ using Grpc.Net.Client;
 using Nyris.Crdt.Distributed.Model;
 using ProtoBuf.Grpc.Client;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Services
 {
     internal sealed class ChannelManager<TGrpcService> where TGrpcService : class
     {
@@ -102,7 +102,7 @@ namespace Nyris.Crdt.Distributed
 
             private Task RemoveNode()
             {
-                _context.Nodes.Remove(i => i.Id == _nodeId);
+                _context.Nodes.RemoveAsync(i => i.Id == _nodeId);
                 _grpcClients.TryRemove(_nodeId, out _);
                 return _channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask;
             }

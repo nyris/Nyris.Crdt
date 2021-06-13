@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts;
 
 namespace Nyris.Crdt.AspNetExample
@@ -22,24 +24,39 @@ namespace Nyris.Crdt.AspNetExample
         public void Add(int item)
         {
             Value.Add(item);
-            StateChanged();
+            StateChangedAsync();
         }
 
         /// <inheritdoc />
-        public override MergeResult Merge(GrowthSet other)
+        public override async Task<MergeResult> MergeAsync(GrowthSet other)
         {
             Value.UnionWith(other.Value);
-            StateChanged();
+            await StateChangedAsync();
             return MergeResult.ConflictSolved;
         }
 
         /// <inheritdoc />
-        public override List<int> ToDto() => Value.ToList();
+        public override async Task<List<int>> ToDtoAsync() => Value.ToList();
 
-        public static readonly ICRDTFactory<GrowthSet, HashSet<int>, List<int>>
+        /// <inheritdoc />
+        public override IAsyncEnumerable<List<int>> EnumerateDtoBatchesAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public override string TypeName { get; } = nameof(GrowthSet);
+
+        /// <inheritdoc />
+        public override async Task<string> GetHashAsync() => Value
+            .OrderBy(i => i)
+            .Aggregate(0, HashCode.Combine)
+            .ToString();
+
+        public static readonly IAsyncCRDTFactory<GrowthSet, HashSet<int>, List<int>>
             DefaultFactory = new GrowthSetFactory();
 
-        private sealed class GrowthSetFactory : ICRDTFactory<GrowthSet, HashSet<int>, List<int>>
+        private sealed class GrowthSetFactory : IAsyncCRDTFactory<GrowthSet, HashSet<int>, List<int>>
         {
             /// <inheritdoc />
             public GrowthSet Create(List<int> dto) => new(dto.ToHashSet());

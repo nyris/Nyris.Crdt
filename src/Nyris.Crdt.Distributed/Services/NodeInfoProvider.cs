@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Services
 {
     internal static class NodeInfoProvider
     {

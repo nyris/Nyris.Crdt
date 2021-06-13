@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts
@@ -23,7 +25,7 @@ namespace Nyris.Crdt.Distributed.Crdts
     {
         private HashSet<VersionedSignedItem<TActorId, TItem>> _items;
         private readonly Dictionary<TActorId, uint> _observedState;
-        private readonly object _setChangeLock = new();
+        private readonly SemaphoreSlim _semaphore = new(1);
 
         protected OptimizedObservedRemoveSet(int id) : base(id)
         {
@@ -38,24 +40,29 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override int GetHashCode()
+        public override async Task<string> GetHashAsync()
         {
-            lock (_setChangeLock)
+            await _semaphore.WaitAsync();
+            try
             {
-                // ReSharper disable once NonReadonlyMemberInGetHashCode
                 var itemsHash = _items
                     .OrderBy(i => i.Actor)
                     .Aggregate(0, HashCode.Combine);
                 var stateHash = _observedState
                     .OrderBy(pair => pair.Key)
                     .Aggregate(0, HashCode.Combine);
-                return HashCode.Combine(itemsHash, stateHash);
+                return HashCode.Combine(itemsHash, stateHash).ToString();
+            }
+            finally
+            {
+                _semaphore.Release();
             }
         }
 
-        public override Dto ToDto()
+        public override async Task<Dto> ToDtoAsync()
         {
-            lock (_setChangeLock)
+            await _semaphore.WaitAsync();
+            try
             {
                 return new Dto
                 {
@@ -66,16 +73,32 @@ namespace Nyris.Crdt.Distributed.Crdts
                         .ToDictionary(pair => pair.Key, pair => pair.Value)
                 };
             }
+            finally
+            {
+                _semaphore.Release();
+            }
+        }
+
+        /// <inheritdoc />
+        public override IAsyncEnumerable<Dto> EnumerateDtoBatchesAsync()
+        {
+            throw new System.NotImplementedException();
         }
 
         public override HashSet<TItem> Value
         {
-            get { lock(_setChangeLock) return _items.Select(i => i.Item).ToHashSet(); }
+            get
+            {
+                _semaphore.Wait();
+                try { return _items.Select(i => i.Item).ToHashSet(); }
+                finally { _semaphore.Release(); }
+            }
         }
 
-        public void Add(TItem item, TActorId actorPerformingAddition)
+        public async Task AddAsync(TItem item, TActorId actorPerformingAddition)
         {
-            lock (_setChangeLock)
+            await _semaphore.WaitAsync();
+            try
             {
                 // default value for int is 0, so if key is not preset, lastObservedVersion will be assigned 0, which is intended
                 _observedState.TryGetValue(actorPerformingAddition, out var observedVersion);
@@ -85,31 +108,42 @@ namespace Nyris.Crdt.Distributed.Crdts
 
                 // notice that i.Actor.Equals(actorPerformingAddition) means that there may be multiple copies of item
                 // stored at the same time. This is by design
-                _items.RemoveWhere(i => i.Item.Equals(item) && i.Version < observedVersion && i.Actor.Equals(actorPerformingAddition));
+                _items.RemoveWhere(i =>
+                    i.Item.Equals(item) && i.Version < observedVersion && i.Actor.Equals(actorPerformingAddition));
                 _observedState[actorPerformingAddition] = observedVersion;
             }
-            StateChanged();
+            finally
+            {
+                _semaphore.Release();
+            }
+            await StateChangedAsync();
         }
 
-        public void Remove(TItem item) => Remove(i => i.Equals(item));
+        public Task RemoveAsync(TItem item) => RemoveAsync(i => i.Equals(item));
 
-        public void Remove(Func<TItem, bool> condition)
+        public async Task RemoveAsync(Func<TItem, bool> condition)
         {
-            lock (_setChangeLock)
+            await _semaphore.WaitAsync();
+            try
             {
                 _items.RemoveWhere(i => condition(i.Item));
             }
-            StateChanged();
+            finally
+            {
+                _semaphore.Release();
+            }
+            await StateChangedAsync();
         }
 
-        public override MergeResult Merge(OptimizedObservedRemoveSet<TActorId, TItem> other)
+        public override async Task<MergeResult> MergeAsync(OptimizedObservedRemoveSet<TActorId, TItem> other)
         {
-            if (GetHashCode() == other.GetHashCode())
+            if (await GetHashAsync() == await other.GetHashAsync())
             {
                 return MergeResult.Identical;
             }
 
-            lock (_setChangeLock)
+            await _semaphore.WaitAsync();
+            try
             {
                 // variables names a taken from the paper, they do not have obvious meaning by themselves
                 var m = _items.Intersect(other._items);
@@ -142,7 +176,11 @@ namespace Nyris.Crdt.Distributed.Crdts
                     _observedState[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
                 }
             }
-            StateChanged();
+            finally
+            {
+                _semaphore.Release();
+            }
+            await StateChangedAsync();
 
             return MergeResult.ConflictSolved;
         }

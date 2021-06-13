@@ -79,11 +79,11 @@ namespace Nyris.Crdt
             }
         }
 
-        public MergeResult Merge(CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueDtoFactory, TItemValueRepresentation> other)
+        public MergeResult MergeAsync(CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueDtoFactory, TItemValueRepresentation> other)
         {
             lock (_mergeLock)
             {
-                var keyResult = _keys.Merge(other._keys);
+                var keyResult = _keys.MergeAsync(other._keys);
 
                 // drop values that no longer have keys
                 if (keyResult == MergeResult.ConflictSolved)
@@ -103,7 +103,7 @@ namespace Nyris.Crdt
 
                     if (iHave && otherHas)
                     {
-                        var valueResult = myValue.Merge(otherValue);
+                        var valueResult = myValue.MergeAsync(otherValue);
                         conflict = conflict || valueResult == MergeResult.ConflictSolved;
                     }
                     else if (otherHas)
