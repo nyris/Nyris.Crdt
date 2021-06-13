@@ -1,6 +1,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using Nyris.Crdt.Distributed.Strategies;
+using Nyris.Crdt.Distributed.Strategies.Discovery;
 
 namespace Nyris.Crdt.Distributed
 {

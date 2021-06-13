@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Exceptions;
@@ -15,6 +17,7 @@ namespace Nyris.Crdt.Distributed
         private readonly ConcurrentDictionary<TypeAndInstanceId, object> _managedCrdts = new();
         private readonly ConcurrentDictionary<Type, object> _crdtFactories = new();
         private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashableAndHaveUniqueName> _sameManagedCrdts = new();
+        private readonly ConcurrentDictionary<Type, HashSet<TypeNameAndInstanceId>> _typeToTypeNameMapping = new();
 
         internal readonly NodeSet Nodes = new ("");
 
@@ -35,8 +38,10 @@ namespace Nyris.Crdt.Distributed
                                                            $"Try creating concrete type, that inherits from {typeof(TCrdt)}");
             }
 
+            var typeNameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
+
             if (!_managedCrdts.TryAdd(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), crdt)
-                || !_sameManagedCrdts.TryAdd(new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId), crdt))
+                || !_sameManagedCrdts.TryAdd(typeNameAndInstanceId, crdt))
             {
                 throw new ManagedCrdtContextSetupException($"Failed to add crdt of type {typeof(TCrdt)} to " +
                                                            "the context - crdt of that type and with that instanceId " +
@@ -45,6 +50,14 @@ namespace Nyris.Crdt.Distributed
             }
 
             _crdtFactories.TryAdd(typeof(TCrdt), factory);
+
+            _typeToTypeNameMapping.AddOrUpdate(typeof(TCrdt),
+                _ => new HashSet<TypeNameAndInstanceId> {typeNameAndInstanceId},
+                (_, nameAndId) =>
+                {
+                    nameAndId.Add(typeNameAndInstanceId);
+                    return nameAndId;
+                });
 
             // ReSharper disable once SuspiciousTypeConversion.Global
             if (crdt is ICreateManagedCrdtsInside compoundCrdt)
@@ -57,9 +70,21 @@ namespace Nyris.Crdt.Distributed
             where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
             where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
         {
+            var typeNameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
+
             _managedCrdts.TryRemove(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), out _);
-            _sameManagedCrdts.TryRemove(new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId), out _);
+            _sameManagedCrdts.TryRemove(typeNameAndInstanceId, out _);
+
+            if(_typeToTypeNameMapping.TryGetValue(typeof(TCrdt), out var nameAndInstanceIds))
+            {
+                nameAndInstanceIds.Remove(typeNameAndInstanceId);
+            }
+
+            // Remove factory and mapping only if it's a last instances
+            if (_managedCrdts.Keys.Any(key => key.Type == typeof(TCrdt))) return;
+
             _crdtFactories.TryRemove(typeof(TCrdt), out _);
+            _typeToTypeNameMapping.TryRemove(typeof(TCrdt), out _);
         }
 
         public async Task<TDto> MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(WithId<TDto> dto)
@@ -78,16 +103,31 @@ namespace Nyris.Crdt.Distributed
             return await crdt.ToDtoAsync();
         }
 
-        public async IAsyncEnumerable<WithId<TypeNameAndHash>> GetHashesAsync()
+        /// <summary>
+        /// Gets hashes of all instances of crdt of a given type
+        /// </summary>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
+        public async IAsyncEnumerable<HashAndInstanceId> GetHashesAsync(string typeName)
         {
-            foreach (var typeNameAndId in _sameManagedCrdts.Keys)
+            foreach (var typeNameAndId in _sameManagedCrdts.Keys.Where(key => key.TypeName == typeName))
             {
                 if (_sameManagedCrdts.TryGetValue(typeNameAndId, out var crdt))
                 {
-                    yield return new TypeNameAndHash(typeNameAndId.TypeName, await crdt.GetHashAsync())
-                        .WithId(typeNameAndId.InstanceId);
+                    yield return new HashAndInstanceId(Hash: await crdt.GetHashAsync(), InstanceId: typeNameAndId.InstanceId);
                 }
             }
+        }
+
+        public string GetTypeName<TCrdt>()
+        {
+            if (!_typeToTypeNameMapping.TryGetValue(typeof(TCrdt), out var set) || set.Count == 0)
+            {
+                throw new ManagedCrdtContextSetupException($"Getting type name for {typeof(TCrdt)} has failed - " +
+                                                           "did you forget to add that Crdt in ManagedContext?");
+            }
+
+            return set.First().TypeName;
         }
 
         public async Task<bool> IsHashEqual(WithId<TypeNameAndHash> hash)
@@ -103,25 +143,26 @@ namespace Nyris.Crdt.Distributed
             return string.Equals(await crdt.GetHashAsync(), hash.Dto.Hash, StringComparison.Ordinal);
         }
 
-        public async IAsyncEnumerable<WithId<TDto>> EnumerateDtoBatchesAsync<TDto>(TypeNameAndInstanceId nameAndInstanceId)
+        public async IAsyncEnumerable<WithId<TDto>> EnumerateDtoBatchesAsync<TCrdt, TImplementation, TRepresentation, TDto>(string instanceId)
+            where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
+            where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
         {
-            if(!_sameManagedCrdts.TryGetValue(nameAndInstanceId, out var crdt))
+            if (!_managedCrdts.TryGetValue(new TypeAndInstanceId(typeof(TCrdt), instanceId), out var crdtObject))
             {
-                throw new ManagedCrdtContextSetupException($"Checking hash for Crdt named {nameAndInstanceId.TypeName} " +
-                                                           "failed - Crdt not found in the managed context. Check that " +
-                                                           "you Add-ed appropriate managed crdt type and " +
-                                                           "that instanceId of that type is coordinated across servers");
+                throw new ManagedCrdtContextSetupException($"Enumerating dto of crdt type {typeof(TCrdt)} failed" +
+                                                           " due to crdt not being found. " +
+                                                           "Did you forget to add that Crdt in ManagedContext?");
             }
 
-            if (crdt is not IAsyncDtoBatchProvider<TDto> batchProvider)
+            if (crdtObject is not IAsyncDtoBatchProvider<TDto> batchProvider)
             {
-                throw new ManagedCrdtContextSetupException($"Internal error: Crdt of type {crdt.GetType()} does " +
+                throw new ManagedCrdtContextSetupException($"Internal error: Crdt of type {crdtObject.GetType()} does " +
                                                            "not implement IAsyncDtoBatchProvider. This should not happen.");
             }
 
             await foreach (var dto in batchProvider.EnumerateDtoBatchesAsync())
             {
-                yield return dto.WithId(nameAndInstanceId.InstanceId);
+                yield return dto.WithId(instanceId);
             }
         }
 

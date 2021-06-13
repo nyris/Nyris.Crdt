@@ -22,7 +22,7 @@ namespace Nyris.Crdt.Distributed
             services.AddSingleton<ManagedCrdtContext, TContext>(sp => sp.GetRequiredService<TContext>());
 
             {{~ for type in CrdtInfos ~}}
-            services.AddSender<IDtoPassingService, {{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>();
+            services.AddConnectionServices<IDtoPassingService, {{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>();
             {{~ end ~}}
 
             return new ManagedCrdtsServicesBuilder(services);

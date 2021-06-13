@@ -23,16 +23,27 @@ namespace Nyris.Crdt.Distributed
             _context = context;
         }
 
-        public IAsyncEnumerable<WithId<TypeNameAndHash>> GetHashesAsync()
+        public IAsyncEnumerable<HashAndInstanceId> GetHashesAsync(string typeName)
         {
-            return _context.GetHashesAsync();
+            return _context.GetHashesAsync(typeName);
         }
         {{~ for type in CrdtInfos ~}}
 
- /*       IAsyncEnumerable<WithId<{{ type.DtoTypeName }}>> IProxy<{{type.DtoTypeName}}>.EnumerateCrdtAsync(TypeNameAndInstanceId nameAndInstanceId)
+        public async IAsyncEnumerable<WithId<{{ type.DtoTypeName }}>> EnumerateCrdtAsync(IAsyncEnumerable<WithId<{{ type.DtoTypeName }}>> dtos)
         {
-            throw new NotImplementedException();
-        }  */
+            string? id = null;
+            await foreach(var dto in dtos)
+            {
+                if (id == null) id = dto.Id;
+                await _context.MergeAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
+            }
+
+            if (id == null) yield break;
+            await foreach(var dto in _context.EnumerateDtoBatchesAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(id))
+            {
+                yield return dto;
+            }
+        }
 
         public Task<{{ type.DtoTypeName }}> SendAsync(WithId<{{ type.DtoTypeName }}> dto)
         {

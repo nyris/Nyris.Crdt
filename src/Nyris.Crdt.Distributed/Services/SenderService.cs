@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Strategies;
+using Nyris.Crdt.Distributed.Strategies.Propagation;
 
 namespace Nyris.Crdt.Distributed.Services
 {
@@ -51,7 +51,7 @@ namespace Nyris.Crdt.Distributed.Services
                         }
 
                         var response = await proxy.SendAsync(dto);
-                        _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response.WithId(dto.Id));
+                        await _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response.WithId(dto.Id));
                     }
                 }
                 catch (Exception e)

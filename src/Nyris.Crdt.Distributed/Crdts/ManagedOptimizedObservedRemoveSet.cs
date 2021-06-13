@@ -19,7 +19,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         : ManagedCRDT<
             ManagedOptimizedObservedRemoveSet<TActorId, TItem>,
             HashSet<TItem>,
-            ManagedOptimizedObservedRemoveSet<TActorId, TItem>.Dto>
+            ManagedOptimizedObservedRemoveSet<TActorId, TItem>.OrSetDto>
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>
     {
@@ -33,10 +33,10 @@ namespace Nyris.Crdt.Distributed.Crdts
             _observedState = new Dictionary<TActorId, uint>();
         }
 
-        protected ManagedOptimizedObservedRemoveSet(Dto dto) : base("")
+        protected ManagedOptimizedObservedRemoveSet(OrSetDto orSetDto) : base("")
         {
-            _items = dto.Items;
-            _observedState = dto.ObservedState;
+            _items = orSetDto.Items;
+            _observedState = orSetDto.ObservedState;
         }
 
         /// <inheritdoc />
@@ -59,12 +59,12 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
-        public override async Task<Dto> ToDtoAsync()
+        public override async Task<OrSetDto> ToDtoAsync()
         {
             await _semaphore.WaitAsync();
             try
             {
-                return new Dto
+                return new OrSetDto
                 {
                     Items = _items
                         .Select(i => new VersionedSignedItem<TActorId, TItem>(i.Actor, i.Version, i.Item))
@@ -80,9 +80,9 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override IAsyncEnumerable<Dto> EnumerateDtoBatchesAsync()
+        public override async IAsyncEnumerable<OrSetDto> EnumerateDtoBatchesAsync()
         {
-            throw new System.NotImplementedException();
+            yield return await ToDtoAsync(); // unfortunately making ORSet a delta Crdt is not an easy task
         }
 
         public override HashSet<TItem> Value
@@ -186,7 +186,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         [ProtoContract]
-        public sealed class Dto
+        public sealed class OrSetDto
         {
             [ProtoMember(1)]
             public HashSet<VersionedSignedItem<TActorId, TItem>> Items { get; set; } = new();

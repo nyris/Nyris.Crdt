@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using k8s.Models;
 
-namespace Nyris.Crdt.Distributed.Strategies
+namespace Nyris.Crdt.Distributed.Strategies.Discovery
 {
     public sealed class KubernetesDiscoveryPodSelectionOptions
     {

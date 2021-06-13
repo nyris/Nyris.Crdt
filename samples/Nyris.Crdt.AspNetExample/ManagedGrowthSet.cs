@@ -15,7 +15,7 @@ namespace Nyris.Crdt.AspNetExample
 
         private ManagedGrowthSet(List<int> values) : base("")
         {
-            Value = values.ToHashSet();
+            Value = values?.ToHashSet() ?? new HashSet<int>();
         }
 
         /// <inheritdoc />
@@ -39,9 +39,12 @@ namespace Nyris.Crdt.AspNetExample
         public override async Task<List<int>> ToDtoAsync() => Value.ToList();
 
         /// <inheritdoc />
-        public override IAsyncEnumerable<List<int>> EnumerateDtoBatchesAsync()
+        public override async IAsyncEnumerable<List<int>> EnumerateDtoBatchesAsync()
         {
-            throw new NotImplementedException();
+            foreach (var i in Value)
+            {
+                yield return new List<int> {i};
+            }
         }
 
         /// <inheritdoc />

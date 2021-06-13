@@ -8,7 +8,7 @@ using k8s.Models;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed.Strategies
+namespace Nyris.Crdt.Distributed.Strategies.Discovery
 {
     internal sealed class KubernetesDiscoveryStrategy : IDiscoveryStrategy
     {

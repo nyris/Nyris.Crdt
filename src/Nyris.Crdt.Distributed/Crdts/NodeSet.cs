@@ -10,15 +10,15 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
         }
 
-        private NodeSet(Dto dto) : base(dto)
+        private NodeSet(OrSetDto orSetDto) : base(orSetDto)
         {
         }
 
-        public static readonly IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto> DefaultFactory = new Factory();
+        public static readonly IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, OrSetDto> DefaultFactory = new Factory();
 
-        private sealed class Factory : IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto>
+        private sealed class Factory : IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, OrSetDto>
         {
-            public NodeSet Create(Dto dto) => new (dto);
+            public NodeSet Create(OrSetDto orSetDto) => new (orSetDto);
         }
 
         /// <inheritdoc />

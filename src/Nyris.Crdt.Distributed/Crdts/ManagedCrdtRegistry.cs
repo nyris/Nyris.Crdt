@@ -49,8 +49,10 @@ namespace Nyris.Crdt.Distributed.Crdts
         protected ManagedCrdtRegistry(RegistryDto registryDto) : base("")
         {
             _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(registryDto.Keys);
-            _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(registryDto.Dict
-                .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value)));
+            var dict = registryDto.Dict?
+                           .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
+                       ?? new Dictionary<TItemKey, TItemValue>();
+            _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(dict);
         }
 
         /// <inheritdoc />
@@ -175,6 +177,63 @@ namespace Nyris.Crdt.Distributed.Crdts
             {
                 _semaphore.Release();
             }
+        }
+
+        /// <inheritdoc />
+        public override async IAsyncEnumerable<RegistryDto> EnumerateDtoBatchesAsync()
+        {
+            // we are forced into assumption, that registry usually has few keys but large values/iterable
+            // TODO: is it safe to not wait for semaphore here? (do I need it anywhere?)
+            var enumeratingKeys = _keys.Value.ToDictionary(v => v, _ => true);
+            var enumerators = _dictionary
+                .ToDictionary(pair => pair.Key,
+                    pair => pair.Value.EnumerateDtoBatchesAsync().GetAsyncEnumerator());
+            try
+            {
+                var finished = 0;
+                var keysDto = _keys.ToDto();
+
+                while (true)
+                {
+                    var dict = new Dictionary<TItemKey, TItemValueDto>();
+                    foreach (var key in enumeratingKeys.Where(pair => pair.Value).Select(pair => pair.Key).ToList())
+                    {
+                        if (!await enumerators[key].MoveNextAsync())
+                        {
+                            enumeratingKeys[key] = false;
+                            ++finished;
+                        }
+
+                        dict[key] = enumerators[key].Current;
+                    }
+
+                    yield return new RegistryDto
+                    {
+                        Keys = keysDto,
+                        Dict = dict
+                    };
+
+                    if (finished == enumerators.Count) yield break;
+                }
+            }
+            finally
+            {
+                foreach (var enumerator in enumerators.Values)
+                {
+                    await enumerator.DisposeAsync();
+                }
+            }
+        }
+
+        /// <inheritdoc />
+        public override async Task<string> GetHashAsync()
+        {
+            var hash = _keys.GetHashCode();
+            foreach (var pair in _dictionary.OrderBy(pair => pair.Key))
+            {
+                hash = HashCode.Combine(hash, await pair.Value.GetHashAsync());
+            }
+            return hash.ToString();
         }
 
         [ProtoContract]

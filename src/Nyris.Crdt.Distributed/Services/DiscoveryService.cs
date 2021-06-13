@@ -10,7 +10,7 @@ using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Strategies;
+using Nyris.Crdt.Distributed.Strategies.Discovery;
 using ProtoBuf.Grpc.Client;
 
 namespace Nyris.Crdt.Distributed.Services
@@ -44,7 +44,7 @@ namespace Nyris.Crdt.Distributed.Services
                 _logger.LogDebug("Attempting to connect to {NodeName} at {NodeAddress}", name, address);
                 using var channel = GrpcChannel.ForAddress(address);
 
-                if (channel.CreateGrpcService<TGrpcService>() is not IProxy<NodeSet.Dto> proxy)
+                if (channel.CreateGrpcService<TGrpcService>() is not IProxy<NodeSet.OrSetDto> proxy)
                 {
                     throw new InitializationException($"Internal error: specified {nameof(TGrpcService)} does not implement IProxy<NodeSet.Dto>");
                 }
@@ -52,7 +52,7 @@ namespace Nyris.Crdt.Distributed.Services
                 var dto = await _context.Nodes.ToDtoAsync();
                 var response = await proxy.SendAsync(dto.WithId(_context.Nodes.InstanceId));
                 _context.MergeAsync<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>,
-                    HashSet<NodeInfo>, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.Dto>(
+                    HashSet<NodeInfo>, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.OrSetDto>(
                     response.WithId(_context.Nodes.InstanceId));
             }
         }

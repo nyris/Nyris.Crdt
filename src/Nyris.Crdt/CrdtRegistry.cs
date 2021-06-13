@@ -52,7 +52,8 @@ namespace Nyris.Crdt
         private CrdtRegistry(Dto dto)
         {
             _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(dto.Keys);
-            _dictionary = dto.Dict.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value));
+            _dictionary = dto.Dict?.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
+                          ?? new Dictionary<TItemKey, TItemValue>();
         }
 
         public TItemValue GetOrCreate(TItemKey key, Func<(TActorId, TItemValue)> createFunc)

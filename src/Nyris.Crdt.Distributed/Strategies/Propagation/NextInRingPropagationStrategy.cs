@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed.Strategies
+namespace Nyris.Crdt.Distributed.Strategies.Propagation
 {
-    internal sealed class PropagationStrategy : IPropagationStrategy
+    internal sealed class NextInRingPropagationStrategy : IPropagationStrategy
     {
         /// <inheritdoc />
         public IEnumerable<NodeId> GetTargetNodes(IEnumerable<NodeInfo> nodes, NodeId thisNodeId)
