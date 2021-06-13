@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
@@ -11,9 +12,9 @@ namespace Nyris.Crdt.Distributed
 {
     public abstract class ManagedCrdtContext
     {
-        private readonly Dictionary<TypeAndInstanceId, object> _managedCrdts = new();
-        private readonly Dictionary<Type, object> _crdtFactories = new();
-        private readonly Dictionary<TypeNameAndInstanceId, IHashableAndHaveUniqueName> _sameManagedCrdts = new();
+        private readonly ConcurrentDictionary<TypeAndInstanceId, object> _managedCrdts = new();
+        private readonly ConcurrentDictionary<Type, object> _crdtFactories = new();
+        private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashableAndHaveUniqueName> _sameManagedCrdts = new();
 
         internal readonly NodeSet Nodes = new ("");
 
@@ -22,7 +23,7 @@ namespace Nyris.Crdt.Distributed
             Add(Nodes, NodeSet.DefaultFactory);
         }
 
-        protected void Add<TCrdt, TImplementation, TRepresentation, TDto>(TCrdt crdt, IAsyncCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto> factory)
+        protected internal void Add<TCrdt, TImplementation, TRepresentation, TDto>(TCrdt crdt, IManagedCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto> factory)
             where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
             where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
         {
@@ -44,6 +45,21 @@ namespace Nyris.Crdt.Distributed
             }
 
             _crdtFactories.TryAdd(typeof(TCrdt), factory);
+
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            if (crdt is ICreateManagedCrdtsInside compoundCrdt)
+            {
+                compoundCrdt.ManagedCrdtContext = this;
+            }
+        }
+
+        internal void Remove<TCrdt, TImplementation, TRepresentation, TDto>(TCrdt crdt)
+            where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
+            where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
+        {
+            _managedCrdts.TryRemove(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), out _);
+            _sameManagedCrdts.TryRemove(new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId), out _);
+            _crdtFactories.TryRemove(typeof(TCrdt), out _);
         }
 
         public async Task<TDto> MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(WithId<TDto> dto)
@@ -111,7 +127,7 @@ namespace Nyris.Crdt.Distributed
 
         private bool TryGetCrdtWithFactory<TCrdt, TImplementation, TRepresentation, TDto>(string instanceId,
             [NotNullWhen(true)] out TCrdt? crdt,
-            [NotNullWhen(true)] out IAsyncCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto>? factory)
+            [NotNullWhen(true)] out IManagedCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto>? factory)
             where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>
             where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
         {
@@ -119,7 +135,7 @@ namespace Nyris.Crdt.Distributed
             _crdtFactories.TryGetValue(typeof(TCrdt), out var factoryObject);
 
             crdt = crdtObject as TCrdt;
-            factory = factoryObject as IAsyncCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto>;
+            factory = factoryObject as IManagedCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto>;
             return crdt != null && factory != null;
         }
     }

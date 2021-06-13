@@ -6,16 +6,16 @@ using Nyris.Crdt.Distributed.Crdts;
 
 namespace Nyris.Crdt.AspNetExample
 {
-    internal sealed class GrowthSet : ManagedCRDT<GrowthSet, HashSet<int>, List<int>>
+    public sealed class ManagedGrowthSet : ManagedCRDT<ManagedGrowthSet, HashSet<int>, List<int>>
     {
         /// <inheritdoc />
-        public GrowthSet(string instanceId) : base(instanceId)
+        public ManagedGrowthSet(string instanceId) : base(instanceId)
         {
         }
 
-        private GrowthSet(HashSet<int> values) : base("")
+        private ManagedGrowthSet(List<int> values) : base("")
         {
-            Value = values;
+            Value = values.ToHashSet();
         }
 
         /// <inheritdoc />
@@ -28,7 +28,7 @@ namespace Nyris.Crdt.AspNetExample
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(GrowthSet other)
+        public override async Task<MergeResult> MergeAsync(ManagedGrowthSet other)
         {
             Value.UnionWith(other.Value);
             await StateChangedAsync();
@@ -45,7 +45,7 @@ namespace Nyris.Crdt.AspNetExample
         }
 
         /// <inheritdoc />
-        public override string TypeName { get; } = nameof(GrowthSet);
+        public override string TypeName { get; } = nameof(ManagedGrowthSet);
 
         /// <inheritdoc />
         public override async Task<string> GetHashAsync() => Value
@@ -53,13 +53,15 @@ namespace Nyris.Crdt.AspNetExample
             .Aggregate(0, HashCode.Combine)
             .ToString();
 
-        public static readonly IAsyncCRDTFactory<GrowthSet, HashSet<int>, List<int>>
+        public static readonly IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
             DefaultFactory = new GrowthSetFactory();
 
-        private sealed class GrowthSetFactory : IAsyncCRDTFactory<GrowthSet, HashSet<int>, List<int>>
-        {
-            /// <inheritdoc />
-            public GrowthSet Create(List<int> dto) => new(dto.ToHashSet());
-        }
+        public static ManagedGrowthSet FromDto(List<int> dto) => new(dto);
+    }
+
+    public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
+    {
+        /// <inheritdoc />
+        public ManagedGrowthSet Create(List<int> dto) => ManagedGrowthSet.FromDto(dto);
     }
 }

@@ -29,10 +29,10 @@ namespace Nyris.Crdt.Distributed
         }
         {{~ for type in CrdtInfos ~}}
 
-        async IAsyncEnumerable<WithId<{{ type.DtoTypeName }}>> IProxy<{{type.DtoTypeName}}>.EnumerateCrdtAsync(TypeNameAndInstanceId nameAndInstanceId)
+ /*       IAsyncEnumerable<WithId<{{ type.DtoTypeName }}>> IProxy<{{type.DtoTypeName}}>.EnumerateCrdtAsync(TypeNameAndInstanceId nameAndInstanceId)
         {
             throw new NotImplementedException();
-        }
+        }  */
 
         public Task<{{ type.DtoTypeName }}> SendAsync(WithId<{{ type.DtoTypeName }}> dto)
         {

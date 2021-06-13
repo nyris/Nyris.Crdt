@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Nyris.Crdt
 {
     public interface ICRDT<in TImplementation, out TRepresentation>
@@ -7,7 +5,7 @@ namespace Nyris.Crdt
     {
         TRepresentation Value { get; }
 
-        MergeResult MergeAsync(TImplementation other);
+        MergeResult Merge(TImplementation other);
     }
 
     public interface ICRDT<in TImplementation, out TRepresentation, out TDto> : ICRDT<TImplementation, TRepresentation>

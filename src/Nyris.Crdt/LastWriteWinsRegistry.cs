@@ -103,7 +103,7 @@ namespace Nyris.Crdt
             }
         }
 
-        public MergeResult MergeAsync(LastWriteWinsRegistry<TKey, TValue, TTimeStamp> other)
+        public MergeResult Merge(LastWriteWinsRegistry<TKey, TValue, TTimeStamp> other)
         {
             lock (_mergeLock)
             {

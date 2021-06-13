@@ -6,7 +6,7 @@ namespace Nyris.Crdt.Distributed.Exceptions
 {
     /// <inheritdoc />
     [Serializable]
-    public  class InitializationException : NyrisException
+    public class InitializationException : NyrisException
     {
         /// <inheritdoc />
         public InitializationException() : base()

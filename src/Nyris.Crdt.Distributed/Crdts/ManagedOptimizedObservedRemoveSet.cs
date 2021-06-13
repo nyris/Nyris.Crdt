@@ -15,11 +15,11 @@ namespace Nyris.Crdt.Distributed.Crdts
     /// It is O(E*n + n), where E is the number of elements and n is the number of actors.
     /// </summary>
     [DebuggerDisplay("{_items.Count < 10 ? string.Join(';', _items) : \"... a lot of items ...\"}")]
-    public abstract class OptimizedObservedRemoveSet<TActorId, TItem>
+    public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem>
         : ManagedCRDT<
-            OptimizedObservedRemoveSet<TActorId, TItem>,
+            ManagedOptimizedObservedRemoveSet<TActorId, TItem>,
             HashSet<TItem>,
-            OptimizedObservedRemoveSet<TActorId, TItem>.Dto>
+            ManagedOptimizedObservedRemoveSet<TActorId, TItem>.Dto>
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>
     {
@@ -27,13 +27,13 @@ namespace Nyris.Crdt.Distributed.Crdts
         private readonly Dictionary<TActorId, uint> _observedState;
         private readonly SemaphoreSlim _semaphore = new(1);
 
-        protected OptimizedObservedRemoveSet(string id) : base(id)
+        protected ManagedOptimizedObservedRemoveSet(string id) : base(id)
         {
             _items = new HashSet<VersionedSignedItem<TActorId, TItem>>();
             _observedState = new Dictionary<TActorId, uint>();
         }
 
-        protected OptimizedObservedRemoveSet(Dto dto) : base("")
+        protected ManagedOptimizedObservedRemoveSet(Dto dto) : base("")
         {
             _items = dto.Items;
             _observedState = dto.ObservedState;
@@ -135,7 +135,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             await StateChangedAsync();
         }
 
-        public override async Task<MergeResult> MergeAsync(OptimizedObservedRemoveSet<TActorId, TItem> other)
+        public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<TActorId, TItem> other)
         {
             if (await GetHashAsync() == await other.GetHashAsync())
             {

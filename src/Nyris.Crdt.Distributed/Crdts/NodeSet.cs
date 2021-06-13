@@ -3,7 +3,7 @@ using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
-    public sealed class NodeSet : OptimizedObservedRemoveSet<NodeId, NodeInfo>
+    public sealed class NodeSet : ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>
     {
         /// <inheritdoc />
         public NodeSet(string id) : base(id)
@@ -14,9 +14,9 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
         }
 
-        public static readonly IAsyncCRDTFactory<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto> DefaultFactory = new Factory();
+        public static readonly IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto> DefaultFactory = new Factory();
 
-        private sealed class Factory : IAsyncCRDTFactory<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto>
+        private sealed class Factory : IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, Dto>
         {
             public NodeSet Create(Dto dto) => new (dto);
         }

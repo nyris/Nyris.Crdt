@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using ProtoBuf;
 
 namespace Nyris.Crdt.Sets
 {
@@ -100,7 +101,7 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        public MergeResult MergeAsync(OptimizedObservedRemoveSet<TActorId, TItem> other)
+        public MergeResult Merge(OptimizedObservedRemoveSet<TActorId, TItem> other)
         {
             if (GetHashCode() == other.GetHashCode())
             {
@@ -144,9 +145,13 @@ namespace Nyris.Crdt.Sets
             return MergeResult.ConflictSolved;
         }
 
+        [ProtoContract]
         public sealed class Dto
         {
+            [ProtoMember(1)]
             public HashSet<VersionedSignedItem<TActorId, TItem>> Items { get; set; } = new();
+
+            [ProtoMember(2)]
             public Dictionary<TActorId, uint> ObservedState { get; set; } = new();
         }
 

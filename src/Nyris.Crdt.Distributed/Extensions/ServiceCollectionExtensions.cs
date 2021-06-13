@@ -19,8 +19,8 @@ namespace Nyris.Crdt.Distributed.Extensions
             services.TryAddSingleton(NodeInfoProvider.GetMyNodeInfo());
             services.TryAddSingleton<IPropagationStrategy, PropagationStrategy>();
             services.AddSender<TGrpcService, NodeSet,
-                    OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>,
-                    OptimizedObservedRemoveSet<NodeId, NodeInfo>.Dto>();
+                    ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>,
+                    ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.Dto>();
             return services;
         }
 

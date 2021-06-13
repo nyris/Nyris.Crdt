@@ -51,8 +51,8 @@ namespace Nyris.Crdt.Distributed.Services
 
                 var dto = await _context.Nodes.ToDtoAsync();
                 var response = await proxy.SendAsync(dto.WithId(_context.Nodes.InstanceId));
-                _context.MergeAsync<NodeSet, OptimizedObservedRemoveSet<NodeId, NodeInfo>,
-                    HashSet<NodeInfo>, OptimizedObservedRemoveSet<NodeId, NodeInfo>.Dto>(
+                _context.MergeAsync<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>,
+                    HashSet<NodeInfo>, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.Dto>(
                     response.WithId(_context.Nodes.InstanceId));
             }
         }
