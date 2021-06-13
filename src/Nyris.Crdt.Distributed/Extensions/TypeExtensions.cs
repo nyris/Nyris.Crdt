@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Extensions
 {
     internal static class TypeExtensions
     {

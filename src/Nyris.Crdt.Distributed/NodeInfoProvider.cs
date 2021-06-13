@@ -1,8 +1,8 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Experiments.Consensus.Server.Exceptions;
 
 namespace Nyris.Crdt.Distributed
 {

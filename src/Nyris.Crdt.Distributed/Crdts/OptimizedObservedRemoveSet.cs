@@ -88,6 +88,7 @@ namespace Nyris.Crdt.Distributed.Crdts
                 _items.RemoveWhere(i => i.Item.Equals(item) && i.Version < observedVersion && i.Actor.Equals(actorPerformingAddition));
                 _observedState[actorPerformingAddition] = observedVersion;
             }
+            StateChanged();
         }
 
         public void Remove(TItem item) => Remove(i => i.Equals(item));
@@ -98,6 +99,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             {
                 _items.RemoveWhere(i => condition(i.Item));
             }
+            StateChanged();
         }
 
         public override MergeResult Merge(OptimizedObservedRemoveSet<TActorId, TItem> other)
@@ -140,6 +142,7 @@ namespace Nyris.Crdt.Distributed.Crdts
                     _observedState[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
                 }
             }
+            StateChanged();
 
             return MergeResult.ConflictSolved;
         }

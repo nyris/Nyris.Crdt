@@ -3,7 +3,7 @@ using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
-    internal sealed class NodeSet : OptimizedObservedRemoveSet<NodeId, NodeInfo>
+    public sealed class NodeSet : OptimizedObservedRemoveSet<NodeId, NodeInfo>
     {
         /// <inheritdoc />
         public NodeSet(int id) : base(id)

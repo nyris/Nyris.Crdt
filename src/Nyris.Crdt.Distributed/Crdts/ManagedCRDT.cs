@@ -1,4 +1,5 @@
-﻿using Nyris.Crdt.Distributed.Model;
+﻿using Nyris.Crdt.Distributed.Extensions;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {

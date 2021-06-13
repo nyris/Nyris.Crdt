@@ -2,7 +2,7 @@ using System;
 using System.Runtime.Serialization;
 using Nyris.Contracts.Exceptions;
 
-namespace Nyris.Experiments.Consensus.Server.Exceptions
+namespace Nyris.Crdt.Distributed.Exceptions
 {
     /// <inheritdoc />
     [Serializable]

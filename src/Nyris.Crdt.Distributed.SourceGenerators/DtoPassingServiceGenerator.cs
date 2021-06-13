@@ -54,6 +54,12 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
         private List<CrdtInfo> GetCrdtInfos(GeneratorExecutionContext context, IEnumerable<ClassDeclarationSyntax> candidates)
         {
             var crdtInfos = new List<CrdtInfo>();
+
+            // process predefined internal crdts
+            var nodeSet = context.Compilation.GetTypeByMetadataName("Nyris.Crdt.Distributed.Crdts.NodeSet");
+            TraverseNamedTypeSymbolInheritanceChain(nodeSet, crdtInfos);
+
+            // process user-defined crdts
             foreach (var candidateClass in candidates)
             {
                 _log.AppendLine("Analysing class: " + candidateClass.Identifier.ToFullString());

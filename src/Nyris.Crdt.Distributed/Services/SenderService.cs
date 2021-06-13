@@ -4,10 +4,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Services
 {
     internal sealed class SenderService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
         where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation

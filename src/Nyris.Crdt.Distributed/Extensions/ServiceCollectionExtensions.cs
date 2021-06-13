@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Strategies;
 
 namespace Nyris.Crdt.Distributed.Extensions
@@ -11,9 +14,13 @@ namespace Nyris.Crdt.Distributed.Extensions
             where TGrpcService : class
         {
             services.AddSingleton<ChannelManager<TGrpcService>>();
+            services.AddHostedService<DiscoveryService<TGrpcService>>();
 
             services.TryAddSingleton(NodeInfoProvider.GetMyNodeInfo());
             services.TryAddSingleton<IPropagationStrategy, PropagationStrategy>();
+            services.AddSender<TGrpcService, NodeSet,
+                    OptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>,
+                    OptimizedObservedRemoveSet<NodeId, NodeInfo>.Dto>();
             return services;
         }
 

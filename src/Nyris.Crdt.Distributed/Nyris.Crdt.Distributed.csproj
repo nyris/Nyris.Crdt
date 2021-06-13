@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
-        <TargetFrameworks>net5.0</TargetFrameworks>
+        <TargetFramework>net5.0</TargetFramework>
         <LangVersion>9</LangVersion>
         <Nullable>enable</Nullable>
     </PropertyGroup>
@@ -10,21 +9,10 @@
         <PackageReference Include="Grpc.Net.Client" Version="2.36.0" />
         <PackageReference Include="protobuf-net" Version="2.4.6" />
         <PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="1.0.152" />
+        <PackageReference Include="KubernetesClient" Version="5.0.10" />
     </ItemGroup>
     
     <ItemGroup>
         <ProjectReference Include="..\Nyris.Crdt\Nyris.Crdt.csproj" />
-    </ItemGroup>
-    
-    <ItemGroup>
-      <Compile Remove="obj\**" />
-    </ItemGroup>
-    
-    <ItemGroup>
-      <EmbeddedResource Remove="obj\**" />
-    </ItemGroup>
-    
-    <ItemGroup>
-      <None Remove="obj\**" />
     </ItemGroup>
 </Project>

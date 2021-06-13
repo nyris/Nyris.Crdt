@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Nyris.Crdt.Distributed.Extensions;
 using ProtoBuf.Grpc.Server;
@@ -6,7 +8,7 @@ namespace Nyris.Crdt.Distributed
 {
     internal static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddManagedCrdts<TContext>(this IServiceCollection services)
+        public static ManagedCrdtsServicesBuilder AddManagedCrdts<TContext>(this IServiceCollection services)
             where TContext : ManagedCrdtContext
         {
             services.AddCodeFirstGrpc(options =>
@@ -23,7 +25,13 @@ namespace Nyris.Crdt.Distributed
             services.AddSender<IDtoPassingService, {{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>();
             {{~ end ~}}
 
-            return services;
+            return new ManagedCrdtsServicesBuilder(services);
+        }
+
+        public static IEndpointRouteBuilder MapManagedCrdtService(this IEndpointRouteBuilder endpoints)
+        {
+            endpoints.MapGrpcService<DtoPassingService>();
+            return endpoints;
         }
     }
 }

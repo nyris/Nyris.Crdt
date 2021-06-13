@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Nyris.Crdt.Distributed;
 using Nyris.Crdt.Distributed.Crdts;
 
 namespace Nyris.Crdt.AspNetExample
@@ -20,10 +19,17 @@ namespace Nyris.Crdt.AspNetExample
         /// <inheritdoc />
         public override HashSet<int> Value { get; } = new();
 
+        public void Add(int item)
+        {
+            Value.Add(item);
+            StateChanged();
+        }
+
         /// <inheritdoc />
         public override MergeResult Merge(GrowthSet other)
         {
             Value.UnionWith(other.Value);
+            StateChanged();
             return MergeResult.ConflictSolved;
         }
 

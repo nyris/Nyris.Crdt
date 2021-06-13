@@ -1,7 +1,7 @@
 
 using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Extensions
 {
     internal static class WithIdExtensions
     {
