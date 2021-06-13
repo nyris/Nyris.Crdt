@@ -6,7 +6,7 @@ namespace Nyris.Crdt.Distributed.Crdts
     public sealed class NodeSet : OptimizedObservedRemoveSet<NodeId, NodeInfo>
     {
         /// <inheritdoc />
-        public NodeSet(int id) : base(id)
+        public NodeSet(string id) : base(id)
         {
         }
 

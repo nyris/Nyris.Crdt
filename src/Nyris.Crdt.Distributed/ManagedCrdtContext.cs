@@ -15,7 +15,7 @@ namespace Nyris.Crdt.Distributed
         private readonly Dictionary<Type, object> _crdtFactories = new();
         private readonly Dictionary<TypeNameAndInstanceId, IHashableAndHaveUniqueName> _sameManagedCrdts = new();
 
-        internal readonly NodeSet Nodes = new (-1);
+        internal readonly NodeSet Nodes = new ("");
 
         protected ManagedCrdtContext()
         {
@@ -109,7 +109,7 @@ namespace Nyris.Crdt.Distributed
             }
         }
 
-        private bool TryGetCrdtWithFactory<TCrdt, TImplementation, TRepresentation, TDto>(int instanceId,
+        private bool TryGetCrdtWithFactory<TCrdt, TImplementation, TRepresentation, TDto>(string instanceId,
             [NotNullWhen(true)] out TCrdt? crdt,
             [NotNullWhen(true)] out IAsyncCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto>? factory)
             where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>

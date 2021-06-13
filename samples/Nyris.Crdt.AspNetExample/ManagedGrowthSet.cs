@@ -9,11 +9,11 @@ namespace Nyris.Crdt.AspNetExample
     internal sealed class GrowthSet : ManagedCRDT<GrowthSet, HashSet<int>, List<int>>
     {
         /// <inheritdoc />
-        public GrowthSet(int instanceId) : base(instanceId)
+        public GrowthSet(string instanceId) : base(instanceId)
         {
         }
 
-        private GrowthSet(HashSet<int> values) : base(-1)
+        private GrowthSet(HashSet<int> values) : base("")
         {
             Value = values;
         }

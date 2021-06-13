@@ -5,9 +5,9 @@ namespace Nyris.Crdt.Distributed.Model
     public readonly struct TypeAndInstanceId
     {
         public readonly Type Type;
-        public readonly int InstanceId;
+        public readonly string InstanceId;
 
-        public TypeAndInstanceId(Type type, int instanceId)
+        public TypeAndInstanceId(Type type, string instanceId)
         {
             InstanceId = instanceId;
             Type = type;

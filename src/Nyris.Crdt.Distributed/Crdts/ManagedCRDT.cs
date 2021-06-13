@@ -19,7 +19,7 @@ namespace Nyris.Crdt.Distributed.Crdts
     public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : IAsyncCRDT<TImplementation, TRepresentation, TDto>, IHashableAndHaveUniqueName
         where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
     {
-        public readonly int InstanceId;
+        public readonly string InstanceId;
         private readonly AsyncQueue<WithId<TDto>> _queue;
 
         /// <summary>
@@ -29,7 +29,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         /// For example, if there nodes (servers) A and B and they try to share two instanced of CRDT type T.
         /// When node A updates first instance and sends that update to B, B needs to somehow
         /// distinguish which instance was updated. </param>
-        protected ManagedCRDT(int instanceId)
+        protected ManagedCRDT(string instanceId)
         {
             _queue = Queues.GetQueue<TDto>(GetType());
             InstanceId = instanceId;

@@ -27,13 +27,13 @@ namespace Nyris.Crdt.Distributed.Crdts
         private readonly Dictionary<TActorId, uint> _observedState;
         private readonly SemaphoreSlim _semaphore = new(1);
 
-        protected OptimizedObservedRemoveSet(int id) : base(id)
+        protected OptimizedObservedRemoveSet(string id) : base(id)
         {
             _items = new HashSet<VersionedSignedItem<TActorId, TItem>>();
             _observedState = new Dictionary<TActorId, uint>();
         }
 
-        protected OptimizedObservedRemoveSet(Dto dto) : base(-1)
+        protected OptimizedObservedRemoveSet(Dto dto) : base("")
         {
             _items = dto.Items;
             _observedState = dto.ObservedState;

@@ -10,7 +10,7 @@ namespace Nyris.Crdt.AspNetExample
             Add(Set2, GrowthSet.DefaultFactory);
         }
 
-        public GrowthSet Set1 { get; } = new(0);
-        public GrowthSet Set2 { get; } = new(1);
+        public GrowthSet Set1 { get; } = new("0");
+        public GrowthSet Set2 { get; } = new("aaa");
     }
 }
