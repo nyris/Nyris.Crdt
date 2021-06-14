@@ -15,7 +15,7 @@ variables:
     - find kubernetes/sample -type f -exec sed -i "s?{{ ASPNETCORE_ENVIRONMENT }}?$ASPNETCORE_ENVIRONMENT?g" {} \;
     - find kubernetes/sample -type f -exec sed -i "s?{{ VERSION }}?$VERSION?g" {} \;
     - apply-deployment $GCP_IMAGE_URL $CI_BUILD_REF kubernetes/sample
-    - wait-for-deployment -n distributed $DEPLOYMENT_NAME 300
+    - wait-for-deployment -n distributed-prototype-test $DEPLOYMENT_NAME 300
 
 before_script:
   - REF_NAME=${CI_BUILD_REF_NAME//\//-}
