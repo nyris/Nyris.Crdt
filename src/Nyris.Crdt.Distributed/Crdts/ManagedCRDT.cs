@@ -13,9 +13,14 @@ namespace Nyris.Crdt.Distributed.Crdts
     ///     DO NOT CHANGE THIS TYPE'S NAME LIGHTLY
     ///     It is used without referencing the type directly (or project at all) in the SourceGenerator project as const string.
     /// </remarks>
-    /// <typeparam name="TImplementation"></typeparam>
-    /// <typeparam name="TRepresentation"></typeparam>
-    /// <typeparam name="TDto"></typeparam>
+    /// <typeparam name="TImplementation">The type that implements <see cref="IAsyncCRDT{TImplementation, TRepresentation, TDto}"/>. 
+    /// Usually you pass here the your type, that inherits ManagedCRDT. </typeparam>
+    /// <typeparam name="TRepresentation">That's how CRDT looks on the outside. 
+    /// For example, a fancy CRDT set, which tracks who is doing the deletion, still provides
+    /// a basic HashSet<> Value to it's users.</typeparam>
+    /// <typeparam name="TDto">It's a dto type, that is used as a data contract for grpc
+    /// communication. So it should be properly annotated with <see cref="ProtoContract"/> 
+    /// and <see cref="ProtoMember"/>.</typeparam>
     public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : IAsyncCRDT<TImplementation, TRepresentation, TDto>, IHashableAndHaveUniqueName
         where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
     {
