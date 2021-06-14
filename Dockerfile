@@ -4,6 +4,6 @@ LABEL maintainer="Nikita Chizhov <nikita@nyris.io>"
 WORKDIR /app
 COPY publish/ /app/
 
-RUN ln -sf /config/config.json /app/appsettings.json
+RUN ln -sf /config/appsettings.json /app/appsettings.local.json
 
 CMD ["./Nyris.Crdt.AspNetExample"]
