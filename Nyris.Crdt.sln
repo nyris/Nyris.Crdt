@@ -8,6 +8,7 @@ ProjectSection(SolutionItems) = preProject
 	README.md = README.md
 	Dockerfile = Dockerfile
 	.gitlab-ci.yml = .gitlab-ci.yml
+	GitVersion.yml = GitVersion.yml
 EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Distributed.SourceGenerators", "src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj", "{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}"
