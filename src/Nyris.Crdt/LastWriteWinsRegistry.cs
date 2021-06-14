@@ -111,13 +111,19 @@ namespace Nyris.Crdt
                 foreach (var key in _items.Keys.Union(other._items.Keys))
                 {
                     var iHave = _items.TryGetValue(key, out var myItem);
-                    var otherHas = _items.TryGetValue(key, out var otherItem);
+                    var otherHas = other._items.TryGetValue(key, out var otherItem);
 
-                    if (!conflictSolved || iHave != otherHas || myItem.TimeStamp.CompareTo(otherItem.TimeStamp) != 0)
-                    {
-                        conflictSolved = true;
-                    }
+                    conflictSolved = conflictSolved  // if conflict was in the previous key, keep the true value immediately
+                                     || iHave != otherHas // or if current key is missing from one of the registries
+                                     || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) != 0;
+                    // notes on last condition: notice that iHave and otherHas can have only 3 possibilities:
+                    // true-false, false-true and true-true. false-false is not possible, since in that case we would not
+                    // have this key to begin with. And true-false, false-true both satisfy iHave != otherHas
+                    // and execution would have stopped there. Only when both items were retrieved successfully, will
+                    // we evaluate the last condition.
 
+                    // case when 'this' registry have newer version of item or other does not have an item at all
+                    // no need to update anything
                     if (iHave && otherHas && myItem.TimeStamp.CompareTo(otherItem.TimeStamp) >= 0 ||
                         !otherHas)
                     {

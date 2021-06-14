@@ -56,15 +56,8 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override Dictionary<TItemKey, TItemValueRepresentation> Value
-        {
-            get
-            {
-                _semaphore.Wait();
-                try { return _dictionary.ToDictionary(pair => pair.Key, pair => pair.Value.Value); }
-                finally { _semaphore.Release(); }
-            }
-        }
+        public override Dictionary<TItemKey, TItemValueRepresentation> Value => _dictionary
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Value);
 
         public ManagedCrdtContext ManagedCrdtContext
         {
@@ -75,25 +68,23 @@ namespace Nyris.Crdt.Distributed.Crdts
 
         public async Task<TItemValue> GetOrCreateAsync(TItemKey key, Func<(TActorId, TItemValue)> createFunc)
         {
-            TItemValue value;
             await _semaphore.WaitAsync();
             try
             {
-                if (_dictionary.TryGetValue(key, out value!)) return value;
+                if (_dictionary.TryGetValue(key, out var value)) return value;
 
                 var (actorId, newValue) = createFunc();
-                value = newValue;
 
                 _keys.Add(key, actorId);
-                _dictionary.TryAdd(key, value);
-                ManagedCrdtContext.Add(value, Factory);
+                _dictionary.TryAdd(key, newValue);
+                ManagedCrdtContext.Add(newValue, Factory);
+                return newValue;
             }
             finally
             {
                 _semaphore.Release();
+                await StateChangedAsync();
             }
-            await StateChangedAsync();
-            return value;
         }
 
         public async Task RemoveAsync(TItemKey key)
@@ -110,13 +101,12 @@ namespace Nyris.Crdt.Distributed.Crdts
             finally
             {
                 _semaphore.Release();
+                await StateChangedAsync();
             }
-            await StateChangedAsync();
         }
 
         public override async Task<MergeResult> MergeAsync(ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory> other)
         {
-            bool conflict;
             await _semaphore.WaitAsync();
             try
             {
@@ -132,7 +122,7 @@ namespace Nyris.Crdt.Distributed.Crdts
                 }
 
                 // merge values
-                conflict = keyResult == MergeResult.ConflictSolved;
+                var conflict = keyResult == MergeResult.ConflictSolved;
                 foreach (var key in _keys.Value)
                 {
                     var iHave = _dictionary.TryGetValue(key, out var myValue);
@@ -149,14 +139,13 @@ namespace Nyris.Crdt.Distributed.Crdts
                         conflict = true;
                     }
                 }
+                return conflict ? MergeResult.ConflictSolved : MergeResult.Identical;
             }
             finally
             {
                 _semaphore.Release();
+                await StateChangedAsync();
             }
-
-            await StateChangedAsync();
-            return conflict ? MergeResult.ConflictSolved : MergeResult.Identical;
         }
 
         public override async Task<RegistryDto> ToDtoAsync()

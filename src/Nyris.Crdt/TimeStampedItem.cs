@@ -1,15 +1,20 @@
 using System;
+using ProtoBuf;
 
 namespace Nyris.Crdt
 {
-    public struct TimeStampedItem<TValue, TTimeStamp>
+    [ProtoContract]
+    public sealed class TimeStampedItem<TValue, TTimeStamp>
         where TTimeStamp : IComparable<TTimeStamp>
     {
-        public TValue Value;
+        [ProtoMember(1)]
+        public TValue Value { get; set; }
 
-        public TTimeStamp TimeStamp;
+        [ProtoMember(2)]
+        public TTimeStamp TimeStamp { get; set; }
 
-        public bool Deleted;
+        [ProtoMember(3)]
+        public bool Deleted { get; set; }
 
         public TimeStampedItem(TValue value, TTimeStamp timeStamp, bool deleted)
         {
@@ -17,5 +22,7 @@ namespace Nyris.Crdt
             TimeStamp = timeStamp;
             Deleted = deleted;
         }
+
+        public string GetHash() => HashCode.Combine(Value, TimeStamp, Deleted).ToString();
     }
 }
