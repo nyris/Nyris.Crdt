@@ -40,7 +40,7 @@ build:
       - publish/
   script:
     - v2-autobuild
-    - v3-publish-app Release alpine-x64 sample/Nyris.Crdt.AspNetExample
+    - v3-publish-app Release alpine-x64 sample/Nyris.Crdt.AspNetExample.csproj
 
 build-docker:
   stage: docker:build
