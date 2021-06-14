@@ -10,13 +10,7 @@
 <!--    </PropertyGroup>-->
 
     <ItemGroup>
-        <!-- Don't include the output from a previous source generator execution into future runs; the */** trick here ensures that there's
-        at least one subdirectory, which is our key that it's coming from a source generator as opposed to something that is coming from
-        some other tool. -->
-<!--        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/*/**/*.cs" />-->
-    </ItemGroup>
-
-    <ItemGroup>
+        <PackageReference Include="MongoDB.Driver" Version="2.12.4" />
         <PackageReference Include="Nyris.Model.Ids" Version="0.1.0" />
         <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.2.1" />
         <PackageReference Include="Nyris.EventBus.AspNetCore" Version="0.11.0" />

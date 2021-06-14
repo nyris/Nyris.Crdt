@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 using Nyris.Crdt.Distributed;
 using Nyris.EventBus.AspNetCore;
 using Serilog;
@@ -39,6 +41,14 @@ namespace Nyris.Crdt.AspNetExample
             {
                 cb.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin().Build();
             }));
+
+            services.Configure<MongoConfiguration>(c => Configuration.GetSection("MongoDb").Bind(c));
+            services.AddTransient(sp => sp.GetRequiredService<IOptions<MongoConfiguration>>().Value);
+
+            var mongoUrl = new MongoUrl(Configuration.GetSection("MongoDb:connectionString").Value);
+            services
+                .AddSingleton<IMongoClient>(new MongoClient(mongoUrl))
+                .AddSingleton<MongoContext>();
 
             services.AddMetrics();
         }

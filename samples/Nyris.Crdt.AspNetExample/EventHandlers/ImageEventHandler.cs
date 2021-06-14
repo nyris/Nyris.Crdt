@@ -10,16 +10,19 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
     internal abstract class ImageEventHandler<TMessage> : MessageHandler<TMessage> where TMessage : ImageEvent
     {
         private readonly ILogger _logger;
+        private readonly MongoContext _context;
 
-        protected ImageEventHandler(ILogger logger)
+        protected ImageEventHandler(ILogger logger, MongoContext context)
         {
             _logger = logger;
+            _context = context;
         }
 
         public override async Task HandleAsync(TMessage message, MessageContext context)
         {
             try
             {
+                await _context.Images.InsertOneAsync(message.ToBson(context.Timestamp));
                 await TryHandleAsync(message, context.Timestamp);
             }
             catch (OperationCanceledException)
