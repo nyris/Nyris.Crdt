@@ -56,7 +56,7 @@ namespace Nyris.Crdt.Distributed.Services
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError("Unhandled exception during sending a dto: {Exception}", e.ToString());
+                    _logger.LogError(e, "Unhandled exception during sending a dto");
                 }
             }
         }

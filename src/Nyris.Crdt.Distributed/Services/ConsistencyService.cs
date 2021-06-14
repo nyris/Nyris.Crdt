@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Consistency;
@@ -47,8 +48,8 @@ namespace Nyris.Crdt.Distributed.Services
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError("Unhandled exception in {ServiceName} for Crdt of type {CrdtType}: {Exception}",
-                        typeof(ConsistencyService<,,,,>), typeof(TCrdt), e.ToString());
+                    _logger.LogError(e, "Unhandled exception in {ServiceName} for Crdt of type {CrdtType}",
+                        typeof(ConsistencyService<,,,,>), typeof(TCrdt));
                 }
 
                 await Task.Delay(1000, stoppingToken);
@@ -57,7 +58,15 @@ namespace Nyris.Crdt.Distributed.Services
 
         private async Task TryHandleConsistencyCheck(CancellationToken cancellationToken)
         {
-            var typeName = _context.GetTypeName<TCrdt>();
+            string typeName;
+            try
+            {
+                typeName = _context.GetTypeName<TCrdt>();
+            }
+            catch (ManagedCrdtContextSetupException e)
+            {
+                return;
+            }
 
             foreach (var nodeId in _strategy.GetTargetNodes(_context.Nodes.Value, _thisNodeId))
             {

@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app
+  namespace: distributed-prototype-test
+  labels:
+    app: sample-app
+    version: {{ VERSION }}
+    commit: {{ COMMIT }}
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: sample-app
+  template:
+    metadata:
+      labels:
+        app: sample-app
+        version: {{ VERSION }}
+        commit: {{ COMMIT }}
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '5000'
+    spec:
+      serviceAccountName: sample-app
+      containers:
+        - name: app
+          image: {{ IMAGE }}
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: 4Gi
+              cpu: 1
+            requests:
+              cpu: 500m
+              memory: 3Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 600
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            timeoutSeconds: 2
+          ports:
+            - containerPort: 4999
+              name: grpc
+              protocol: TCP
+            - containerPort: 5000
+              name: others
+              protocol: TCP
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: {{ ASPNETCORE_ENVIRONMENT }}
+            - name: OpenTelemetry__ServiceName
+              value: distributed-prototype-test.sample-app
+            - name: OpenTelemetry__Exporter
+              value: jaeger
+            - name: OpenTelemetry__Jaeger__Endpoint
+              value: udp://jaeger-agent.istio-system.svc.cluster.local:6831
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          secret:
+            secretName: distributed-prototype-test-sample-app-config-v0.1.0

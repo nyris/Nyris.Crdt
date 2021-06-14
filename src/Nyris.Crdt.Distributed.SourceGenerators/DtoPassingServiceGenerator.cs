@@ -19,7 +19,7 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
         // TODO: currently it does not seem possible to reference another project from source generator project, fix when possible
         private const string ManagedCRDTTypeName = "ManagedCRDT";
 
-        private StringBuilder _log = new("/*");
+        private readonly StringBuilder _log = new("/*");
 
         /// <inheritdoc />
         public void Initialize(GeneratorInitializationContext context)

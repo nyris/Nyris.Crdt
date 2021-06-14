@@ -27,9 +27,9 @@ namespace Nyris.Crdt.Distributed.Crdts
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
         }
 
-        protected ManagedLastWriteWinsDeltaRegistry(ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> items) : base("")
+        protected ManagedLastWriteWinsDeltaRegistry(LastWriteWinsDto dto) : base("")
         {
-            _items = items;
+            _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto.Items);
         }
 
         /// <inheritdoc />
@@ -160,9 +160,6 @@ namespace Nyris.Crdt.Distributed.Crdts
                 };
             }
         }
-
-        /// <inheritdoc />
-        public override string TypeName { get; } = nameof(ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>);
 
         /// <inheritdoc />
         public override async Task<string> GetHashAsync()

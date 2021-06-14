@@ -1,0 +1,67 @@
+variables:
+  GCP_REGISTY_URL: eu.gcr.io/everybag-1273
+  IMAGE_NAME: nyris-distributed-prototype-sample-app
+  DEPLOYMENT_NAME: sample-app
+  VERSION: ${CI_COMMIT_SHORT_SHA}-${CI_COMMIT_REF_SLUG}
+
+  NUGET_PACKAGES: $CI_PROJECT_DIR/packages/
+  BUILD_IMAGE: eu.gcr.io/everybag-1273/dotnet/sdk-ci:5.0
+
+.deploy:
+  dependencies: [] # do not copy dependencies
+  stage: deploy
+  when: manual
+  script:
+    - find kubernetes/sample -type f -exec sed -i "s?{{ ASPNETCORE_ENVIRONMENT }}?$ASPNETCORE_ENVIRONMENT?g" {} \;
+    - find kubernetes/sample -type f -exec sed -i "s?{{ VERSION }}?$VERSION?g" {} \;
+    - apply-deployment $GCP_IMAGE_URL $CI_BUILD_REF kubernetes/sample
+    - wait-for-deployment -n distributed $DEPLOYMENT_NAME 300
+
+before_script:
+  - REF_NAME=${CI_BUILD_REF_NAME//\//-}
+  - GCP_IMAGE_URL=$GCP_REGISTY_URL/$IMAGE_NAME:$REF_NAME
+
+stages:
+  - build
+  - docker:build
+  - deploy
+
+build:
+  stage: build
+  except:
+    - master
+  tags:
+    - builder
+    - integration
+  image: $BUILD_IMAGE
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - publish/
+  script:
+    - v2-autobuild
+    - v2-test-all net5.0
+    - v3-publish-app Release alpine-x64 sample/Nyris.Crdt.AspNetExample
+
+build-docker:
+  stage: docker:build
+  dependencies:
+    - build
+  script:
+    - docker build -f Dockerfile -t $GCP_IMAGE_URL .
+    - docker push $GCP_IMAGE_URL
+  tags:
+    - docker
+    - integration
+  except:
+    - master
+
+integration:
+  extends: .deploy
+  variables:
+    ASPNETCORE_ENVIRONMENT: Development
+  tags:
+    - deployer
+    - integration
+  environment:
+    name: integration

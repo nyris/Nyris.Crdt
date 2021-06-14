@@ -117,7 +117,10 @@ namespace Nyris.Crdt.Distributed.Crdts
                 {
                     foreach (var keyToDrop in _dictionary.Keys.Except(_keys.Value))
                     {
-                        _dictionary.TryRemove(keyToDrop, out _);
+                        if (_dictionary.TryRemove(keyToDrop, out var crdt))
+                        {
+                            ManagedCrdtContext.Remove<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>(crdt);
+                        }
                     }
                 }
 
@@ -137,6 +140,7 @@ namespace Nyris.Crdt.Distributed.Crdts
                     {
                         _dictionary[key] = otherValue!;
                         conflict = true;
+                        ManagedCrdtContext.Add(otherValue!, Factory);
                     }
                 }
                 return conflict ? MergeResult.ConflictSolved : MergeResult.Identical;

@@ -6,13 +6,9 @@ namespace Nyris.Crdt.AspNetExample
     {
         public MyContext()
         {
-            Add(Set1, ManagedGrowthSet.DefaultFactory);
-            Add(Set2, ManagedGrowthSet.DefaultFactory);
-            Add(Registry, IntsRegistry.DefaultFactory);
+            Add(ImageCollectionsRegistry, ItemInfoCollectionsRegistry.DefaultFactory);
         }
 
-        public IntsRegistry Registry { get; } = new("whatever");
-        public ManagedGrowthSet Set1 { get; } = new("0");
-        public ManagedGrowthSet Set2 { get; } = new("aaa");
+        public ItemInfoCollectionsRegistry ImageCollectionsRegistry { get; } = new("whatever");
     }
 }

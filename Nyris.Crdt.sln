@@ -6,6 +6,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 ProjectSection(SolutionItems) = preProject
 	.gitignore = .gitignore
 	README.md = README.md
+	Dockerfile = Dockerfile
+	.gitlab-ci.yml = .gitlab-ci.yml
 EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Distributed.SourceGenerators", "src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj", "{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}"
@@ -20,6 +22,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.AspNetExample", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp", "samples\ConsoleApp\ConsoleApp.csproj", "{D1E45236-9756-4C8C-B4EF-C4DD810E04EC}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "kubernetes", "kubernetes", "{0D94E2F6-9E78-4ED6-BD22-4F84BC5050DE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sample", "sample", "{C2126456-784C-4F41-8865-2730629526D9}"
+ProjectSection(SolutionItems) = preProject
+	kubernetes\sample\deployment.yaml = kubernetes\sample\deployment.yaml
+EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +40,8 @@ Global
 		{D3A6EE4A-0D79-46A3-B960-FEC518808897} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
 		{B7E7196B-C640-49F7-BEAD-7A2D4A4492C9} = {6B8C04E5-DE4A-49CF-BDDF-23A846D44770}
 		{D1E45236-9756-4C8C-B4EF-C4DD810E04EC} = {6B8C04E5-DE4A-49CF-BDDF-23A846D44770}
+		{0D94E2F6-9E78-4ED6-BD22-4F84BC5050DE} = {6D56BBD2-9FB4-430E-9455-EBDA05333CD4}
+		{C2126456-784C-4F41-8865-2730629526D9} = {0D94E2F6-9E78-4ED6-BD22-4F84BC5050DE}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU

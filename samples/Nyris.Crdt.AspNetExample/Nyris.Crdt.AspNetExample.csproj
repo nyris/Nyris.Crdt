@@ -4,18 +4,42 @@
         <TargetFramework>net5.0</TargetFramework>
     </PropertyGroup>
 
-    <PropertyGroup>
-        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
-    </PropertyGroup>
+<!--    <PropertyGroup>-->
+<!--        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>-->
+<!--        <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>-->
+<!--    </PropertyGroup>-->
 
     <ItemGroup>
         <!-- Don't include the output from a previous source generator execution into future runs; the */** trick here ensures that there's
         at least one subdirectory, which is our key that it's coming from a source generator as opposed to something that is coming from
         some other tool. -->
-        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/*/**/*.cs" />
+<!--        <Compile Remove="$(CompilerGeneratedFilesOutputPath)/*/**/*.cs" />-->
     </ItemGroup>
 
+    <ItemGroup>
+        <PackageReference Include="Nyris.Model.Ids" Version="0.1.0" />
+        <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.2.1" />
+        <PackageReference Include="Nyris.EventBus.AspNetCore" Version="0.11.0" />
+    </ItemGroup>
+    
+    <!-- Open Telemetry -->
+    <ItemGroup>
+        <PackageReference Include="OpenTelemetry" Version="1.1.0-beta3" />
+        <PackageReference Include="OpenTelemetry.Api" Version="1.1.0-beta3" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="[5.0.1, 6.0.0)" />
+    </ItemGroup>
+    
+    <!-- Serilog -->
+    <ItemGroup>
+        <PackageReference Include="Serilog" Version="2.9.0" />
+        <PackageReference Include="Serilog.Enrichers.Environment" Version="2.1.3" />
+        <PackageReference Include="Serilog.Enrichers.Process" Version="2.0.1" />
+        <PackageReference Include="Serilog.Extensions.Logging" Version="3.0.1" />
+        <PackageReference Include="Serilog.Filters.Expressions" Version="2.1.0" />
+        <PackageReference Include="Serilog.Settings.Configuration" Version="3.1.0" />
+        <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="8.0.1" />
+    </ItemGroup>
+    
     <ItemGroup>
         <ProjectReference Include="..\..\src\Nyris.Crdt.Distributed\Nyris.Crdt.Distributed.csproj" />
         <ProjectReference Include="..\..\src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
