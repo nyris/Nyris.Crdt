@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,6 +22,8 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
 
         private readonly StringBuilder _log = new("/*");
 
+        private static Lazy<IEnumerable<(Template, string)>> Templates { get; } = new(EnumerateTemplates);
+
         /// <inheritdoc />
         public void Initialize(GeneratorInitializationContext context)
         {
@@ -34,11 +37,8 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
 
             var crdtInfos = GetCrdtInfos(context, receiver.Candidates);
 
-            foreach (var templateFileName in new[] {"DtoPassingServiceTemplate.sbntxt",
-                "IDtoPassingServiceTemplate.sbntxt",
-                "ServiceCollectionExtensionsTemplate.sbntxt"})
+            foreach (var (template, templateFileName) in Templates.Value)
             {
-                var template = Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName);
                 var text = template.Render(new
                 {
                     CrdtInfos = crdtInfos
@@ -49,6 +49,19 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
 
             _log.AppendLine("*/");
             context.AddSource("Logs", SourceText.From(_log.ToString(), Encoding.UTF8));
+        }
+
+        private static IEnumerable<(Template, string)> EnumerateTemplates()
+        {
+            foreach (var templateFileName in new[]
+            {
+                "DtoPassingServiceTemplate.sbntxt",
+                "IDtoPassingServiceTemplate.sbntxt",
+                "ServiceCollectionExtensionsTemplate.sbntxt"
+            })
+            {
+                yield return (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName), templateFileName);
+            }
         }
 
         private List<CrdtInfo> GetCrdtInfos(GeneratorExecutionContext context, IEnumerable<ClassDeclarationSyntax> candidates)
@@ -87,21 +100,23 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             var current = symbol.BaseType;
             while (current != null && current.ToDisplayString() != "object")
             {
-                if (current.Name == ManagedCRDTTypeName)
+                if (current.Name != ManagedCRDTTypeName)
                 {
-                    _log.AppendLine($"Class {symbol.Name} determined to be a ManagedCRDT. " +
-                                    "Generated gRPC service will include transport operations for it's dto");
-                    var allArgumentsString = string.Join(", ",
-                        current.TypeArguments.Select(symbol => symbol.ToDisplayString()));
-                    var dtoString = current.TypeArguments.Last().ToDisplayString();
-
-                    crdtInfos.Add(new CrdtInfo(crdtTypeName: symbol.ToDisplayString(),
-                        allArgumentsString: allArgumentsString,
-                        dtoTypeName: dtoString));
-                    return;
+                    current = current.BaseType;
+                    continue;
                 }
 
-                current = current.BaseType;
+                _log.AppendLine($"Class {symbol.Name} determined to be a ManagedCRDT. " +
+                                "Generated gRPC service will include transport operations for it's dto");
+                var allArgumentsString = string.Join(", ",
+                    current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
+                var dtoString = current.TypeArguments.Last().ToDisplayString();
+
+                crdtInfos.Add(new CrdtInfo(
+                    crdtTypeName: symbol.ToDisplayString(),
+                    allArgumentsString: allArgumentsString,
+                    dtoTypeName: dtoString));
+                return;
             }
         }
     }
