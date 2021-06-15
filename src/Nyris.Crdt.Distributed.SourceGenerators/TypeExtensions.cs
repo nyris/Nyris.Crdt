@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 
+#nullable enable
+
 namespace Nyris.Crdt.Distributed.SourceGenerators
 {
     internal static class TypeExtensions
