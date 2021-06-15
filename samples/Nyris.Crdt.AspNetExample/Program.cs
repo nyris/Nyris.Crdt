@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Hosting;
 using Nyris.Extensions.AspNetCore.Hosting;
+using OpenTelemetry.Trace;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -12,12 +13,15 @@ namespace Nyris.Crdt.AspNetExample
             CreateHostBuilder(args).Build().Run();
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
+        private static IHostBuilder CreateHostBuilder(string[] args) =>
             NyrisWebHost
                 .CreateCustom<Startup>(args)
                 .WithStandardAppConfiguration()
                 .WithHealthChecks()
-                .WithTelemetry()
+                .WithTelemetry(builder => builder
+                    .WithSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(0.1)))
+                    .WithActivitySource(EventBus.Telemetry.ActivitySourceName)
+                    )
                 .WithMetrics()
                 .AsBuilder()
                 .ConfigureWebHost(webBuilder =>
