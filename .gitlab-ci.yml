@@ -1,59 +1,142 @@
 variables:
-  GCP_REGISTY_URL: eu.gcr.io/everybag-1273
-  IMAGE_NAME: nyris-distributed-prototype-sample-app
   DEPLOYMENT_NAME: sample-app
-  VERSION: ${CI_COMMIT_SHORT_SHA}-${CI_COMMIT_REF_SLUG}
-
-  NUGET_PACKAGES: $CI_PROJECT_DIR/packages/
-  BUILD_IMAGE: eu.gcr.io/everybag-1273/dotnet/sdk-ci:5.0
-
-.deploy:
-  dependencies: [] # do not copy dependencies
-  stage: deploy
-  when: manual
-  script:
-    - find kubernetes/sample -type f -exec sed -i "s?{{ ASPNETCORE_ENVIRONMENT }}?$ASPNETCORE_ENVIRONMENT?g" {} \;
-    - find kubernetes/sample -type f -exec sed -i "s?{{ VERSION }}?$VERSION?g" {} \;
-    - apply-deployment $GCP_IMAGE_URL $CI_BUILD_REF kubernetes/sample
-    - wait-for-deployment -n distributed-prototype-test $DEPLOYMENT_NAME 300
-
-before_script:
-  - REF_NAME=${CI_BUILD_REF_NAME//\//-}
-  - GCP_IMAGE_URL=$GCP_REGISTY_URL/$IMAGE_NAME:$REF_NAME
+  GCP_IMAGE_NAME: eu.gcr.io/everybag-1273/nyris-distributed-prototype-sample-app
+  GCP_BRANCH_IMAGE: $GCP_IMAGE_NAME:$CI_COMMIT_REF_SLUG
+  GCP_LATEST_IMAGE: $GCP_IMAGE_NAME:latest
 
 stages:
+  - version
   - build
   - docker:build
+  - docker:push
   - deploy
 
-build:
-  stage: build
-  except:
-    - master
+.base:
+  image: eu.gcr.io/everybag-1273/dotnet/sdk-ci:5.0
+  allow_failure: false
   tags:
     - builder
     - integration
-  image: $BUILD_IMAGE
+
+Version:
+  extends: .base
+  stage: version
+  image: eu.gcr.io/everybag-1273/gitversion
+  needs: []
+  variables:
+    GIT_DEPTH: 0
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - version/
+  script:
+    - mkdir -p version
+    - /tools/dotnet-gitversion /v SemVer | tee "$(realpath version)/SEMANTIC_VERSION"
+    - /tools/dotnet-gitversion /v InformationalVersion | tee "$(realpath version)/INFORMATIONAL_VERSION"
+
+.build:
+  extends: .base
+  stage: build
+  needs: []
+  variables:
+    GIT_DEPTH: 0
+  tags:
+    - builder
+    - integration
   artifacts:
     expire_in: 1 week
     paths:
       - publish/
+      - version/
+
+Build:
+  extends: .build
   script:
     - v2-autobuild
     - v3-publish-app Release alpine-x64 samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
 
-build-docker:
+.dockerize:
   stage: docker:build
-  dependencies:
-    - build
-  script:
-    - docker build -f Dockerfile -t $GCP_IMAGE_URL .
-    - docker push $GCP_IMAGE_URL
+  needs:
+    - job: Build
+      artifacts: true
+  variables:
+    GIT_DEPTH: 1
   tags:
     - docker
     - integration
-  except:
+  before_script:
+    - docker pull $GCP_IMAGE_NAME:main || true
+    - docker pull $GCP_IMAGE_NAME:master || true
+    - docker pull $GCP_IMAGE_NAME:latest || true
+
+Dockerize:
+  extends: .dockerize
+  script:
+    - echo "Building $GCP_BRANCH_IMAGE ..."
+    - docker build
+      --pull
+      --label org.label-schema.name="Nyris.Crdt.AspNetExample"
+      --label org.label-schema.description="An ASP.NET Core example for Nyris.Crdt.Distributed"
+      --label org.label-schema.vendor="nyris GmbH"
+      --label org.label-schema.build-date="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+      --label org.label-schema.version="$(cat version/INFORMATIONAL_VERSION)"
+      --label org.label-schema.vcs-url="$CI_PROJECT_URL"
+      --label org.label-schema.vcs-ref="$CI_COMMIT_SHA"
+      --label org.label-schema.schema-version="1.0"
+      --tag $GCP_BRANCH_IMAGE
+      -f Dockerfile
+      .
+    - docker push $GCP_BRANCH_IMAGE
+
+.push:
+  stage: docker:push
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: Dockerize
+  tags:
+    - docker
+    - integration
+  before_script:
+    - docker pull $GCP_BRANCH_IMAGE
+
+Push latest:
+  extends: .push
+  only:
+    # Only "main" (ex "master") should be tagged "latest"
     - master
+    - main
+  script:
+    - docker tag $GCP_BRANCH_IMAGE $GCP_LATEST_IMAGE
+    - docker push $GCP_LATEST_IMAGE
+
+Push tag:
+  extends: .push
+  only:
+    - tags
+  script:
+    - docker tag $GCP_BRANCH_IMAGE $GCP_IMAGE_NAME:$CI_COMMIT_REF_NAME
+    - docker push $GCP_IMAGE_NAME:$CI_COMMIT_REF_NAME
+
+.deploy:
+  extends: .base
+  stage: deploy
+  when: manual
+  allow_failure: true
+  variables:
+    GIT_DEPTH: 1
+  needs:
+    - job: Dockerize
+    - job: Version
+      artifacts: true
+  tags:
+    - deployer
+  before_script:
+    - find kubernetes -type f -exec sed -i "s?{{ ASPNETCORE_ENVIRONMENT }}?$ASPNETCORE_ENVIRONMENT?g" {} \;
+    - find kubernetes -type f -exec sed -i "s?{{ VERSION }}?$(cat version/SEMANTIC_VERSION)?g" {} \;
+  after_script:
+    - wait-for-deployment -n distributed-prototype-test $DEPLOYMENT_NAME 300
 
 integration:
   extends: .deploy
@@ -64,3 +147,5 @@ integration:
     - integration
   environment:
     name: integration
+  script:
+    - apply-deployment $GCP_BRANCH_IMAGE $CI_COMMIT_SHA kubernetes/sample
