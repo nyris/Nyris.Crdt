@@ -11,9 +11,9 @@ using ProtoBuf.Grpc.Client;
 
 namespace ConsoleApp
 {
-    class Program
+    internal static class Program
     {
-        static async Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
             using var channel = GrpcChannel.ForAddress("http://localhost:4999");
 
