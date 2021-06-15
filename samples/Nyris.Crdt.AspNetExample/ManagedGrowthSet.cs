@@ -36,7 +36,7 @@ namespace Nyris.Crdt.AspNetExample
         }
 
         /// <inheritdoc />
-        public override async Task<List<int>> ToDtoAsync() => Value.ToList();
+        public override Task<List<int>> ToDtoAsync() => Task.FromResult(Value.ToList());
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<List<int>> EnumerateDtoBatchesAsync()

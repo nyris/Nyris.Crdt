@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Crdts;
-using Nyris.Model.Ids;
 
 namespace Nyris.Crdt.AspNetExample
 {

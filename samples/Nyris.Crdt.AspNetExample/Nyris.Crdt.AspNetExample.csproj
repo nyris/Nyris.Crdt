@@ -12,17 +12,15 @@
     <ItemGroup>
         <PackageReference Include="MongoDB.Driver" Version="2.12.4" />
         <PackageReference Include="Nyris.Model.Ids" Version="0.1.0" />
-        <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.2.1" />
-        <PackageReference Include="Nyris.EventBus.AspNetCore" Version="0.11.0" />
+        <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.3.0" />
+        <PackageReference Include="Nyris.EventBus.AspNetCore" Version="0.13.1" />
     </ItemGroup>
-    
+
     <!-- Open Telemetry -->
     <ItemGroup>
-        <PackageReference Include="OpenTelemetry" Version="1.1.0-beta3" />
-        <PackageReference Include="OpenTelemetry.Api" Version="1.1.0-beta3" />
         <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="[5.0.1, 6.0.0)" />
     </ItemGroup>
-    
+
     <!-- Serilog -->
     <ItemGroup>
         <PackageReference Include="Serilog" Version="2.9.0" />
@@ -33,7 +31,7 @@
         <PackageReference Include="Serilog.Settings.Configuration" Version="3.1.0" />
         <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="8.0.1" />
     </ItemGroup>
-    
+
     <ItemGroup>
         <ProjectReference Include="..\..\src\Nyris.Crdt.Distributed\Nyris.Crdt.Distributed.csproj" />
         <ProjectReference Include="..\..\src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
