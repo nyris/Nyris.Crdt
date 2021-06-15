@@ -1,8 +1,7 @@
-﻿using MongoDB.Bson;
+﻿using System;
 using MongoDB.Bson.Serialization.Attributes;
-using System;
 
-namespace Nyris.Crdt.AspNetExample
+namespace Nyris.Crdt.AspNetExample.Mongo
 {
     [BsonKnownTypes(typeof(ImageDataSetDocument), typeof(ImageDeletedDocument))]
     public abstract class ImageDocument
@@ -16,4 +15,4 @@ namespace Nyris.Crdt.AspNetExample
         [BsonElement("t")]
         public DateTime EventTime { get; set; }
     }
-
+}

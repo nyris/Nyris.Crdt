@@ -1,4 +1,4 @@
-﻿namespace Nyris.Crdt.AspNetExample
+﻿namespace Nyris.Crdt.AspNetExample.Mongo
 {
     public sealed class MongoConfiguration
     {
@@ -7,4 +7,4 @@
         public string Collection { get; set; } = "distributed-prototype-test";
         public string ClientConfigurations { get; set; } = "client_configurations";
     }
-
+}

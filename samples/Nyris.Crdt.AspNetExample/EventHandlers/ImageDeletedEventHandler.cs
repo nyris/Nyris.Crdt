@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.AspNetExample.Events;
+using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.EventBus.Subscribers;
 using Nyris.Model.Ids;
@@ -14,7 +15,8 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
         private readonly NodeId _thisNodeId;
 
         /// <inheritdoc />
-        public ImageDeletedEventHandler(ILogger<ImageDeletedEventHandler> logger, MyContext context, NodeInfo thisNode) : base(logger)
+        public ImageDeletedEventHandler(ILogger<ImageDeletedEventHandler> logger, MyContext context, NodeInfo thisNode, MongoContext mongoContext)
+            : base(logger, mongoContext)
         {
             _context = context;
             _thisNodeId = thisNode.Id;

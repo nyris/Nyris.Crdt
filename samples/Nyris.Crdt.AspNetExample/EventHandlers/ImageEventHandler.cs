@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.AspNetExample.Events;
+using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.EventBus.Infrastructure;
 using Nyris.EventBus.Subscribers;
 

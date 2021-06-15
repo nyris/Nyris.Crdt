@@ -1,7 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
 
-namespace Nyris.Crdt.AspNetExample
+namespace Nyris.Crdt.AspNetExample.Mongo
 {
     internal sealed class MongoContext
     {

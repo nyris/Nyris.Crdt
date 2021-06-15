@@ -1,4 +1,5 @@
 using System;
+using Nyris.Crdt.AspNetExample.Mongo;
 
 namespace Nyris.Crdt.AspNetExample.Events
 {
