@@ -44,7 +44,6 @@ Version:
     expire_in: 1 week
     paths:
       - publish/
-      - version/
 
 Build:
   extends: .build
@@ -56,6 +55,8 @@ Build:
   stage: docker:build
   needs:
     - job: Build
+      artifacts: true
+    - job: Version
       artifacts: true
   variables:
     GIT_DEPTH: 1
