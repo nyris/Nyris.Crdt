@@ -26,13 +26,10 @@ Version:
   variables:
     GIT_DEPTH: 0
   artifacts:
-    expire_in: 1 week
-    paths:
-      - version/
+    reports:
+      dotenv: version.env
   script:
-    - mkdir -p version
-    - /tools/dotnet-gitversion /v SemVer | tee "$(realpath version)/SEMANTIC_VERSION"
-    - /tools/dotnet-gitversion /v InformationalVersion | tee "$(realpath version)/INFORMATIONAL_VERSION"
+    - gitversion-env > version.env
 
 .build:
   extends: .base
@@ -80,7 +77,7 @@ Dockerize:
       --label org.label-schema.description="An ASP.NET Core example for Nyris.Crdt.Distributed"
       --label org.label-schema.vendor="nyris GmbH"
       --label org.label-schema.build-date="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-      --label org.label-schema.version="$(cat version/INFORMATIONAL_VERSION)"
+      --label org.label-schema.version="$GIT_INFORMATIONAL_VERSION"
       --label org.label-schema.vcs-url="$CI_PROJECT_URL"
       --label org.label-schema.vcs-ref="$CI_COMMIT_SHA"
       --label org.label-schema.schema-version="1.0"
@@ -134,7 +131,7 @@ Push tag:
     - deployer
   before_script:
     - find kubernetes -type f -exec sed -i "s?{{ ASPNETCORE_ENVIRONMENT }}?$ASPNETCORE_ENVIRONMENT?g" {} \;
-    - find kubernetes -type f -exec sed -i "s?{{ VERSION }}?$(cat version/SEMANTIC_VERSION)?g" {} \;
+    - find kubernetes -type f -exec sed -i "s?{{ VERSION }}?$GIT_SEMANTIC_VERSION?g" {} \;
   after_script:
     - wait-for-deployment -n distributed-prototype-test $DEPLOYMENT_NAME 300
 
