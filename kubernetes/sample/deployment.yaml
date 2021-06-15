@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: sample-app
   namespace: distributed-prototype-test
+  annotations:
+    sidecar.jaegertracing.io/inject: "true"
   labels:
     app: sample-app
     version: {{ VERSION }}
@@ -28,6 +30,18 @@ spec:
         prometheus.io/path: '/metrics'
 
     spec:
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - sample-app
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: app
           image: {{ IMAGE }}
@@ -57,7 +71,7 @@ spec:
               name: grpc
               protocol: TCP
             - containerPort: 5000
-              name: others
+              name: http
               protocol: TCP
           env:
             - name: ASPNETCORE_ENVIRONMENT
@@ -67,7 +81,7 @@ spec:
             - name: OpenTelemetry__Exporter
               value: jaeger
             - name: OpenTelemetry__Jaeger__Endpoint
-              value: udp://jaeger-agent.istio-system.svc.cluster.local:6831
+              value: udp://localhost:6831  # requires Jaeger Agent sidecar injection to work
           volumeMounts:
             - name: config
               mountPath: /config
