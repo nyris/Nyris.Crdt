@@ -55,7 +55,7 @@ namespace Nyris.Crdt.Distributed.Services
             _logger.LogDebug("{ServiceName} executing", nameof(DiscoveryService<TGrpcService>));
 
             await _context.Nodes.AddAsync(_thisNode, _thisNode.Id);
-            await foreach (var (address, name) in GetAllUris(stoppingToken))
+            await foreach (var (address, name) in GetAllUris(cancellationToken))
             {
                 _logger.LogDebug("Attempting to connect to {NodeName} at {NodeAddress}", name, address);
                 using var channel = GrpcChannel.ForAddress(address);
