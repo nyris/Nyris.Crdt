@@ -68,6 +68,9 @@ namespace Nyris.Crdt.AspNetExample
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.UseSwagger();
+            app.UseSwaggerUI();
+
             app.UseCors("all");
             app.UseRouting();
 
@@ -76,9 +79,6 @@ namespace Nyris.Crdt.AspNetExample
                 endpoints.MapControllers();
                 endpoints.MapManagedCrdtService();
             });
-
-            app.UseSwagger();
-            app.UseSwaggerUI();
         }
     }
 }
