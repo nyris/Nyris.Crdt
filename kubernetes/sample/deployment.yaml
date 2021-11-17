@@ -29,6 +29,7 @@ spec:
         prometheus.io/port: '5000'
         prometheus.io/path: '/metrics'
     spec:
+      serviceAccountName: sample-app
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
