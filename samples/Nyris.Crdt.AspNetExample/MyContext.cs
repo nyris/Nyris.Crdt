@@ -2,7 +2,7 @@ using Nyris.Crdt.Distributed;
 
 namespace Nyris.Crdt.AspNetExample
 {
-    internal sealed class MyContext : ManagedCrdtContext
+    public sealed class MyContext : ManagedCrdtContext
     {
         public MyContext()
         {
