@@ -91,6 +91,8 @@ namespace Nyris.Crdt.Distributed.Services
                         name, e.Message);
                 }
             }
+
+            _logger.LogDebug("Discovery completed");
         }
 
         private async Task TryConnectingToNode(Uri address, string name)
@@ -105,11 +107,17 @@ namespace Nyris.Crdt.Distributed.Services
             }
 
             var dto = await _context.Nodes.ToDtoAsync();
-
             var response = await proxy.SendAsync(dto.WithId(_context.Nodes.InstanceId));
+
+            _logger.LogDebug("Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
+                name, response.Items.Count, response.ObservedState.Count);
+
             await _context.MergeAsync<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>,
                 HashSet<NodeInfo>, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.OrSetDto>(
                 response.WithId(_context.Nodes.InstanceId));
+
+            _logger.LogDebug("State after merging: {NodeList}", string.Join(", ",
+                _context.Nodes.Value.Select(ni => $"{ni.Id}:{ni.Address}")));
         }
 
         private async IAsyncEnumerable<NodeCandidate> GetAllUris(
