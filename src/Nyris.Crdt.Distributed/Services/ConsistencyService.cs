@@ -52,7 +52,7 @@ namespace Nyris.Crdt.Distributed.Services
                         typeof(ConsistencyService<,,,,>), typeof(TCrdt));
                 }
 
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(3000, stoppingToken);
             }
         }
 
@@ -70,6 +70,7 @@ namespace Nyris.Crdt.Distributed.Services
 
             foreach (var nodeId in _strategy.GetTargetNodes(_context.Nodes.Value, _thisNodeId))
             {
+                _logger.LogDebug("Executing consistency check with node {NodeId}", nodeId);
                 if (!_channelManager.TryGetProxy<TDto>(nodeId, out var proxy))
                 {
                     _logger.LogError("Could not get a proxy to node with Id {NodeId}", nodeId);
@@ -87,6 +88,9 @@ namespace Nyris.Crdt.Distributed.Services
 
         private async Task SyncCrdtsAsync(IProxy<TDto> proxy, string instanceId, CancellationToken cancellationToken)
         {
+            _logger.LogDebug("Syncing CRDT of type {CrdtType} with instanceId {InstanceId}",
+                typeof(TCrdt), instanceId);
+
             var enumerable = _context.EnumerateDtoBatchesAsync<TCrdt, TImplementation, TRepresentation, TDto>(instanceId);
             await foreach (var dto in proxy.EnumerateCrdtAsync(enumerable).WithCancellation(cancellationToken))
             {

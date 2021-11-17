@@ -24,6 +24,10 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
             _logger = logger;
             _options = options;
             _isInCluster = KubernetesClientConfiguration.IsInCluster();
+
+            _logger.LogDebug("Initializing {DiscoveryStrategyName}. Namespaces: {ListOfNamespaces}",
+                nameof(KubernetesDiscoveryStrategy), string.Join(", ", options.Namespaces));
+
             if (!_isInCluster) return;
 
             var config = KubernetesClientConfiguration.InClusterConfig();
@@ -34,38 +38,46 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
         /// <inheritdoc />
         public async IAsyncEnumerable<NodeCandidate> GetNodeCandidates([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            if (!_isInCluster) yield break;
-
-            var client = _client;
-            Debug.Assert(client != null, "_client != null");
+            _logger.LogDebug("Running {DiscoveryStrategyName}", nameof(KubernetesDiscoveryStrategy));
+            if (!_isInCluster)
+            {
+                _logger.LogDebug("Kubernetes client did not detect a cluster, aborting");
+                yield break;
+            }
 
             var pods = new List<V1Pod>();
             foreach (var @namespace in _options.Namespaces)
             {
-                var podList = await client.ListNamespacedPodAsync(@namespace, cancellationToken: cancellationToken);
+                var podList = await _client.ListNamespacedPodAsync(@namespace, cancellationToken: cancellationToken);
                 _logger.LogDebug("Info about {PodNumber} pods retrieved from {Namespace} namespace: {PodNames}",
                     podList.Items.Count, @namespace, string.Join("; ", podList.Items.Select(pod => ModelExtensions.Name(pod))));
                 pods.AddRange(podList.Items);
             }
 
-            foreach (var pod in pods.Where(p => _options.KeepPodCondition == null || _options.KeepPodCondition(p)))
+            _logger.LogDebug("Found {numberOfPods} pods", pods.Count);
+            foreach (var pod in pods)
             {
+                var podName = pod.Name();
+                if (_options.KeepPodCondition != null && !_options.KeepPodCondition(pod))
+                {
+                    _logger.LogDebug("Skipping pod {PodName} because if did not satisfy KeepPodCondition", podName);
+                    continue;
+                }
+
                 var podIp = pod.Status.PodIP;
 
                 if (!Uri.TryCreate($"http://{podIp}", UriKind.Absolute, out var baseAddress))
                 {
                     _logger.LogWarning("Couldn't parse URI for pod {PodName}, IP: {PodIP} - skipping it",
-                        pod.Name(), podIp);
+                        podName, podIp);
                     continue;
                 }
 
-                yield return new NodeCandidate(baseAddress, pod.Name());
+                _logger.LogDebug("Yielding pod {PodName} as node candidate", podName);
+                yield return new NodeCandidate(baseAddress, podName);
             }
         }
 
-        public void Dispose()
-        {
-            _client?.Dispose();
-        }
+        public void Dispose() => _client?.Dispose();
     }
 }

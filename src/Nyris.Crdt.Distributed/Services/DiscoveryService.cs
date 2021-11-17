@@ -38,6 +38,8 @@ namespace Nyris.Crdt.Distributed.Services
         /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogDebug("{ServiceName} executing", nameof(DiscoveryService<TGrpcService>));
+
             await _context.Nodes.AddAsync(_thisNode, _thisNode.Id);
             await foreach (var (address, name) in GetAllUris(stoppingToken))
             {
@@ -51,7 +53,7 @@ namespace Nyris.Crdt.Distributed.Services
 
                 var dto = await _context.Nodes.ToDtoAsync();
                 var response = await proxy.SendAsync(dto.WithId(_context.Nodes.InstanceId));
-                _context.MergeAsync<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>,
+                await _context.MergeAsync<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>,
                     HashSet<NodeInfo>, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.OrSetDto>(
                     response.WithId(_context.Nodes.InstanceId));
             }

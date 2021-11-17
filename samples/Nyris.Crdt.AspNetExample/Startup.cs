@@ -33,7 +33,7 @@ namespace Nyris.Crdt.AspNetExample
             services.AddManagedCrdts<MyContext>()
                 .WithKubernetesDiscovery(options =>
                 {
-                    options.Namespaces = new[] {"distributed-prototype-test"};
+                    options.Namespaces = new[] { "distributed-prototype-test" };
                 });
 
             services.AddRabbitMqEasyNetQForAspNetCore(Configuration);

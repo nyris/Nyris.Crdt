@@ -59,6 +59,8 @@ namespace Nyris.Crdt.Distributed.Services
                     _logger.LogError(e, "Unhandled exception during sending a dto");
                 }
             }
+
+            _logger.LogError("Queue in {ServiceName} finished enumerating, which is unexpected", GetType().Name);
         }
     }
 }
