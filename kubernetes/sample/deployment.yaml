@@ -14,7 +14,7 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: sample-app
@@ -26,7 +26,7 @@ spec:
         commit: {{ COMMIT }}
       annotations:
         prometheus.io/scrape: 'true'
-        prometheus.io/port: '5000'
+        prometheus.io/port: '80'
         prometheus.io/path: '/metrics'
     spec:
       serviceAccountName: sample-app
@@ -56,21 +56,21 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 5000
+              port: 80
             initialDelaySeconds: 30
             periodSeconds: 600
             timeoutSeconds: 2
           readinessProbe:
             httpGet:
               path: /health
-              port: 5000
+              port: 80
             initialDelaySeconds: 30
             timeoutSeconds: 2
           ports:
-            - containerPort: 4999
+            - containerPort: 8080
               name: grpc
               protocol: TCP
-            - containerPort: 5000
+            - containerPort: 80
               name: http
               protocol: TCP
           env:
@@ -81,7 +81,7 @@ spec:
             - name: OpenTelemetry__Exporter
               value: jaeger
             - name: OpenTelemetry__Jaeger__Endpoint
-              value: udp://localhost:6831  # requires Jaeger Agent sidecar injection to work
+              value: udp://jaeger-agent.istio-system.svc.cluster.local:6831
           volumeMounts:
             - name: config
               mountPath: /config
