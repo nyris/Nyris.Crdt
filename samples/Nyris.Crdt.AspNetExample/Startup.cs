@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.Crdt.Distributed;
@@ -43,6 +44,16 @@ namespace Nyris.Crdt.AspNetExample
                 cb.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin().Build();
             }));
 
+            services.AddControllers();
+            services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "Distributed CRDTs sample app",
+                    Version = "v1",
+                    Contact = new OpenApiContact{Email = "nikita@nyris.io", Name = "Nikita Chizhov"}
+                });
+            });
             services.Configure<MongoConfiguration>(c => Configuration.GetSection("MongoDb").Bind(c));
             services.AddTransient(sp => sp.GetRequiredService<IOptions<MongoConfiguration>>().Value);
 
@@ -62,9 +73,12 @@ namespace Nyris.Crdt.AspNetExample
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapControllers();
                 endpoints.MapManagedCrdtService();
-                endpoints.MapGet("/", async context => { await context.Response.WriteAsync("Hello World!"); });
             });
+
+            app.UseSwagger();
+            app.UseSwaggerUI();
         }
     }
 }
