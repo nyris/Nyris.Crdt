@@ -57,7 +57,7 @@ this will result in an error when usin this library due to grpc methods collisio
 
 In addition to CRDT, you will need an implementation of `IManagedCRDTFactory` for each CRDT.
 For example:
-````c#
+```c#
 public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
 {
     /// <inheritdoc />

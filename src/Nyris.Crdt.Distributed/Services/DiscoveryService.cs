@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -37,6 +38,19 @@ namespace Nyris.Crdt.Distributed.Services
 
         /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            try
+            {
+                await TryExecutingAsync(stoppingToken);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Unhandled exception in {ServiceName}",
+                    nameof(DiscoveryService<TGrpcService>));
+            }
+        }
+
+        private async Task TryExecutingAsync(CancellationToken cancellationToken)
         {
             _logger.LogDebug("{ServiceName} executing", nameof(DiscoveryService<TGrpcService>));
 

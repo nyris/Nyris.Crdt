@@ -34,6 +34,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sample", "sample", "{C2126456-784C-4F41-8865-2730629526D9}"
 	ProjectSection(SolutionItems) = preProject
 		kubernetes\sample\deployment.yaml = kubernetes\sample\deployment.yaml
+		kubernetes\sample\README.md = kubernetes\sample\README.md
 	EndProjectSection
 EndProject
 Global
