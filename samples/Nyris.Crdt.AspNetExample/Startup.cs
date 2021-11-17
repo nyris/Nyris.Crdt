@@ -77,6 +77,7 @@ namespace Nyris.Crdt.AspNetExample
             {
                 endpoints.MapControllers();
                 endpoints.MapManagedCrdtService();
+                endpoints.MapHealthChecks("/health");
             });
         }
     }
