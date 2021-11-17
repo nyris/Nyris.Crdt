@@ -19,7 +19,7 @@ namespace Nyris.Crdt.Distributed
             var options = new KubernetesDiscoveryPodSelectionOptions();
             configureOptions(options);
 
-            _services.AddSingleton<KubernetesDiscoveryPodSelectionOptions>();
+            _services.AddSingleton(options);
             _services.AddSingleton<IDiscoveryStrategy, KubernetesDiscoveryStrategy>();
             return this;
         }
