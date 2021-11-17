@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Nyris.Crdt.AspNetExample.Events;
@@ -22,7 +23,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         }
 
         [HttpGet("{indexId:guid}")]
-        public async Task<IActionResult> GetAll(Guid indexId)
+        public async Task<IActionResult> GetIndexAsync(Guid indexId)
         {
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(new IndexId(indexId),
                 () => (_thisNodeId, new ImageInfoLwwRegistry(indexId.ToString("N"))));
@@ -30,10 +31,11 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll() => Ok(_context.ImageCollectionsRegistry.Value);
+        public async Task<IActionResult> GetAllAsync() => Ok(_context.ImageCollectionsRegistry
+            .Value.ToDictionary(pair => pair.Key.AsGuid, pair => pair.Value));
 
         [HttpPost]
-        public async Task<IActionResult> ImageDataSet([FromBody] ImageDataSetEvent data)
+        public async Task<IActionResult> ImageDataSetAsync([FromBody] ImageDataSetEvent data)
         {
             var indexId = new IndexId(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
@@ -47,7 +49,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         }
 
         [HttpDelete]
-        public async Task<IActionResult> ImageDeleted([FromBody] ImageDeletedEvent data)
+        public async Task<IActionResult> ImageDeletedAsync([FromBody] ImageDeletedEvent data)
         {
             var indexId = new IndexId(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
