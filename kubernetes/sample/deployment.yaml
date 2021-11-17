@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: sample-app
   namespace: distributed-prototype-test
-  annotations:
-    sidecar.jaegertracing.io/inject: "true"
   labels:
     app: sample-app
     version: {{ VERSION }}
