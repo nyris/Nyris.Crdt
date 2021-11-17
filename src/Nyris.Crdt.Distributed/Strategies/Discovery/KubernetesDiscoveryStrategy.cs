@@ -66,7 +66,7 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
 
                 var podIp = pod.Status.PodIP;
 
-                if (!Uri.TryCreate($"http://{podIp}", UriKind.Absolute, out var baseAddress))
+                if (!Uri.TryCreate($"http://{podIp}:{_options.Port}", UriKind.Absolute, out var baseAddress))
                 {
                     _logger.LogWarning("Couldn't parse URI for pod {PodName}, IP: {PodIP} - skipping it",
                         podName, podIp);

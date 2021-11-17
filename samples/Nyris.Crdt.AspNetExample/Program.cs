@@ -23,14 +23,6 @@ namespace Nyris.Crdt.AspNetExample
                     .WithActivitySource(EventBus.Telemetry.ActivitySourceName)
                     )
                 .WithMetrics()
-                .AsBuilder()
-                .ConfigureWebHost(webBuilder =>
-                {
-                    webBuilder.ConfigureKestrel(options =>
-                    {
-                        options.ListenAnyIP(4999, listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
-                        options.ListenAnyIP(5000, listenOptions => listenOptions.Protocols = HttpProtocols.Http1);
-                    });
-                });
+                .AsBuilder();
     }
 }
