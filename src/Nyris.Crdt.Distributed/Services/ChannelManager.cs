@@ -95,14 +95,14 @@ namespace Nyris.Crdt.Distributed.Services
                 }
                 catch (Exception)
                 {
-                    await RemoveNode();
+                    await RemoveNodeAsync();
                     throw;
                 }
             }
 
-            private Task RemoveNode()
+            private Task RemoveNodeAsync()
             {
-                _context.Nodes.RemoveAsync(i => i.Id == _nodeId);
+                _ = _context.Nodes.RemoveAsync(i => i.Id == _nodeId);
                 _grpcClients.TryRemove(_nodeId, out _);
                 return _channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask;
             }

@@ -97,8 +97,11 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            var other = factory.Create(dto.Dto);
-            await crdt.MergeAsync(other);
+            if (dto.Dto != null)
+            {
+                var other = factory.Create(dto.Dto);
+                await crdt.MergeAsync(other);
+            }
             return await crdt.ToDtoAsync();
         }
 
@@ -131,7 +134,7 @@ namespace Nyris.Crdt.Distributed
 
         public async Task<bool> IsHashEqual(WithId<TypeNameAndHash> hash)
         {
-            if(!_sameManagedCrdts.TryGetValue(new TypeNameAndInstanceId(hash.Dto.TypeName, hash.Id), out var crdt))
+            if(!_sameManagedCrdts.TryGetValue(new TypeNameAndInstanceId(hash.Dto!.TypeName, hash.Id), out var crdt))
             {
                 throw new ManagedCrdtContextSetupException($"Checking hash for Crdt named {hash.Dto.TypeName} " +
                                                            "failed - Crdt not found in the managed context. Check that " +

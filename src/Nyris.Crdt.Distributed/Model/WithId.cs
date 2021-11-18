@@ -6,9 +6,9 @@ namespace Nyris.Crdt.Distributed.Model
     public sealed class WithId<TDto>
     {
         [ProtoMember(1)]
-        public string Id { get; init; }
+        public string Id { get; init; } = string.Empty;
 
         [ProtoMember(2)]
-        public TDto Dto { get; init; }
+        public TDto? Dto { get; init; }
     }
 }
