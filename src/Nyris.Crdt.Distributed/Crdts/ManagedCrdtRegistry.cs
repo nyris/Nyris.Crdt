@@ -233,10 +233,10 @@ namespace Nyris.Crdt.Distributed.Crdts
         public sealed class RegistryDto
         {
             [ProtoMember(1)]
-            public OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto Keys { get; set; }
+            public OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto Keys { get; set; } = new();
 
             [ProtoMember(2)]
-            public Dictionary<TItemKey, TItemValueDto> Dict { get; set; }
+            public Dictionary<TItemKey, TItemValueDto> Dict { get; set; } = new();
         }
     }
 }

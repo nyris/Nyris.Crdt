@@ -203,7 +203,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         public sealed class LastWriteWinsDto
         {
             [ProtoMember(1)]
-            public Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> Items { get; set; }
+            public Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> Items { get; set; } = new();
         }
     }
 }
