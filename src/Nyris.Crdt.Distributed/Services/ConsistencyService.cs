@@ -40,6 +40,9 @@ namespace Nyris.Crdt.Distributed.Services
         /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogDebug("{ServiceType} running for {CrdtType}",
+                typeof(ConsistencyService<,,,,>), typeof(TCrdt));
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -65,6 +68,7 @@ namespace Nyris.Crdt.Distributed.Services
             }
             catch (ManagedCrdtContextSetupException e)
             {
+                _logger.LogError(e, "");
                 return;
             }
 
