@@ -31,8 +31,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAll() => Ok(_context.ImageCollectionsRegistry.Value
-            .ToDictionary(pair => pair.Key.AsGuid, pair => pair.Value));
+        public IActionResult GetAll() => Ok(_context.ImageCollectionsRegistry.Value);
 
         [HttpPost]
         public async Task<IActionResult> ImageDataSetAsync([FromBody] ImageDataSetEvent data)

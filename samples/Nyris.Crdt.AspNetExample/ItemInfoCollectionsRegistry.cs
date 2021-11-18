@@ -7,7 +7,7 @@ using Nyris.Model.Ids;
 namespace Nyris.Crdt.AspNetExample
 {
     public sealed class ItemInfoCollectionsRegistry : ManagedCrdtRegistry<NodeId,
-        IndexId,
+        Guid,
         ImageInfoLwwRegistry,
         ManagedLastWriteWinsDeltaRegistry<Guid, ImageInfo, DateTime>,
         Dictionary<Guid, ImageInfo>,
@@ -28,24 +28,24 @@ namespace Nyris.Crdt.AspNetExample
 
         public static readonly IManagedCRDTFactory<ItemInfoCollectionsRegistry,
                 ManagedCrdtRegistry<NodeId,
-                    IndexId,
+                    Guid,
                     ImageInfoLwwRegistry,
                     ManagedLastWriteWinsDeltaRegistry<Guid, ImageInfo, DateTime>,
                     Dictionary<Guid, ImageInfo>,
                     ImageInfoLwwRegistry.LastWriteWinsDto,
                     ImageInfoLwwRegistry.ItemInfoLwwRegistryFactory>,
-                Dictionary<IndexId, Dictionary<Guid, ImageInfo>>, RegistryDto>
+                Dictionary<Guid, Dictionary<Guid, ImageInfo>>, RegistryDto>
             DefaultFactory = new RegistryFactory();
 
         public sealed class RegistryFactory : IManagedCRDTFactory<ItemInfoCollectionsRegistry,
             ManagedCrdtRegistry<NodeId,
-                IndexId,
+                Guid,
                 ImageInfoLwwRegistry,
                 ManagedLastWriteWinsDeltaRegistry<Guid, ImageInfo, DateTime>,
                 Dictionary<Guid, ImageInfo>,
                 ImageInfoLwwRegistry.LastWriteWinsDto,
                 ImageInfoLwwRegistry.ItemInfoLwwRegistryFactory>,
-            Dictionary<IndexId, Dictionary<Guid, ImageInfo>>, RegistryDto>
+            Dictionary<Guid, Dictionary<Guid, ImageInfo>>, RegistryDto>
         {
             /// <inheritdoc />
             public ItemInfoCollectionsRegistry Create(RegistryDto registryDto) => new(registryDto);
