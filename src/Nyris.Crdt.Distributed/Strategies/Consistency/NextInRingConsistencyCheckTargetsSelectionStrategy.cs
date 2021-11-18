@@ -13,8 +13,15 @@ namespace Nyris.Crdt.Distributed.Strategies.Consistency
             var orderedList = nodes.Select(info => info.Id).OrderBy(id => id).ToList();
             if(orderedList.Count <= 1) return ArraySegment<NodeId>.Empty;
 
-            var thisNodePosition = orderedList.BinarySearch(thisNodeId);
-            return new[] {orderedList[thisNodePosition == orderedList.Count - 1 ? 0 : thisNodePosition + 1]};
+            try
+            {
+                var thisNodePosition = orderedList.BinarySearch(thisNodeId);
+                return new[] { orderedList[thisNodePosition == orderedList.Count - 1 ? 0 : thisNodePosition + 1] };
+            }
+            catch (ArgumentOutOfRangeException e)
+            {
+                return new[] { orderedList.First() };
+            }
         }
     }
 }
