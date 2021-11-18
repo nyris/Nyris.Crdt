@@ -68,7 +68,7 @@ namespace Nyris.Crdt.Distributed.Services
             }
             catch (ManagedCrdtContextSetupException e)
             {
-                _logger.LogError(e, "");
+                // TODO: can this be done better? Th idea is - some CRDT type can be instantiated later in the runtime
                 return;
             }
 

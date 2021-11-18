@@ -18,7 +18,7 @@ namespace Nyris.Crdt.Distributed.Services
                 {
                     var nodeId = NodeId.FromGuid(Guid.NewGuid());
                     Console.WriteLine($"This node was assigned id={nodeId}");
-                    return new NodeInfo(new Uri($"http://{ip}"), nodeId);
+                    return new NodeInfo(new Uri($"http://{ip}:{8080}"), nodeId);
                 }
             }
 
