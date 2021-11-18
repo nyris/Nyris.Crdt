@@ -40,8 +40,7 @@ namespace Nyris.Crdt.Distributed.Services
         /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogDebug("{ServiceType} running for {CrdtType}",
-                typeof(ConsistencyService<,,,,>), typeof(TCrdt));
+            _logger.LogDebug("Executing for {CrdtType}", typeof(TCrdt));
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -51,8 +50,7 @@ namespace Nyris.Crdt.Distributed.Services
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError(e, "Unhandled exception in {ServiceName} for Crdt of type {CrdtType}",
-                        typeof(ConsistencyService<,,,,>), typeof(TCrdt));
+                    _logger.LogError(e, "Unhandled exception for Crdt of type {CrdtType}", typeof(TCrdt));
                 }
 
                 await Task.Delay(3000, stoppingToken);

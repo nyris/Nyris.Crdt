@@ -18,7 +18,7 @@ namespace Nyris.Crdt.Distributed
         private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashableAndHaveUniqueName> _sameManagedCrdts = new();
         private readonly ConcurrentDictionary<Type, HashSet<TypeNameAndInstanceId>> _typeToTypeNameMapping = new();
 
-        internal readonly NodeSet Nodes = new ("");
+        internal readonly NodeSet Nodes = new ("nodes_internal");
 
         protected ManagedCrdtContext()
         {
