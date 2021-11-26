@@ -42,9 +42,10 @@ namespace Nyris.Crdt.Distributed
             if (!_managedCrdts.TryAdd(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), crdt)
                 || !_sameManagedCrdts.TryAdd(typeNameAndInstanceId, crdt))
             {
-                throw new ManagedCrdtContextSetupException($"Failed to add crdt of type {typeof(TCrdt)} to " +
-                                                           "the context - crdt of that type and with that instanceId " +
-                                                           $"({crdt.InstanceId}) was already added. Make sure instanceId " +
+                throw new ManagedCrdtContextSetupException($"Failed to add crdt of type {typeof(TCrdt)} " +
+                                                           $"with id {crdt.InstanceId} to the context - crdt of that" +
+                                                           $" type and with that instanceId ({crdt.InstanceId}) was " +
+                                                           "already added. Make sure instanceId " +
                                                            "is unique withing crdts of the same type.");
             }
 
@@ -92,8 +93,8 @@ namespace Nyris.Crdt.Distributed
         {
             if (!TryGetCrdtWithFactory<TCrdt, TImplementation, TRepresentation, TDto>(dto.Id, out var crdt, out var factory))
             {
-                throw new ManagedCrdtContextSetupException($"Merging dto of type {typeof(TDto)} failed. " +
-                                                           "Check that you Add-ed appropriate managed crdt type and " +
+                throw new ManagedCrdtContextSetupException($"Merging dto of type {typeof(TDto)} with id {dto.Id} " +
+                                                           "failed. Check that you Add-ed appropriate managed crdt type and " +
                                                            "that instanceId of that type is coordinated across servers");
             }
 
@@ -137,9 +138,10 @@ namespace Nyris.Crdt.Distributed
             if(!_sameManagedCrdts.TryGetValue(new TypeNameAndInstanceId(hash.Dto!.TypeName, hash.Id), out var crdt))
             {
                 throw new ManagedCrdtContextSetupException($"Checking hash for Crdt named {hash.Dto.TypeName} " +
-                                                           "failed - Crdt not found in the managed context. Check that " +
-                                                           "you Add-ed appropriate managed crdt type and " +
-                                                           "that instanceId of that type is coordinated across servers");
+                                                           $"with id {hash.Id} failed - Crdt not found in the managed" +
+                                                           " context. Check that you Add-ed appropriate managed crdt " +
+                                                           "type and that instanceId of that type is coordinated " +
+                                                           "across servers");
             }
 
             return string.Equals(await crdt.GetHashAsync(), hash.Dto.Hash, StringComparison.Ordinal);
@@ -151,9 +153,9 @@ namespace Nyris.Crdt.Distributed
         {
             if (!_managedCrdts.TryGetValue(new TypeAndInstanceId(typeof(TCrdt), instanceId), out var crdtObject))
             {
-                throw new ManagedCrdtContextSetupException($"Enumerating dto of crdt type {typeof(TCrdt)} failed" +
-                                                           " due to crdt not being found. " +
-                                                           "Did you forget to add that Crdt in ManagedContext?");
+                throw new ManagedCrdtContextSetupException($"Enumerating dto of crdt type {typeof(TCrdt)} " +
+                                                           $"with id {instanceId} failed due to crdt not being found." +
+                                                           " Did you forget to add that Crdt in ManagedContext?");
             }
 
             if (crdtObject is not IAsyncDtoBatchProvider<TDto> batchProvider)
