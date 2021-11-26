@@ -7,12 +7,12 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Nyris.Crdt.Distributed.Model;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
 using System.Threading.Tasks;
-using Nyris.Crdt.Distributed.Model;
-using Microsoft.Extensions.Logging;
 
 namespace Nyris.Crdt.Distributed
 {
@@ -39,7 +39,7 @@ namespace Nyris.Crdt.Distributed
             await foreach(var dto in dtos)
             {
                 if (id == null) id = dto.Id;
-                _logger.LogDebug("Received dto for id='{Id}': {Dto}", id, JsonSerializer.Serialize(dto));
+                _logger.LogDebug("Received dto for id='{Id}': {Dto}", id, JsonConvert.SerializeObject(dto));
                 await _context.MergeAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
             }
 

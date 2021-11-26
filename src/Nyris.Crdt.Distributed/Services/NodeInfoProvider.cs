@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 
@@ -26,6 +27,8 @@ namespace Nyris.Crdt.Distributed.Services
                     return _info;
                 }
             }
+
+            JsonConvert.SerializeObject(_info);
 
             throw new InitializationException("No network adapters with an IPv4 address in the system!");
         }
