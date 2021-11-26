@@ -1,5 +1,6 @@
 using System;
 using ProtoBuf;
+using ProtoBuf.ServiceModel;
 
 namespace Nyris.Crdt
 {
@@ -15,10 +16,6 @@ namespace Nyris.Crdt
 
         [ProtoMember(3)]
         public bool Deleted { get; set; }
-
-        public TimeStampedItem()
-        {
-        }
 
         public TimeStampedItem(TValue value, TTimeStamp timeStamp, bool deleted)
         {
