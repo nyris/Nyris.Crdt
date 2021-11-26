@@ -195,6 +195,7 @@ namespace Nyris.Crdt.Distributed.Crdts
                         {
                             enumeratingKeys[key] = false;
                             ++finished;
+                            continue;
                         }
 
                         dict[key] = enumerators[key].Current;
