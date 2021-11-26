@@ -82,8 +82,12 @@ namespace Nyris.Crdt.Distributed.Services
                 await foreach (var (hash, instanceId) in proxy.GetHashesAsync(typeName).WithCancellation(cancellationToken))
                 {
                     var hashesMatch = await _context.IsHashEqual(new TypeNameAndHash(typeName, hash).WithId(instanceId));
+                    if (hashesMatch) continue;
 
-                    if (!hashesMatch) await SyncCrdtsAsync(proxy, instanceId, cancellationToken);
+                    _logger.LogInformation("Hash {MyHash} of {CrdtType} with id {CrdtInstanceId} does not " +
+                                           "match with local one",
+                        hash, typeName, instanceId);
+                    await SyncCrdtsAsync(proxy, instanceId, cancellationToken);
                 }
             }
         }
