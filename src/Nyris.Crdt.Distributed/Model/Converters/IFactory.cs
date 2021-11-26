@@ -2,7 +2,7 @@ using System;
 
 namespace Nyris.Crdt.Distributed.Model.Converters
 {
-    internal interface IFactory<out TInternalId>
+    public interface IFactory<out TInternalId>
         where TInternalId : struct, IFormattable
     {
         TInternalId Empty { get; }

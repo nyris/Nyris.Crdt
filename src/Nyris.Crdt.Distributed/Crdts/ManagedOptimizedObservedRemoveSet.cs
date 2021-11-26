@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts
@@ -21,8 +22,8 @@ namespace Nyris.Crdt.Distributed.Crdts
             ManagedOptimizedObservedRemoveSet<TActorId, TItem>,
             HashSet<TItem>,
             ManagedOptimizedObservedRemoveSet<TActorId, TItem>.OrSetDto>
-        where TItem : IEquatable<TItem>
-        where TActorId : IEquatable<TActorId>
+        where TItem : IEquatable<TItem>, IHashable
+        where TActorId : IEquatable<TActorId>, IHashable
     {
         private HashSet<VersionedSignedItem<TActorId, TItem>> _items;
         private readonly Dictionary<TActorId, uint> _observedState;
@@ -41,18 +42,14 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override async Task<string> GetHashAsync()
+        public override ReadOnlySpan<byte> GetHash()
         {
-            await _semaphore.WaitAsync();
+            _semaphore.Wait();
             try
             {
-                var itemsHash = _items
-                    .OrderBy(i => i.Actor)
-                    .Aggregate(0, HashCode.Combine);
-                var stateHash = _observedState
-                    .OrderBy(pair => pair.Key)
-                    .Aggregate(0, HashCode.Combine);
-                return HashCode.Combine(itemsHash, stateHash).ToString();
+                return HashingHelper.Combine(
+                    HashingHelper.Combine(_items.OrderBy(i => i.Actor)),
+                    HashingHelper.Combine(_observedState.OrderBy(pair => pair.Key)));
             }
             finally
             {
@@ -138,7 +135,7 @@ namespace Nyris.Crdt.Distributed.Crdts
 
         public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<TActorId, TItem> other)
         {
-            if (await GetHashAsync() == await other.GetHashAsync())
+            if (GetHash().SequenceEqual(other.GetHash()))
             {
                 return MergeResult.Identical;
             }

@@ -2,23 +2,20 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json;
+using Nyris.Crdt.Distributed;
+using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Model.Converters;
 using ProtoBuf;
 
-namespace Nyris.Crdt.Distributed.Model
+namespace Nyris.Crdt.AspNetExample
 {
-    public interface IAs<out T>
-    {
-        public T Value { get; }
-    }
-
     /// <summary>
     /// Represents an NodeId structure, which encapsulates Guid and allows to explicitly separate ids for different entities
     /// </summary>
-    [JsonConverter(typeof(InternalIdJsonConverter<NodeId, Factory>))]
-    [TypeConverter(typeof(InternalIdTypeConverter<NodeId, Factory>))]
+    [JsonConverter(typeof(InternalIdJsonConverter<IndexId, Factory>))]
+    [TypeConverter(typeof(InternalIdTypeConverter<IndexId, Factory>))]
     [ProtoContract]
-    public readonly struct NodeId : IEquatable<NodeId>, IFormattable, IComparable<NodeId>, IAs<Guid>, IHashable
+    public readonly struct IndexId : IEquatable<IndexId>, IFormattable, IComparable<IndexId>, IAs<Guid>, IHashable
     {
         /// <summary>
         /// Converts guid into NodeId.
@@ -26,25 +23,25 @@ namespace Nyris.Crdt.Distributed.Model
         /// <param name="id"></param>
         /// <returns></returns>
         [ProtoConverter]
-        public static NodeId FromGuid(Guid id) => new(id);
+        public static IndexId FromGuid(Guid id) => new(id);
 
         /// <summary>
         /// Generates new random Id.
         /// </summary>
         /// <returns></returns>
-        public static NodeId New() => new(Guid.NewGuid());
+        public static IndexId New() => new(Guid.NewGuid());
 
         /// <summary>
         /// Converts the string representation of an NodeId to the equivalent NodeId structure.
         /// </summary>
         /// <param name="input">input – The string to convert.</param>
         /// <returns></returns>
-        public static NodeId Parse(string input) => new(Guid.Parse(input));
+        public static IndexId Parse(string input) => new(Guid.Parse(input));
 
         /// <summary>
         /// A read-only instance of the NodeId structure, that can represent default or uninitialized value.
         /// </summary>
-        public static readonly NodeId Empty = new(Guid.Empty);
+        public static readonly IndexId Empty = new(Guid.Empty);
 
         /// <summary>
         /// Converts the string representation of an NodeId to the equivalent NodeId structure.
@@ -53,7 +50,7 @@ namespace Nyris.Crdt.Distributed.Model
         /// <param name="indexId">An NodeId instance to contain the parsed value. If the method returns true,
         /// result contains a valid NodeId. If the method returns false, result equals Empty.</param>
         /// <returns>true if the parse operation was successful; otherwise, false.</returns>
-        public static bool TryParse(string input, [NotNullWhen(true)] out NodeId indexId)
+        public static bool TryParse(string input, [NotNullWhen(true)] out IndexId indexId)
         {
             if (Guid.TryParse(input, out var guid))
             {
@@ -68,7 +65,7 @@ namespace Nyris.Crdt.Distributed.Model
         [ProtoMember(1)]
         private readonly Guid _id;
 
-        private NodeId(Guid id)
+        private IndexId(Guid id)
         {
             _id = id;
         }
@@ -77,10 +74,10 @@ namespace Nyris.Crdt.Distributed.Model
         public Guid Value => _id;
 
         /// <inheritdoc />
-        public bool Equals(NodeId other) => _id.Equals(other._id);
+        public bool Equals(IndexId other) => _id.Equals(other._id);
 
         /// <inheritdoc />
-        public override bool Equals(object? obj) => obj is NodeId other && Equals(other);
+        public override bool Equals(object? obj) => obj is IndexId other && Equals(other);
 
         /// <inheritdoc />
         public override int GetHashCode() => _id.GetHashCode();
@@ -95,16 +92,16 @@ namespace Nyris.Crdt.Distributed.Model
         public ReadOnlySpan<byte> GetHash() => _id.ToByteArray();
 
         /// <inheritdoc />
-        public int CompareTo(NodeId other) => _id.CompareTo(other._id);
+        public int CompareTo(IndexId other) => _id.CompareTo(other._id);
 
-        public static bool operator ==(NodeId left, NodeId right) => left.Equals(right);
+        public static bool operator ==(IndexId left, IndexId right) => left.Equals(right);
 
-        public static bool operator !=(NodeId left, NodeId right) => !(left == right);
+        public static bool operator !=(IndexId left, IndexId right) => !(left == right);
 
-        private class Factory : IFactory<NodeId>
+        private class Factory : IFactory<IndexId>
         {
-            NodeId IFactory<NodeId>.Empty => Empty;
-            NodeId IFactory<NodeId>.Parse(string value) => NodeId.Parse(value);
+            IndexId IFactory<IndexId>.Empty => Empty;
+            IndexId IFactory<IndexId>.Parse(string value) => IndexId.Parse(value);
         }
     }
 }

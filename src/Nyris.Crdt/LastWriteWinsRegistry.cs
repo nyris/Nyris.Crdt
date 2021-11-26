@@ -12,7 +12,7 @@ namespace Nyris.Crdt
             LastWriteWinsRegistry<TKey, TValue, TTimeStamp>,
             Dictionary<TKey, TValue>>
         where TKey : IEquatable<TKey>
-        where TTimeStamp : IComparable<TTimeStamp>
+        where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
         private readonly object _mergeLock = new();

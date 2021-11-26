@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
@@ -29,29 +30,29 @@ namespace Nyris.Crdt.Distributed.Crdts
             Dictionary<TItemKey, TItemValueRepresentation>,
             ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory>.RegistryDto>,
             ICreateManagedCrdtsInside
-        where TItemKey : IEquatable<TItemKey>
-        where TActorId : IEquatable<TActorId>
+        where TItemKey : IEquatable<TItemKey>, IHashable
+        where TActorId : IEquatable<TActorId>, IHashable
         where TItemValue : ManagedCRDT<TItemValueImplementation, TItemValueRepresentation, TItemValueDto>, TItemValueImplementation
         where TItemValueImplementation : IAsyncCRDT<TItemValueImplementation, TItemValueRepresentation, TItemValueDto>
         where TItemValueFactory : IManagedCRDTFactory<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>, new()
     {
         private static readonly TItemValueFactory Factory = new();
 
-        private readonly OptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
+        private readonly HashableOptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
         private readonly ConcurrentDictionary<TItemKey, TItemValue> _dictionary;
         private readonly SemaphoreSlim _semaphore = new(1);
         private ManagedCrdtContext? _context;
 
         protected ManagedCrdtRegistry(string id) : base(id)
         {
-            _keys = new OptimizedObservedRemoveSet<TActorId, TItemKey>();
+            _keys = new HashableOptimizedObservedRemoveSet<TActorId, TItemKey>();
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
         }
 
         protected ManagedCrdtRegistry(WithId<RegistryDto> registryDto) : base(registryDto.Id)
         {
             var keys = registryDto.Dto?.Keys ?? new OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto();
-            _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(keys);
+            _keys = HashableOptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(keys);
             var dict = registryDto.Dto?.Dict
                            .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
                        ?? new Dictionary<TItemKey, TItemValue>();
@@ -224,15 +225,8 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override async Task<string> GetHashAsync()
-        {
-            var hash = _keys.GetHashCode();
-            foreach (var pair in _dictionary.OrderBy(pair => pair.Key))
-            {
-                hash = HashCode.Combine(hash, await pair.Value.GetHashAsync());
-            }
-            return hash.ToString();
-        }
+        public override ReadOnlySpan<byte> GetHash() => HashingHelper.Combine(_keys.GetHash(),
+            HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key)));
 
         [ProtoContract]
         public sealed class RegistryDto

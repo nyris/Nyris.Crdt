@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts
@@ -16,8 +17,9 @@ namespace Nyris.Crdt.Distributed.Crdts
             ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>,
             Dictionary<TKey, TValue>,
             ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
+        where TValue : IHashable
         where TKey : IEquatable<TKey>
-        where TTimeStamp : IComparable<TTimeStamp>
+        where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
         private readonly SemaphoreSlim _semaphore = new(1);
@@ -164,11 +166,8 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override async Task<string> GetHashAsync()
-            => _items
-                .OrderBy(i => i.Key)
-                .Aggregate(0, HashCode.Combine)
-                .ToString();
+        public override ReadOnlySpan<byte> GetHash()
+            => HashingHelper.Combine(_items.OrderBy(i => i.Key));
 
         private void CheckKeyForConflict(TKey key, ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp> other, ref bool conflictSolved)
         {

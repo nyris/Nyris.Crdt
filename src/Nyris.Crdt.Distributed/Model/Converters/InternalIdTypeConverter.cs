@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace Nyris.Crdt.Distributed.Model.Converters
 {
-    internal class InternalIdTypeConverter<TInternalId, TFactory> : TypeConverter
+    public class InternalIdTypeConverter<TInternalId, TFactory> : TypeConverter
         where TFactory : IFactory<TInternalId>, new()
         where TInternalId : struct, IFormattable
     {

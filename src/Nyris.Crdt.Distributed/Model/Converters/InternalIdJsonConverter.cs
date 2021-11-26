@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace Nyris.Crdt.Distributed.Model.Converters
 {
-    internal class InternalIdJsonConverter<TInternalId, TFactory> : JsonConverter<TInternalId>
+    public sealed class InternalIdJsonConverter<TInternalId, TFactory> : JsonConverter<TInternalId>
         where TFactory : IFactory<TInternalId>, new()
         where TInternalId : struct, IFormattable
     {

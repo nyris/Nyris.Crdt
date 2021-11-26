@@ -6,6 +6,7 @@ using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.EventBus.Subscribers;
 using Nyris.Model.Ids;
+using IndexId = Nyris.Crdt.AspNetExample.IndexId;
 
 namespace Nyris.Crdt.AspNetExample.EventHandlers
 {
@@ -27,7 +28,7 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
         /// <inheritdoc />
         protected override async Task TryHandleAsync(ImageDataSetEvent message, DateTime createdEvent)
         {
-            var indexId = new IndexId(message.IndexId);
+            var indexId = IndexId.FromGuid(message.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
                 () => (_thisNodeId, new ImageInfoLwwRegistry(message.IndexId.ToString("N"))));
             index.TrySet(message.ImageUuid, new ImageInfo(message.DownloadUri, message.ImageId), createdEvent, out _);

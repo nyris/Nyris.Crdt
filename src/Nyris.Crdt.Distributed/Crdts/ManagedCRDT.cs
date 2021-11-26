@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
@@ -13,13 +14,13 @@ namespace Nyris.Crdt.Distributed.Crdts
     ///     DO NOT CHANGE THIS TYPE'S NAME LIGHTLY
     ///     It is used without referencing the type directly (or project at all) in the SourceGenerator project as const string.
     /// </remarks>
-    /// <typeparam name="TImplementation">The type that implements <see cref="IAsyncCRDT{TImplementation, TRepresentation, TDto}"/>. 
+    /// <typeparam name="TImplementation">The type that implements <see cref="IAsyncCRDT{TImplementation, TRepresentation, TDto}"/>.
     /// Usually you pass here the your type, that inherits ManagedCRDT. </typeparam>
-    /// <typeparam name="TRepresentation">That's how CRDT looks on the outside. 
+    /// <typeparam name="TRepresentation">That's how CRDT looks on the outside.
     /// For example, a fancy CRDT set, which tracks who is doing the deletion, still provides
     /// a basic HashSet<> Value to it's users.</typeparam>
     /// <typeparam name="TDto">It's a dto type, that is used as a data contract for grpc
-    /// communication. So it should be properly annotated with <see cref="ProtoContract"/> 
+    /// communication. So it should be properly annotated with <see cref="ProtoContract"/>
     /// and <see cref="ProtoMember"/>.</typeparam>
     public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : IAsyncCRDT<TImplementation, TRepresentation, TDto>, IHashableAndHaveUniqueName
         where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
@@ -60,6 +61,6 @@ namespace Nyris.Crdt.Distributed.Crdts
         public abstract string TypeName { get; }
 
         /// <inheritdoc />
-        public abstract Task<string> GetHashAsync();
+        public abstract ReadOnlySpan<byte> GetHash();
     }
 }

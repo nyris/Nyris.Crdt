@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Nyris.Crdt.AspNetExample.Events;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Model.Ids;
+using IndexId = Nyris.Crdt.AspNetExample.IndexId;
 
 namespace Nyris.Crdt.AspNetExample.Controllers
 {
@@ -24,7 +25,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         [HttpGet("{indexId:guid}")]
         public async Task<IActionResult> GetIndexAsync(Guid indexId)
         {
-            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(new IndexId(indexId),
+            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(IndexId.FromGuid(indexId),
                 () => (_thisNodeId, new ImageInfoLwwRegistry(indexId.ToString("N"))));
             return Ok(new { data = index.Values });
         }
@@ -35,7 +36,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         [HttpPost]
         public async Task<IActionResult> ImageDataSetAsync([FromBody] ImageDataSetEvent data)
         {
-            var indexId = new IndexId(data.IndexId);
+            var indexId = IndexId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
                 () => (_thisNodeId, new ImageInfoLwwRegistry(data.IndexId.ToString("N"))));
             if (!index.TrySet(data.ImageUuid, new ImageInfo(data.DownloadUri, data.ImageId), DateTime.UtcNow,
@@ -49,7 +50,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         [HttpDelete]
         public async Task<IActionResult> ImageDeletedAsync([FromBody] ImageDeletedEvent data)
         {
-            var indexId = new IndexId(data.IndexId);
+            var indexId = IndexId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
                 () => (_thisNodeId, new ImageInfoLwwRegistry(data.IndexId.ToString("N"))));
             if (!index.TryRemove(data.ImageUuid, DateTime.UtcNow, out var image))

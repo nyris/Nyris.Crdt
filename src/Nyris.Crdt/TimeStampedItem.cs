@@ -6,7 +6,7 @@ namespace Nyris.Crdt
 {
     [ProtoContract]
     public sealed class TimeStampedItem<TValue, TTimeStamp>
-        where TTimeStamp : IComparable<TTimeStamp>
+        where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         [ProtoMember(1)]
         public TValue Value { get; set; }
@@ -28,7 +28,5 @@ namespace Nyris.Crdt
             TimeStamp = timeStamp;
             Deleted = deleted;
         }
-
-        public string GetHash() => HashCode.Combine(Value, TimeStamp, Deleted).ToString();
     }
 }
