@@ -17,6 +17,11 @@ namespace Nyris.Crdt
         [ProtoMember(3)]
         public bool Deleted { get; set; }
 
+        private TimeStampedItem()
+        {
+            // parameterless constructor for Protobuf-NET
+        }
+
         public TimeStampedItem(TValue value, TTimeStamp timeStamp, bool deleted)
         {
             Value = value;
