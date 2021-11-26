@@ -9,18 +9,22 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Model;
+using Microsoft.Extensions.Logging;
 
 namespace Nyris.Crdt.Distributed
 {
     internal sealed class DtoPassingService : IDtoPassingService
     {
         private readonly ManagedCrdtContext _context;
+        private readonly ILogger<DtoPassingService> _logger;
 
-        public DtoPassingService(ManagedCrdtContext context)
+        public DtoPassingService(ManagedCrdtContext context, ILogger<DtoPassingService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public IAsyncEnumerable<HashAndInstanceId> GetHashesAsync(string typeName)
@@ -35,6 +39,7 @@ namespace Nyris.Crdt.Distributed
             await foreach(var dto in dtos)
             {
                 if (id == null) id = dto.Id;
+                _logger.LogDebug("Received dto for id='{Id}': {Dto}", id, JsonSerializer.Serialize(dto));
                 await _context.MergeAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
             }
 
