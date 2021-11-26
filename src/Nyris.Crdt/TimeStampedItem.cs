@@ -16,6 +16,10 @@ namespace Nyris.Crdt
         [ProtoMember(3)]
         public bool Deleted { get; set; }
 
+        public TimeStampedItem()
+        {
+        }
+
         public TimeStampedItem(TValue value, TTimeStamp timeStamp, bool deleted)
         {
             Value = value;
