@@ -5,6 +5,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Exceptions;
+using Nyris.Crdt.Distributed.Extensions;
+using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
@@ -46,10 +48,11 @@ namespace Nyris.Crdt.Distributed.Crdts
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
         }
 
-        protected ManagedCrdtRegistry(RegistryDto registryDto) : base("")
+        protected ManagedCrdtRegistry(WithId<RegistryDto> registryDto) : base(registryDto.Id)
         {
-            _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(registryDto.Keys);
-            var dict = registryDto.Dict?
+            var keys = registryDto.Dto?.Keys ?? new OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto();
+            _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(keys);
+            var dict = registryDto.Dto?.Dict
                            .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
                        ?? new Dictionary<TItemKey, TItemValue>();
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(dict);
@@ -163,7 +166,8 @@ namespace Nyris.Crdt.Distributed.Crdts
                 return new RegistryDto
                 {
                     Keys = _keys.ToDto(),
-                    Dict = keyValuePairTasks.ToDictionary(pair => pair.key, pair => pair.valueTask.Result)
+                    Dict = keyValuePairTasks.ToDictionary(pair => pair.key,
+                        pair => pair.valueTask.Result.WithId(_dictionary[pair.key].InstanceId))
                 };
             }
             finally
@@ -188,7 +192,7 @@ namespace Nyris.Crdt.Distributed.Crdts
 
                 while (true)
                 {
-                    var dict = new Dictionary<TItemKey, TItemValueDto>();
+                    var dict = new Dictionary<TItemKey, WithId<TItemValueDto>>();
                     foreach (var key in enumeratingKeys.Where(pair => pair.Value).Select(pair => pair.Key).ToList())
                     {
                         if (!await enumerators[key].MoveNextAsync())
@@ -198,7 +202,7 @@ namespace Nyris.Crdt.Distributed.Crdts
                             continue;
                         }
 
-                        dict[key] = enumerators[key].Current;
+                        dict[key] = enumerators[key].Current.WithId(_dictionary[key].InstanceId);
                     }
 
                     yield return new RegistryDto
@@ -237,7 +241,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             public OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto Keys { get; set; } = new();
 
             [ProtoMember(2)]
-            public Dictionary<TItemKey, TItemValueDto> Dict { get; set; } = new();
+            public Dictionary<TItemKey, WithId<TItemValueDto>> Dict { get; set; } = new();
         }
     }
 }

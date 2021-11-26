@@ -18,7 +18,7 @@ namespace Nyris.Crdt.AspNetExample
         {
         }
 
-        private ItemInfoCollectionsRegistry(RegistryDto registryDto) : base(registryDto)
+        private ItemInfoCollectionsRegistry(WithId<RegistryDto> registryDto) : base(registryDto)
         {
         }
 
@@ -47,7 +47,7 @@ namespace Nyris.Crdt.AspNetExample
             Dictionary<Guid, Dictionary<Guid, ImageInfo>>, RegistryDto>
         {
             /// <inheritdoc />
-            public ItemInfoCollectionsRegistry Create(RegistryDto registryDto) => new(registryDto);
+            public ItemInfoCollectionsRegistry Create(WithId<RegistryDto> registryDto) => new(registryDto);
         }
     }
 }

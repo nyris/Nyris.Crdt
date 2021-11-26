@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Model;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts
@@ -33,10 +34,10 @@ namespace Nyris.Crdt.Distributed.Crdts
             _observedState = new Dictionary<TActorId, uint>();
         }
 
-        protected ManagedOptimizedObservedRemoveSet(OrSetDto orSetDto) : base("")
+        protected ManagedOptimizedObservedRemoveSet(WithId<OrSetDto> orSetDto) : base(orSetDto.Id)
         {
-            _items = orSetDto.Items;
-            _observedState = orSetDto.ObservedState;
+            _items = orSetDto.Dto?.Items ?? new HashSet<VersionedSignedItem<TActorId, TItem>>();
+            _observedState = orSetDto.Dto?.ObservedState ?? new Dictionary<TActorId, uint>();
         }
 
         /// <inheritdoc />

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -13,9 +14,9 @@ namespace Nyris.Crdt.AspNetExample
         {
         }
 
-        private ManagedGrowthSet(List<int> values) : base("")
+        private ManagedGrowthSet(WithId<List<int>> values) : base(values.Id)
         {
-            Value = values?.ToHashSet() ?? new HashSet<int>();
+            Value = values.Dto?.ToHashSet() ?? new HashSet<int>();
         }
 
         /// <inheritdoc />
@@ -59,12 +60,12 @@ namespace Nyris.Crdt.AspNetExample
         public static readonly IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
             DefaultFactory = new GrowthSetFactory();
 
-        public static ManagedGrowthSet FromDto(List<int> dto) => new(dto);
+        public static ManagedGrowthSet FromDto(WithId<List<int>> dto) => new(dto);
     }
 
     public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
     {
         /// <inheritdoc />
-        public ManagedGrowthSet Create(List<int> dto) => ManagedGrowthSet.FromDto(dto);
+        public ManagedGrowthSet Create(WithId<List<int>> dto) => ManagedGrowthSet.FromDto(dto);
     }
 }

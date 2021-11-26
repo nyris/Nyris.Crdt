@@ -1,13 +1,15 @@
+using Nyris.Crdt.Distributed.Model;
+
 namespace Nyris.Crdt.Distributed.Crdts
 {
-    public interface IManagedCRDTFactory<out TCRDT, out TImplementation, TRepresentation, in TDto>
+    public interface IManagedCRDTFactory<out TCRDT, out TImplementation, TRepresentation, TDto>
         where TCRDT : ManagedCRDT<TImplementation, TRepresentation, TDto>
         where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
     {
-        TCRDT Create(TDto dto);
+        TCRDT Create(WithId<TDto> dto);
     }
 
-    public interface IManagedCRDTFactory<out TCRDT, TRepresentation, in TDto> : IManagedCRDTFactory<TCRDT, TCRDT, TRepresentation, TDto>
+    public interface IManagedCRDTFactory<out TCRDT, TRepresentation, TDto> : IManagedCRDTFactory<TCRDT, TCRDT, TRepresentation, TDto>
         where TCRDT : ManagedCRDT<TCRDT, TRepresentation, TDto>
     {
     }

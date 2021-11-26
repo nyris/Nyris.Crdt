@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Extensions;
+using Nyris.Crdt.Distributed.Model;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts
@@ -27,9 +28,10 @@ namespace Nyris.Crdt.Distributed.Crdts
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
         }
 
-        protected ManagedLastWriteWinsDeltaRegistry(LastWriteWinsDto dto) : base("")
+        protected ManagedLastWriteWinsDeltaRegistry(WithId<LastWriteWinsDto> dto) : base(dto.Id)
         {
-            _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto.Items);
+            _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto.Dto?.Items
+                ?? new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>());
         }
 
         /// <inheritdoc />

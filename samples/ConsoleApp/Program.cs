@@ -31,7 +31,7 @@ namespace ConsoleApp
                 Dto = new ManagedCrdtRegistry<NodeId, NodeId, ManagedGrowthSet, ManagedGrowthSet, HashSet<int>,
                     List<int>, GrowthSetFactory>.RegistryDto
                     {
-                        Dict = new Dictionary<NodeId, List<int>>(),
+                        Dict = new Dictionary<NodeId, WithId<List<int>>>(),
                         Keys = new OptimizedObservedRemoveSet<NodeId, NodeId>.Dto
                         {
                             Items = new HashSet<VersionedSignedItem<NodeId, NodeId>>(),

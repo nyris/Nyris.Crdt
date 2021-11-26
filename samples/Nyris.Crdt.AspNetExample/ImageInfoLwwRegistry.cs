@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -12,7 +13,7 @@ namespace Nyris.Crdt.AspNetExample
         }
 
         /// <inheritdoc />
-        private ImageInfoLwwRegistry(LastWriteWinsDto dto) : base(dto)
+        private ImageInfoLwwRegistry(WithId<LastWriteWinsDto> dto) : base(dto)
         {
         }
 
@@ -26,7 +27,7 @@ namespace Nyris.Crdt.AspNetExample
             LastWriteWinsDto>
         {
             /// <inheritdoc />
-            public ImageInfoLwwRegistry Create(LastWriteWinsDto dto) => new(dto);
+            public ImageInfoLwwRegistry Create(WithId<LastWriteWinsDto> dto) => new(dto);
         }
 
         /// <inheritdoc />

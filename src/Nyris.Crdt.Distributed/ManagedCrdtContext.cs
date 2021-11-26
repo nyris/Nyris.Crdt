@@ -98,11 +98,8 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            if (dto.Dto != null)
-            {
-                var other = factory.Create(dto.Dto);
-                await crdt.MergeAsync(other);
-            }
+            var other = factory.Create(dto);
+            await crdt.MergeAsync(other);
             return await crdt.ToDtoAsync();
         }
 

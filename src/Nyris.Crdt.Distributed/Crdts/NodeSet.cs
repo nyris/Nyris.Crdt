@@ -14,7 +14,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
         }
 
-        private NodeSet(OrSetDto orSetDto) : base(orSetDto)
+        private NodeSet(WithId<OrSetDto> orSetDto) : base(orSetDto)
         {
         }
 
@@ -35,7 +35,7 @@ namespace Nyris.Crdt.Distributed.Crdts
 
         private sealed class Factory : IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, OrSetDto>
         {
-            public NodeSet Create(OrSetDto orSetDto) => new (orSetDto);
+            public NodeSet Create(WithId<OrSetDto> orSetDto) => new (orSetDto);
         }
 
         /// <inheritdoc />
