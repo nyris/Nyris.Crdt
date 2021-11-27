@@ -73,6 +73,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         public async Task<TItemValue> GetOrCreateAsync(TItemKey key, Func<(TActorId, TItemValue)> createFunc)
         {
             await _semaphore.WaitAsync();
+            var created = false;
             try
             {
                 if (_dictionary.TryGetValue(key, out var value)) return value;
@@ -82,12 +83,13 @@ namespace Nyris.Crdt.Distributed.Crdts
                 _keys.Add(key, actorId);
                 _dictionary.TryAdd(key, newValue);
                 ManagedCrdtContext.Add(newValue, Factory);
+                created = true;
                 return newValue;
             }
             finally
             {
                 _semaphore.Release();
-                await StateChangedAsync();
+                if(created) await StateChangedAsync();
             }
         }
 
@@ -112,6 +114,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         public override async Task<MergeResult> MergeAsync(ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory> other)
         {
             await _semaphore.WaitAsync();
+            var conflict = false;
             try
             {
                 var keyResult = _keys.Merge(other._keys);
@@ -129,7 +132,7 @@ namespace Nyris.Crdt.Distributed.Crdts
                 }
 
                 // merge values
-                var conflict = keyResult == MergeResult.ConflictSolved;
+                conflict = keyResult == MergeResult.ConflictSolved;
                 foreach (var key in _keys.Value)
                 {
                     var iHave = _dictionary.TryGetValue(key, out var myValue);
@@ -152,7 +155,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             finally
             {
                 _semaphore.Release();
-                await StateChangedAsync();
+                if(conflict) await StateChangedAsync();
             }
         }
 
