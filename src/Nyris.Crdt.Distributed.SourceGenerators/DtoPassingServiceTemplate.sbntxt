@@ -39,19 +39,21 @@ namespace Nyris.Crdt.Distributed
             await foreach(var dto in dtos)
             {
                 if (id == null) id = dto.Id;
-                _logger.LogDebug("Received dto for id='{Id}': {Dto}", id, JsonConvert.SerializeObject(dto));
+                _logger.LogDebug("Received dto during sync for id='{Id}': {Dto}", id, JsonConvert.SerializeObject(dto));
                 await _context.MergeAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
             }
 
             if (id == null) yield break;
             await foreach(var dto in _context.EnumerateDtoBatchesAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(id))
             {
+                _logger.LogDebug("Sending dto during sync for id='{Id}': {Dto}", id, JsonConvert.SerializeObject(dto));
                 yield return dto;
             }
         }
 
         public Task<{{ type.DtoTypeName }}> SendAsync(WithId<{{ type.DtoTypeName }}> dto)
         {
+            _logger.LogDebug("Received dto for id='{Id}': {Dto}", dto.Id, JsonConvert.SerializeObject(dto.Dto));
             return _context.MergeAsync<{{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>(dto);
         }
         {{~ end ~}}

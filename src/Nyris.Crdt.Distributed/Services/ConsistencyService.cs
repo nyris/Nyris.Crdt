@@ -20,6 +20,7 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly ChannelManager<TGrpcService> _channelManager;
         private readonly IConsistencyCheckTargetsSelectionStrategy _strategy;
         private readonly NodeId _thisNodeId;
+        private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(60);
 
         private readonly ILogger<ConsistencyService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>> _logger;
 
@@ -53,7 +54,7 @@ namespace Nyris.Crdt.Distributed.Services
                     _logger.LogError(e, "Unhandled exception for Crdt of type {CrdtType}", typeof(TCrdt));
                 }
 
-                await Task.Delay(3000, stoppingToken);
+                await Task.Delay(_delayBetweenChecks, stoppingToken);
             }
         }
 
@@ -81,7 +82,8 @@ namespace Nyris.Crdt.Distributed.Services
 
                 await foreach (var (hash, instanceId) in proxy.GetHashesAsync(typeName).WithCancellation(cancellationToken))
                 {
-                    if (_context.IsHashEqual(new TypeNameAndHash(typeName, hash).WithId(instanceId))) continue;
+                    var hashMsg = new TypeNameAndHash(typeName, hash).WithId(instanceId);
+                    if (_context.IsHashEqual(hashMsg)) continue;
 
                     _logger.LogInformation("Hash {MyHash} of {CrdtType} with id {CrdtInstanceId} does not " +
                                            "match with local one",
