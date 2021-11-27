@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
@@ -38,8 +39,13 @@ namespace Nyris.Crdt.Distributed.Services
         /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await foreach (var dto in Queues.GetQueue<TDto>(typeof(TCrdt)))
+            var queue = Queues.GetQueue<TDto>(typeof(TCrdt));
+            _logger.LogInformation("Consuming dto queue for crdt '{CrdtType}' with dto type '{DtoType}'",
+                typeof(TCrdt), typeof(TDto));
+            await foreach (var dto in queue)
             {
+                _logger.LogDebug("Preparing to send dto {Dto}. \nQueue size: {QueueSize}",
+                    JsonConvert.SerializeObject(dto), queue.QueueLength);
                 try
                 {
                     foreach (var nodeId in _propagationStrategy.GetTargetNodes(_context.Nodes.Value, _thisNodeId))
@@ -51,6 +57,8 @@ namespace Nyris.Crdt.Distributed.Services
                         }
 
                         var response = await proxy.SendAsync(dto);
+                        
+                        _logger.LogDebug("Received back dto {Dto}",JsonConvert.SerializeObject(response));
                         await _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response.WithId(dto.Id));
                     }
                 }

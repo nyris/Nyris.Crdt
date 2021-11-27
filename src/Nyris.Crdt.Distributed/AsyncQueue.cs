@@ -12,10 +12,16 @@ namespace Nyris.Crdt.Distributed
     /// <typeparam name="T">The type of the queued element.</typeparam>
     internal sealed class AsyncQueue<T> : IAsyncEnumerable<T>, IDisposable
     {
+        public long QueueLength = 0L;
+
         private readonly SemaphoreSlim _enumerationSemaphore = new(1);
         private readonly BufferBlock<T> _bufferBlock = new();
 
-        public void Enqueue(T item) => _bufferBlock.Post(item);
+        public void Enqueue(T item)
+        {
+            Interlocked.Increment(ref QueueLength);
+            _bufferBlock.Post(item);
+        }
 
         public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken token = default)
         {
@@ -29,6 +35,7 @@ namespace Nyris.Crdt.Distributed
                     // Make sure to throw on cancellation so the Task will transfer into a canceled state
                     token.ThrowIfCancellationRequested();
                     yield return await _bufferBlock.ReceiveAsync(token);
+                    Interlocked.Decrement(ref QueueLength);
                 }
             } finally {
                 _enumerationSemaphore.Release();
