@@ -114,16 +114,18 @@ namespace Nyris.Crdt.Distributed.Crdts
 
         public override async Task<MergeResult> MergeAsync(ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp> other)
         {
+            if (other._items.IsEmpty) return MergeResult.NotUpdated;
+
             var conflictSolved = false;
             await _semaphore.WaitAsync();
             try
             {
-                foreach (var key in _items.Keys.Union(other._items.Keys))
+                foreach (var key in other._items.Keys)
                 {
                     CheckKeyForConflict(key, other, ref conflictSolved);
                 }
 
-                return conflictSolved ? MergeResult.ConflictSolved : MergeResult.Identical;
+                return conflictSolved ? MergeResult.ConflictSolved : MergeResult.NotUpdated;
             }
             finally
             {

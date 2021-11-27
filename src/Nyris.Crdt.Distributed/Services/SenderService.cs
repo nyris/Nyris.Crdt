@@ -57,7 +57,7 @@ namespace Nyris.Crdt.Distributed.Services
                         }
 
                         var response = await proxy.SendAsync(dto);
-                        
+
                         _logger.LogDebug("Received back dto {Dto}",JsonConvert.SerializeObject(response));
                         await _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response.WithId(dto.Id));
                     }
