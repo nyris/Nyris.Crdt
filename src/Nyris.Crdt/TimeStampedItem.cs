@@ -1,6 +1,5 @@
 using System;
 using ProtoBuf;
-using ProtoBuf.ServiceModel;
 
 namespace Nyris.Crdt
 {

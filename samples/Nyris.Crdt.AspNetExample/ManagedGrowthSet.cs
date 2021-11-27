@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.AspNetExample
 {

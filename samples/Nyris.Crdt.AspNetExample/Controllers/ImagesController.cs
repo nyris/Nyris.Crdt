@@ -3,8 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Nyris.Crdt.AspNetExample.Events;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Model.Ids;
-using IndexId = Nyris.Crdt.AspNetExample.IndexId;
 
 namespace Nyris.Crdt.AspNetExample.Controllers
 {

@@ -5,8 +5,6 @@ using Nyris.Crdt.AspNetExample.Events;
 using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.EventBus.Subscribers;
-using Nyris.Model.Ids;
-using IndexId = Nyris.Crdt.AspNetExample.IndexId;
 
 namespace Nyris.Crdt.AspNetExample.EventHandlers
 {

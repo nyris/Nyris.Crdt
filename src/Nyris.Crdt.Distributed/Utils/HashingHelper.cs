@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Nyris.Crdt.Distributed.Utils
 {
-    internal sealed class HashingHelper
+    internal static class HashingHelper
     {
         public static ReadOnlySpan<byte> Combine(ReadOnlySpan<byte> obj1, ReadOnlySpan<byte> obj2)
         {

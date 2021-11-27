@@ -155,13 +155,16 @@ namespace Nyris.Crdt.Distributed.Crdts
         /// <inheritdoc />
         public override async IAsyncEnumerable<LastWriteWinsDto> EnumerateDtoBatchesAsync()
         {
-            const int maxBatchSize = 1000;
+            const int maxBatchSize = 10;
             foreach (var batch in _items.Batch(maxBatchSize))
             {
-                yield return new LastWriteWinsDto
+                var items = new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(batch.Length);
+                for (var i = 0; i < batch.Length; ++i)
                 {
-                    Items = new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(batch)
-                };
+                    var (key, item) = batch.Span[i];
+                    items.Add(key, item);
+                }
+                yield return new LastWriteWinsDto { Items = items };
             }
         }
 
