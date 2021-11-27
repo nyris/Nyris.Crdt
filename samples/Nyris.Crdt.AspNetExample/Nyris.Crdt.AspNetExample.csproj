@@ -10,6 +10,7 @@
 <!--    </PropertyGroup>-->
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="5.0.12" />
         <PackageReference Include="MongoDB.Driver" Version="2.12.4" />
         <PackageReference Include="Nyris.Model.Ids" Version="0.1.0" />
         <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.3.0" />

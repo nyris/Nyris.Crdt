@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
+using Newtonsoft.Json;
 using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.Crdt.Distributed;
 using Nyris.EventBus.AspNetCore;
@@ -43,7 +44,13 @@ namespace Nyris.Crdt.AspNetExample
                 cb.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin().Build();
             }));
 
-            services.AddControllers();
+            services.AddControllers()
+                .AddNewtonsoftJson(options =>
+                {
+                    options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+                    options.SerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
+                });
+
             services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo
