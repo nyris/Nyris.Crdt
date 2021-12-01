@@ -47,7 +47,7 @@ namespace Nyris.Crdt.Distributed.Services
             {
                 try
                 {
-                    await TryHandleConsistencyCheck(stoppingToken);
+                    await TryHandleConsistencyCheckAsync(stoppingToken);
                 }
                 catch (Exception e)
                 {
@@ -58,7 +58,7 @@ namespace Nyris.Crdt.Distributed.Services
             }
         }
 
-        private async Task TryHandleConsistencyCheck(CancellationToken cancellationToken)
+        private async Task TryHandleConsistencyCheckAsync(CancellationToken cancellationToken)
         {
             string typeName;
             try

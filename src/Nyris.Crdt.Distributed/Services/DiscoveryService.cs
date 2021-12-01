@@ -83,7 +83,7 @@ namespace Nyris.Crdt.Distributed.Services
             {
                 try
                 {
-                    await TryConnectingToNode(address, name);
+                    await TryConnectingToNodeAsync(address, name);
                 }
                 catch (Exception e)
                 {
@@ -95,7 +95,7 @@ namespace Nyris.Crdt.Distributed.Services
             _logger.LogDebug("Discovery completed");
         }
 
-        private async Task TryConnectingToNode(Uri address, string name)
+        private async Task TryConnectingToNodeAsync(Uri address, string name)
         {
             _logger.LogDebug("Attempting to connect to {NodeName} at {NodeAddress}", name, address);
             using var channel = GrpcChannel.ForAddress(address, _grpcChannelOptions);
