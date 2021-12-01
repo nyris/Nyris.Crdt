@@ -114,7 +114,7 @@ namespace Nyris.Crdt.Distributed
             {
                 if (_sameManagedCrdts.TryGetValue(typeNameAndId, out var crdt))
                 {
-                    yield return new HashAndInstanceId(Hash: crdt.GetHash().ToArray(), InstanceId: typeNameAndId.InstanceId);
+                    yield return new HashAndInstanceId(Hash: crdt.CalculateHash().ToArray(), InstanceId: typeNameAndId.InstanceId);
                 }
             }
         }
@@ -141,7 +141,7 @@ namespace Nyris.Crdt.Distributed
                                                            "across servers");
             }
 
-            return crdt.GetHash().SequenceEqual(new ReadOnlySpan<byte>(hash.Dto.Hash));
+            return crdt.CalculateHash().SequenceEqual(new ReadOnlySpan<byte>(hash.Dto.Hash));
         }
 
         public async IAsyncEnumerable<WithId<TDto>> EnumerateDtoBatchesAsync<TCrdt, TImplementation, TRepresentation, TDto>(string instanceId)

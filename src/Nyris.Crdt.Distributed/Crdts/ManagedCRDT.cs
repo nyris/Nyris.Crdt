@@ -41,8 +41,6 @@ namespace Nyris.Crdt.Distributed.Crdts
             InstanceId = instanceId;
         }
 
-        // private AsyncQueue<WithId<TDto>> Queue => _queue ??= Queues.GetQueue<WithId<TDto>>();
-
         /// <inheritdoc />
         public abstract TRepresentation Value { get; }
 
@@ -61,6 +59,6 @@ namespace Nyris.Crdt.Distributed.Crdts
         public abstract string TypeName { get; }
 
         /// <inheritdoc />
-        public abstract ReadOnlySpan<byte> GetHash();
+        public abstract ReadOnlySpan<byte> CalculateHash();
     }
 }

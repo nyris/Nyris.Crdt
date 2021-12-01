@@ -171,7 +171,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override ReadOnlySpan<byte> GetHash()
+        public override ReadOnlySpan<byte> CalculateHash()
             => HashingHelper.Combine(_items.OrderBy(i => i.Key));
 
         private void CheckKeyForConflict(TKey key, ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp> other, ref bool conflictSolved)

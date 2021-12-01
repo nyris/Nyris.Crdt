@@ -11,7 +11,7 @@ namespace Nyris.Crdt.AspNetExample
         [property: ProtoMember(2)] string ImageId) : IHashable
     {
         /// <inheritdoc />
-        public ReadOnlySpan<byte> GetHash()
+        public ReadOnlySpan<byte> CalculateHash()
         {
             using var md5 = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
             md5.AppendData(Encoding.UTF8.GetBytes(DownloadUrl.ToString()));

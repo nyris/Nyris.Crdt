@@ -53,7 +53,7 @@ namespace Nyris.Crdt.AspNetExample
         public override string TypeName { get; } = nameof(ManagedGrowthSet);
 
         /// <inheritdoc />
-        public override ReadOnlySpan<byte> GetHash()
+        public override ReadOnlySpan<byte> CalculateHash()
         {
             using var md5 = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
             foreach(var v in Value.OrderBy(i => i))

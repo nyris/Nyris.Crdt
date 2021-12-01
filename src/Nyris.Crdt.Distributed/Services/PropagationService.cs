@@ -11,7 +11,7 @@ using Nyris.Crdt.Distributed.Strategies.Propagation;
 
 namespace Nyris.Crdt.Distributed.Services
 {
-    internal sealed class SenderService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
+    internal sealed class PropagationService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
         where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
         where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
         where TGrpcService : class
@@ -19,12 +19,12 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly ManagedCrdtContext _context;
         private readonly IPropagationStrategy _propagationStrategy;
         private readonly ChannelManager<TGrpcService> _channelManager;
-        private readonly ILogger<SenderService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>> _logger;
+        private readonly ILogger<PropagationService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>> _logger;
         private readonly NodeId _thisNodeId;
 
         /// <inheritdoc />
-        public SenderService(ManagedCrdtContext context,
-            ILogger<SenderService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>> logger,
+        public PropagationService(ManagedCrdtContext context,
+            ILogger<PropagationService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>> logger,
             NodeInfo thisNode,
             IPropagationStrategy propagationStrategy,
             ChannelManager<TGrpcService> channelManager)

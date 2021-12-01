@@ -18,7 +18,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public ReadOnlySpan<byte> GetHash()
+        public ReadOnlySpan<byte> CalculateHash()
         {
             lock (SetChangeLock)
             {

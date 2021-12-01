@@ -89,7 +89,7 @@ namespace Nyris.Crdt.AspNetExample
         public override string ToString() => _id.ToString("N");
 
         /// <inheritdoc />
-        public ReadOnlySpan<byte> GetHash() => _id.ToByteArray();
+        public ReadOnlySpan<byte> CalculateHash() => _id.ToByteArray();
 
         /// <inheritdoc />
         public int CompareTo(IndexId other) => _id.CompareTo(other._id);

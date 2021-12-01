@@ -42,7 +42,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override ReadOnlySpan<byte> GetHash()
+        public override ReadOnlySpan<byte> CalculateHash()
         {
             _semaphore.Wait();
             try
@@ -135,7 +135,7 @@ namespace Nyris.Crdt.Distributed.Crdts
 
         public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<TActorId, TItem> other)
         {
-            if (GetHash().SequenceEqual(other.GetHash()))
+            if (CalculateHash().SequenceEqual(other.CalculateHash()))
             {
                 return MergeResult.Identical;
             }

@@ -9,6 +9,6 @@ namespace Nyris.Crdt.Distributed.Model
         [property: ProtoMember(2)] NodeId Id) : IHashable
     {
         /// <inheritdoc />
-        public ReadOnlySpan<byte> GetHash() => HashingHelper.Combine(Address, Id);
+        public ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(Address, Id);
     }
 }

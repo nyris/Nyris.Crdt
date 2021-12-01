@@ -228,7 +228,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override ReadOnlySpan<byte> GetHash() => HashingHelper.Combine(_keys.GetHash(),
+        public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_keys.CalculateHash(),
             HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key)));
 
         [ProtoContract]

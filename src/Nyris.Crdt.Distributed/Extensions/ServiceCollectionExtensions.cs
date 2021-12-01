@@ -32,7 +32,7 @@ namespace Nyris.Crdt.Distributed.Extensions
             where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
             where TGrpcService : class
             => services
-                .AddHostedService<SenderService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>>()
+                .AddHostedService<PropagationService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>>()
                 .AddHostedService<ConsistencyService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>>();
     }
 }

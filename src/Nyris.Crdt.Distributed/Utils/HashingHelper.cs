@@ -31,8 +31,8 @@ namespace Nyris.Crdt.Distributed.Utils
             var sha1 = Pool.Get();
             try
             {
-                sha1.AppendData(obj1.GetHash());
-                sha1.AppendData(obj2.GetHash());
+                sha1.AppendData(obj1.CalculateHash());
+                sha1.AppendData(obj2.CalculateHash());
                 return sha1.GetHashAndReset();
             }
             finally
@@ -46,9 +46,9 @@ namespace Nyris.Crdt.Distributed.Utils
             var sha1 = Pool.Get();
             try
             {
-                sha1.AppendData(obj1.GetHash());
-                sha1.AppendData(obj2.GetHash());
-                sha1.AppendData(obj3.GetHash());
+                sha1.AppendData(obj1.CalculateHash());
+                sha1.AppendData(obj2.CalculateHash());
+                sha1.AppendData(obj3.CalculateHash());
                 return sha1.GetHashAndReset();
             }
             finally
@@ -64,7 +64,7 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 for (var i = 0; i < items.Length; ++i)
                 {
-                    sha1.AppendData(items[i].GetHash());
+                    sha1.AppendData(items[i].CalculateHash());
                 }
 
                 return sha1.GetHashAndReset();
@@ -84,8 +84,8 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 foreach (var (key, item) in items)
                 {
-                    sha1.AppendData(key.GetHash());
-                    sha1.AppendData(item.GetHash());
+                    sha1.AppendData(key.CalculateHash());
+                    sha1.AppendData(item.CalculateHash());
                 }
 
                 return sha1.GetHashAndReset();
@@ -104,7 +104,7 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 foreach (var (key, item) in items)
                 {
-                    sha1.AppendData(key.GetHash());
+                    sha1.AppendData(key.CalculateHash());
                     sha1.AppendData(BitConverter.GetBytes(item));
                 }
 
@@ -127,9 +127,9 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 foreach (var (key, item) in items)
                 {
-                    sha1.AppendData(key.GetHash());
-                    sha1.AppendData(item.Actor.GetHash());
-                    sha1.AppendData(item.Item.GetHash());
+                    sha1.AppendData(key.CalculateHash());
+                    sha1.AppendData(item.Actor.CalculateHash());
+                    sha1.AppendData(item.Item.CalculateHash());
                     sha1.AppendData(BitConverter.GetBytes(item.Version));
                 }
 
@@ -155,7 +155,7 @@ namespace Nyris.Crdt.Distributed.Utils
                     // TODO: GetHashCode will not be equal across nodes for some types. How to enforce it properly?
                     sha1.AppendData(BitConverter.GetBytes(key.GetHashCode()));
                     sha1.AppendData(BitConverter.GetBytes(item.Deleted));
-                    sha1.AppendData(item.Value.GetHash());
+                    sha1.AppendData(item.Value.CalculateHash());
                     sha1.AppendData(BitConverter.GetBytes(item.TimeStamp.GetHashCode()));
                 }
 
@@ -177,8 +177,8 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 foreach (var item in items)
                 {
-                    sha1.AppendData(item.Actor.GetHash());
-                    sha1.AppendData(item.Item.GetHash());
+                    sha1.AppendData(item.Actor.CalculateHash());
+                    sha1.AppendData(item.Item.CalculateHash());
                     sha1.AppendData(BitConverter.GetBytes(item.Version));
                 }
 
@@ -198,7 +198,7 @@ namespace Nyris.Crdt.Distributed.Utils
                 sha1.AppendData(BitConverter.GetBytes(value));
                 for (var i = 0; i < items.Length; ++i)
                 {
-                    sha1.AppendData(items[i].GetHash());
+                    sha1.AppendData(items[i].CalculateHash());
                 }
 
                 return sha1.GetHashAndReset();
@@ -217,7 +217,7 @@ namespace Nyris.Crdt.Distributed.Utils
                 sha1.AppendData(Encoding.UTF8.GetBytes(value.ToString()));
                 for (var i = 0; i < items.Length; ++i)
                 {
-                    sha1.AppendData(items[i].GetHash());
+                    sha1.AppendData(items[i].CalculateHash());
                 }
 
                 return sha1.GetHashAndReset();

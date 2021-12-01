@@ -4,6 +4,6 @@ namespace Nyris.Crdt.Distributed
 {
     public interface IHashable
     {
-        ReadOnlySpan<byte> GetHash();
+        ReadOnlySpan<byte> CalculateHash();
     }
 }
