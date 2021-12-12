@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Nyris.Crdt.Sets;
+using ProtoBuf;
 
 namespace Nyris.Crdt
 {
@@ -19,7 +22,7 @@ namespace Nyris.Crdt
         : ICRDT<
             CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueDtoFactory, TItemValueRepresentation>,
             Dictionary<TItemKey, TItemValueRepresentation>,
-            CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueDtoFactory, TItemValueRepresentation>.Dto>
+            CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueDtoFactory, TItemValueRepresentation>.CrdtRegistryDto>
         where TItemKey : IEquatable<TItemKey>
         where TActorId : IEquatable<TActorId>
         where TItemValue : class, ICRDT<TItemValue, TItemValueRepresentation, TItemValueDto>
@@ -28,7 +31,7 @@ namespace Nyris.Crdt
         private static readonly TItemValueDtoFactory Factory = new();
 
         private readonly OptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
-        private readonly Dictionary<TItemKey, TItemValue> _dictionary;
+        private readonly ConcurrentDictionary<TItemKey, TItemValue> _dictionary;
         private readonly object _mergeLock = new();
 
         /// <inheritdoc />
@@ -46,37 +49,26 @@ namespace Nyris.Crdt
         public CrdtRegistry()
         {
             _keys = new OptimizedObservedRemoveSet<TActorId, TItemKey>();
-            _dictionary = new Dictionary<TItemKey, TItemValue>();
+            _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
         }
 
-        private CrdtRegistry(Dto dto)
+        private CrdtRegistry(CrdtRegistryDto crdtRegistryDto)
         {
-            _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(dto.Keys);
-            _dictionary = dto.Dict?.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
-                          ?? new Dictionary<TItemKey, TItemValue>();
+            _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(crdtRegistryDto.Keys);
+            _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(crdtRegistryDto.Dict?.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
+                          ?? new Dictionary<TItemKey, TItemValue>());
         }
 
-        public TItemValue GetOrCreate(TItemKey key, Func<(TActorId, TItemValue)> createFunc)
-        {
-            lock (_mergeLock)
-            {
-                if (_dictionary.TryGetValue(key, out var value)) return value;
-
-                var (actorId, newValue) = createFunc();
-
-                _keys.Add(key, actorId);
-                _dictionary.Add(key, newValue);
-
-                return newValue;
-            }
-        }
+        public bool TryGetValue(TItemKey key, [NotNullWhen(true)] out TItemValue? value)
+            // ReSharper disable once InconsistentlySynchronizedField
+            => _dictionary.TryGetValue(key, out value);
 
         public void Remove(TItemKey key)
         {
             lock (_mergeLock)
             {
                 _keys.Remove(key);
-                _dictionary.Remove(key);
+                _dictionary.Remove(key, out _);
             }
         }
 
@@ -91,7 +83,7 @@ namespace Nyris.Crdt
                 {
                     foreach (var keyToDrop in _dictionary.Keys.Except(_keys.Value))
                     {
-                        _dictionary.Remove(keyToDrop);
+                        _dictionary.Remove(keyToDrop, out _);
                     }
                 }
 
@@ -104,7 +96,7 @@ namespace Nyris.Crdt
 
                     if (iHave && otherHas)
                     {
-                        var valueResult = myValue.Merge(otherValue);
+                        var valueResult = myValue!.Merge(otherValue!);
                         conflict = conflict || valueResult == MergeResult.ConflictSolved;
                     }
                     else if (otherHas)
@@ -118,11 +110,11 @@ namespace Nyris.Crdt
             }
         }
 
-        public Dto ToDto()
+        public CrdtRegistryDto ToDto()
         {
             lock (_mergeLock)
             {
-                return new Dto
+                return new CrdtRegistryDto
                 {
                     Keys = _keys.ToDto(),
                     Dict = _dictionary.ToDictionary(pair => pair.Key, pair => pair.Value.ToDto())
@@ -130,13 +122,16 @@ namespace Nyris.Crdt
             }
         }
 
-        public static CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueDtoFactory, TItemValueRepresentation> FromDto(Dto dto)
-            => new(dto);
+        public static CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueDtoFactory, TItemValueRepresentation> FromDto(CrdtRegistryDto crdtRegistryDto)
+            => new(crdtRegistryDto);
 
-        public sealed class Dto
+        [ProtoContract]
+        public sealed class CrdtRegistryDto
         {
-            public OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto Keys { get; set; }
+            [ProtoMember(1)]
+            public OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto Keys { get; set; }
 
+            [ProtoMember(2)]
             public Dictionary<TItemKey, TItemValueDto> Dict { get; set; }
         }
     }

@@ -17,7 +17,7 @@ namespace Nyris.Crdt.Sets
         : ICRDT<
             OptimizedObservedRemoveSet<TActorId, TItem>,
             HashSet<TItem>,
-            OptimizedObservedRemoveSet<TActorId, TItem>.Dto>
+            OptimizedObservedRemoveSet<TActorId, TItem>.OptimizedObservedRemoveSetDto>
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>
     {
@@ -31,14 +31,14 @@ namespace Nyris.Crdt.Sets
             ObservedState = new Dictionary<TActorId, uint>();
         }
 
-        protected OptimizedObservedRemoveSet(Dto dto)
+        protected OptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
         {
-            Items = dto.Items;
-            ObservedState = dto.ObservedState;
+            Items = optimizedObservedRemoveSetDto.Items;
+            ObservedState = optimizedObservedRemoveSetDto.ObservedState;
         }
 
-        public static OptimizedObservedRemoveSet<TActorId, TItem> FromDto(Dto dto)
-            => new(dto);
+        public static OptimizedObservedRemoveSet<TActorId, TItem> FromDto(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
+            => new(optimizedObservedRemoveSetDto);
 
         /// <inheritdoc />
         public override int GetHashCode()
@@ -56,11 +56,11 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        public Dto ToDto()
+        public OptimizedObservedRemoveSetDto ToDto()
         {
             lock (SetChangeLock)
             {
-                return new Dto
+                return new OptimizedObservedRemoveSetDto
                 {
                     Items = Items
                         .Select(i => new VersionedSignedItem<TActorId, TItem>(i.Actor, i.Version, i.Item))
@@ -74,6 +74,11 @@ namespace Nyris.Crdt.Sets
         public HashSet<TItem> Value
         {
             get { lock(SetChangeLock) return Items.Select(i => i.Item).ToHashSet(); }
+        }
+
+        public bool Contains(TItem item)
+        {
+            lock(SetChangeLock) return Items.Any(i => i.Item.Equals(item));
         }
 
         public void Add(TItem item, TActorId actorPerformingAddition)
@@ -146,7 +151,7 @@ namespace Nyris.Crdt.Sets
         }
 
         [ProtoContract]
-        public sealed class Dto
+        public sealed class OptimizedObservedRemoveSetDto
         {
             [ProtoMember(1)]
             public HashSet<VersionedSignedItem<TActorId, TItem>> Items { get; set; } = new();
@@ -155,10 +160,10 @@ namespace Nyris.Crdt.Sets
             public Dictionary<TActorId, uint> ObservedState { get; set; } = new();
         }
 
-        public sealed class Factory : ICRDTFactory<OptimizedObservedRemoveSet<TActorId, TItem>, HashSet<TItem>, Dto>
+        public sealed class Factory : ICRDTFactory<OptimizedObservedRemoveSet<TActorId, TItem>, HashSet<TItem>, OptimizedObservedRemoveSetDto>
         {
             /// <inheritdoc />
-            public OptimizedObservedRemoveSet<TActorId, TItem> Create(Dto dto) => FromDto(dto);
+            public OptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) => FromDto(optimizedObservedRemoveSetDto);
         }
     }
 }

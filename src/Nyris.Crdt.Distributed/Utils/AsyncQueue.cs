@@ -1,10 +1,9 @@
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed.Utils
 {
     /// <summary>
     /// Taken almost as-is from https://stackoverflow.com/questions/7863573/awaitable-task-based-queue

@@ -1,7 +1,8 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Services;
+using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
@@ -14,14 +15,15 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
         }
 
-        private NodeSet(WithId<OrSetDto> orSetDto) : base(orSetDto)
+        private NodeSet(OrSetDto orSetDto, string instanceId) : base(orSetDto, instanceId)
         {
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo> other)
+        public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo> other,
+            CancellationToken cancellationToken = default)
         {
-            var result = await base.MergeAsync(other);
+            var result = await base.MergeAsync(other, cancellationToken);
 
             if (!Value.Contains(ThisNodeInfo))
             {
@@ -35,10 +37,10 @@ namespace Nyris.Crdt.Distributed.Crdts
 
         private sealed class Factory : IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, OrSetDto>
         {
-            public NodeSet Create(WithId<OrSetDto> orSetDto) => new (orSetDto);
+            public NodeSet Create(OrSetDto orSetDto, string instanceId) => new (orSetDto, instanceId);
         }
 
-        /// <inheritdoc />
-        public override string TypeName => nameof(NodeSet);
+        // /// <inheritdoc />
+        // public override string TypeName => nameof(NodeSet);
     }
 }

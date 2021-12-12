@@ -1,0 +1,20 @@
+version: "3.3"
+services:
+  node-0:
+    build:
+      context: .
+      dockerfile: Dockerfile.Local
+    ports:
+      - "5000:80"
+  node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.Local
+    ports:
+      - "5001:80"
+  node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.Local
+    ports:
+      - "5002:80"

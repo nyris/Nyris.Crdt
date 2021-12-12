@@ -5,11 +5,11 @@ using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed.Services
+namespace Nyris.Crdt.Distributed.Utils
 {
     internal static class NodeInfoProvider
     {
-        private static readonly NodeId NodeId = NodeId.FromGuid(Guid.NewGuid());
+        public static readonly NodeId ThisNodeId = NodeId.FromGuid(Guid.NewGuid());
         private static NodeInfo? _info;
 
         public static NodeInfo GetMyNodeInfo()
@@ -22,8 +22,8 @@ namespace Nyris.Crdt.Distributed.Services
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    Console.WriteLine($"This node was assigned id={NodeId}");
-                    _info = new NodeInfo(new Uri($"http://{ip}:{8080}"), NodeId);
+                    Console.WriteLine($"This node was assigned id={ThisNodeId}");
+                    _info = new NodeInfo(new Uri($"http://{ip}:{8080}"), ThisNodeId);
                     return _info;
                 }
             }

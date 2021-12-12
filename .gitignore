@@ -9,7 +9,7 @@ appsettings.production.json
 appsettings.staging.json
 appsettings.integration.json
 
-*.xml
+NuGet.Config
 
 # .NET
 **/launchSettings.json

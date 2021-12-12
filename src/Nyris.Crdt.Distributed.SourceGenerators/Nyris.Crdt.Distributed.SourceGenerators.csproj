@@ -11,18 +11,24 @@
 
     <ItemGroup>
         <!-- In order to add most packages, see https://github.com/dotnet/roslyn/discussions/47517-->
-        <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+        <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
         <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
         <PackageReference Include="Scriban" Version="3.2.1" IncludeAssets="Build" />
-        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.2">
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.8.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Include="@(None -&gt; WithMetadataValue('Extension', '.sbntxt'))">
+      <EmbeddedResource Include="ManagedCrdtServiceTemplate.sbntxt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="IManagedCrdtServiceTemplate.sbntxt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="ServiceCollectionExtensionsTemplate.sbntxt">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </EmbeddedResource>
     </ItemGroup>

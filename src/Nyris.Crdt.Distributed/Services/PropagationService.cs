@@ -5,29 +5,28 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Crdts;
-using Nyris.Crdt.Distributed.Extensions;
+using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Propagation;
 
 namespace Nyris.Crdt.Distributed.Services
 {
-    internal sealed class PropagationService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
+    internal sealed class PropagationService<TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
         where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
-        where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
-        where TGrpcService : class
+        where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
     {
         private readonly ManagedCrdtContext _context;
         private readonly IPropagationStrategy _propagationStrategy;
-        private readonly ChannelManager<TGrpcService> _channelManager;
-        private readonly ILogger<PropagationService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>> _logger;
+        private readonly IChannelManager _channelManager;
+        private readonly ILogger<PropagationService<TCrdt, TImplementation, TRepresentation, TDto>> _logger;
         private readonly NodeId _thisNodeId;
 
         /// <inheritdoc />
         public PropagationService(ManagedCrdtContext context,
-            ILogger<PropagationService<TGrpcService, TCrdt, TImplementation, TRepresentation, TDto>> logger,
+            ILogger<PropagationService<TCrdt, TImplementation, TRepresentation, TDto>> logger,
             NodeInfo thisNode,
             IPropagationStrategy propagationStrategy,
-            ChannelManager<TGrpcService> channelManager)
+            IChannelManager channelManager)
         {
             _context = context;
             _logger = logger;
@@ -48,18 +47,19 @@ namespace Nyris.Crdt.Distributed.Services
                     JsonConvert.SerializeObject(dto), queue.QueueLength);
                 try
                 {
-                    foreach (var nodeId in _propagationStrategy.GetTargetNodes(_context.Nodes.Value, _thisNodeId))
+                    var nodesWithReplica = _context.GetNodesThatHaveReplica<TCrdt>(dto.Id);
+                    foreach (var nodeId in _propagationStrategy.GetTargetNodes(nodesWithReplica, _thisNodeId))
                     {
-                        if (!_channelManager.TryGetProxy<TDto>(nodeId, out var proxy))
+                        if (!_channelManager.TryGet<IDtoPassingGrpcService<TDto>>(nodeId, out var client))
                         {
                             _logger.LogError("Could not get a proxy to node with Id {NodeId}", nodeId);
                             continue;
                         }
 
-                        var response = await proxy.SendAsync(dto);
+                        var response = await client.SendAsync(dto, stoppingToken);
 
                         _logger.LogDebug("Received back dto {Dto}",JsonConvert.SerializeObject(response));
-                        await _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response.WithId(dto.Id));
+                        await _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response, dto.Id, stoppingToken);
                     }
                 }
                 catch (Exception e)

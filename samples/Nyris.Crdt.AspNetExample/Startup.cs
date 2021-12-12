@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -34,10 +36,11 @@ namespace Nyris.Crdt.AspNetExample
                 .WithKubernetesDiscovery(options =>
                 {
                     options.Namespaces = new[] { "distributed-prototype-test" };
-                });
+                })
+                .WithAddressListDiscovery(Configuration.GetSection("ManualDiscovery").Get<List<Uri>>());
 
-            services.AddRabbitMqEasyNetQForAspNetCore(Configuration);
-            services.AddMessageHandling(Configuration.GetSection("Messaging"));
+            // services.AddRabbitMqEasyNetQForAspNetCore(Configuration);
+            // services.AddMessageHandling(Configuration.GetSection("Messaging"));
 
             services.AddCors(o => o.AddPolicy("all", cb =>
             {

@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build-env
+WORKDIR /app
+
+COPY NuGet.Config /root/.nuget/NuGet/NuGet.Config
+
+# Copy csproj and restore as distinct layers
+COPY src/Nyris.Crdt/Nyris.Crdt.csproj ./src/Nyris.Crdt/
+RUN dotnet restore src/Nyris.Crdt/Nyris.Crdt.csproj
+
+COPY src/Nyris.Crdt.Distributed/Nyris.Crdt.Distributed.csproj ./src/Nyris.Crdt.Distributed/
+RUN dotnet restore src/Nyris.Crdt.Distributed/Nyris.Crdt.Distributed.csproj
+
+COPY src/Nyris.Crdt.Distributed.SourceGenerators/Nyris.Crdt.Distributed.SourceGenerators.csproj ./src/Nyris.Crdt.Distributed.SourceGenerators/
+RUN dotnet restore src/Nyris.Crdt.Distributed.SourceGenerators/Nyris.Crdt.Distributed.SourceGenerators.csproj
+
+COPY samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj ./samples/Nyris.Crdt.AspNetExample/
+RUN dotnet restore samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
+
+# Copy everything else and build
+COPY . .
+RUN dotnet publish -c Release -o out samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
+
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:5.0
+WORKDIR /app
+COPY --from=build-env /app/out .
+COPY ./ComposeConfig/appsettings.json ./appsettings.local.json
+ENTRYPOINT ["dotnet", "Nyris.Crdt.AspNetExample.dll"]

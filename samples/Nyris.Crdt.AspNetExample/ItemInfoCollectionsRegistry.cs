@@ -18,12 +18,12 @@ namespace Nyris.Crdt.AspNetExample
         {
         }
 
-        private ItemInfoCollectionsRegistry(WithId<RegistryDto> registryDto) : base(registryDto)
+        private ItemInfoCollectionsRegistry(RegistryDto registryDto, string instanceId) : base(registryDto, instanceId)
         {
         }
 
-        /// <inheritdoc />
-        public override string TypeName => nameof(ItemInfoCollectionsRegistry);
+        // /// <inheritdoc />
+        // public override string TypeName => nameof(ItemInfoCollectionsRegistry);
 
         public static readonly IManagedCRDTFactory<ItemInfoCollectionsRegistry,
                 ManagedCrdtRegistry<NodeId,
@@ -48,7 +48,7 @@ namespace Nyris.Crdt.AspNetExample
             Dictionary<IndexId, Dictionary<Guid, ImageInfo>>, RegistryDto>
         {
             /// <inheritdoc />
-            public ItemInfoCollectionsRegistry Create(WithId<RegistryDto> registryDto) => new(registryDto);
+            public ItemInfoCollectionsRegistry Create(RegistryDto registryDto, string instanceId) => new(registryDto, instanceId);
         }
     }
 }

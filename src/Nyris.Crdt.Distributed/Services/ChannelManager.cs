@@ -11,7 +11,7 @@ using ProtoBuf.Grpc.Client;
 
 namespace Nyris.Crdt.Distributed.Services
 {
-    internal sealed class ChannelManager<TGrpcService> where TGrpcService : class
+    internal sealed class ChannelManager<TGrpcService> : IChannelManager where TGrpcService : class
     {
         private readonly ConcurrentDictionary<NodeId, GrpcChannel> _channels = new();
         private readonly ManagedCrdtContext _context;
@@ -20,9 +20,11 @@ namespace Nyris.Crdt.Distributed.Services
         public ChannelManager(ManagedCrdtContext context)
         {
             _context = context;
+            ChannelManagerAccessor.Manager = this;
         }
 
-        public bool TryGetProxy<TDto>(NodeId nodeId, [NotNullWhen(true)] out IProxy<TDto>? proxy)
+        public bool TryGet<TService>(NodeId nodeId, [NotNullWhen(true)] out TService? grpcClient)
+            where TService : class
         {
             if (!_grpcClients.TryGetValue(nodeId, out var client)
                 && TryGetOrCreate(nodeId, out var channel))
@@ -33,9 +35,9 @@ namespace Nyris.Crdt.Distributed.Services
             }
 
             // ReSharper disable once SuspiciousTypeConversion.Global
-            // TGrpcService is provided from a user's assembly by a Source Generator and should inherit IProxy
-            proxy = client as IProxy<TDto>;
-            return proxy != null;
+            // TGrpcService is provided from a user's assembly by a Source Generator and should be an ancestor of TService
+            grpcClient = client as TService;
+            return grpcClient != null;
         }
 
         private bool TryGetOrCreate(NodeId nodeId, [NotNullWhen(true)] out GrpcChannel? channel)

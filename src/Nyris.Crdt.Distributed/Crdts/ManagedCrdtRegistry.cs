@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Exceptions;
@@ -33,7 +34,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         where TItemKey : IEquatable<TItemKey>, IHashable
         where TActorId : IEquatable<TActorId>, IHashable
         where TItemValue : ManagedCRDT<TItemValueImplementation, TItemValueRepresentation, TItemValueDto>, TItemValueImplementation
-        where TItemValueImplementation : IAsyncCRDT<TItemValueImplementation, TItemValueRepresentation, TItemValueDto>
+        where TItemValueImplementation : ManagedCRDT<TItemValueImplementation, TItemValueRepresentation, TItemValueDto>
         where TItemValueFactory : IManagedCRDTFactory<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>, new()
     {
         private static readonly TItemValueFactory Factory = new();
@@ -49,12 +50,12 @@ namespace Nyris.Crdt.Distributed.Crdts
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
         }
 
-        protected ManagedCrdtRegistry(WithId<RegistryDto> registryDto) : base(registryDto.Id)
+        protected ManagedCrdtRegistry(RegistryDto registryDto, string instanceId) : base(instanceId)
         {
-            var keys = registryDto.Dto?.Keys ?? new OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto();
+            var keys = registryDto?.Keys ?? new OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto();
             _keys = HashableOptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(keys);
-            var dict = registryDto.Dto?.Dict
-                           .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
+            var dict = registryDto?.Dict
+                           .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value.Value!, pair.Value.Id))
                        ?? new Dictionary<TItemKey, TItemValue>();
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(dict);
         }
@@ -111,9 +112,11 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
-        public override async Task<MergeResult> MergeAsync(ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory> other)
+        public override async Task<MergeResult> MergeAsync(
+            ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation,
+                TItemValueDto, TItemValueFactory> other, CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync();
+            await _semaphore.WaitAsync(cancellationToken);
             var conflict = false;
             try
             {
@@ -140,7 +143,7 @@ namespace Nyris.Crdt.Distributed.Crdts
 
                     if (iHave && otherHas)
                     {
-                        var valueResult = await myValue!.MergeAsync(otherValue!);
+                        var valueResult = await myValue!.MergeAsync(otherValue!, cancellationToken);
                         conflict = conflict || valueResult == MergeResult.ConflictSolved;
                     }
                     else if (otherHas)
@@ -159,13 +162,13 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
-        public override async Task<RegistryDto> ToDtoAsync()
+        public override async Task<RegistryDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync();
+            await _semaphore.WaitAsync(cancellationToken);
             try
             {
                 var keyValuePairTasks =
-                    _dictionary.Select(pair => new {key = pair.Key, valueTask = pair.Value.ToDtoAsync()}).ToList();
+                    _dictionary.Select(pair => new {key = pair.Key, valueTask = pair.Value.ToDtoAsync(cancellationToken)}).ToList();
                 await Task.WhenAll(keyValuePairTasks.Select(pair => pair.valueTask));
                 return new RegistryDto
                 {
@@ -181,14 +184,14 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<RegistryDto> EnumerateDtoBatchesAsync()
+        public override async IAsyncEnumerable<RegistryDto> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             // we are forced into assumption, that registry usually has few keys but large values/iterable
             // TODO: is it safe to not wait for semaphore here? (do I need it anywhere?)
             var enumeratingKeys = _keys.Value.ToDictionary(v => v, _ => true);
             var enumerators = _dictionary
                 .ToDictionary(pair => pair.Key,
-                    pair => pair.Value.EnumerateDtoBatchesAsync().GetAsyncEnumerator());
+                    pair => pair.Value.EnumerateDtoBatchesAsync(cancellationToken).GetAsyncEnumerator(cancellationToken));
             try
             {
                 var finished = 0;
@@ -235,7 +238,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         public sealed class RegistryDto
         {
             [ProtoMember(1)]
-            public OptimizedObservedRemoveSet<TActorId, TItemKey>.Dto Keys { get; set; } = new();
+            public OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto Keys { get; set; } = new();
 
             [ProtoMember(2)]
             public Dictionary<TItemKey, WithId<TItemValueDto>> Dict { get; set; } = new();

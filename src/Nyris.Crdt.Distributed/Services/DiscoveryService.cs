@@ -11,9 +11,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Exceptions;
-using Nyris.Crdt.Distributed.Extensions;
+using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Discovery;
+using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf.Grpc.Client;
 
 namespace Nyris.Crdt.Distributed.Services
@@ -22,7 +23,7 @@ namespace Nyris.Crdt.Distributed.Services
         where TGrpcService : class
     {
         private readonly ManagedCrdtContext _context;
-        private readonly IEnumerable<IDiscoveryStrategy> _strategies;
+        private readonly ICollection<IDiscoveryStrategy> _strategies;
         private readonly ILogger<DiscoveryService<TGrpcService>> _logger;
         private readonly NodeInfo _thisNode;
         private readonly GrpcChannelOptions _grpcChannelOptions;
@@ -33,7 +34,7 @@ namespace Nyris.Crdt.Distributed.Services
             ILogger<DiscoveryService<TGrpcService>> logger,
             NodeInfo thisNode)
         {
-            _strategies = strategies;
+            _strategies = strategies.ToList();
             _logger = logger;
             _thisNode = thisNode;
             _context = context;
@@ -58,6 +59,8 @@ namespace Nyris.Crdt.Distributed.Services
                     }
                 }
             };
+
+            _logger.LogInformation("Initialized discovery service with {StrategyCount} strategies", _strategies.Count);
         }
 
         /// <inheritdoc />
@@ -88,7 +91,7 @@ namespace Nyris.Crdt.Distributed.Services
                 catch (Exception e)
                 {
                     _logger.LogError("Connecting to node {PodName} failed due to an exception: {ExceptionMessage}",
-                        name, e.Message);
+                        name, e.ToString());
                 }
             }
 
@@ -100,21 +103,25 @@ namespace Nyris.Crdt.Distributed.Services
             _logger.LogDebug("Attempting to connect to {NodeName} at {NodeAddress}", name, address);
             using var channel = GrpcChannel.ForAddress(address, _grpcChannelOptions);
 
-            if (channel.CreateGrpcService<TGrpcService>() is not IProxy<NodeSet.OrSetDto> proxy)
+            if (channel.CreateGrpcService<TGrpcService>() is not IDtoPassingGrpcService<NodeSet.OrSetDto> proxy)
             {
                 throw new InitializationException(
                     $"Internal error: specified {nameof(TGrpcService)} does not implement IProxy<NodeSet.Dto>");
             }
 
             var dto = await _context.Nodes.ToDtoAsync();
-            var response = await proxy.SendAsync(dto.WithId(_context.Nodes.InstanceId));
+            var msg = new DtoMessage<ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.OrSetDto>(
+                TypeNameCompressor.GetName<NodeSet>(),
+                _context.Nodes.InstanceId,
+                dto);
+            var response = await proxy.SendAsync(msg);
 
             _logger.LogDebug("Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
                 name, response.Items.Count, response.ObservedState.Count);
 
             await _context.MergeAsync<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>,
                 HashSet<NodeInfo>, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.OrSetDto>(
-                response.WithId(_context.Nodes.InstanceId));
+                response, _context.Nodes.InstanceId);
 
             _logger.LogDebug("State after merging: {NodeList}", string.Join(", ",
                 _context.Nodes.Value.Select(ni => $"{ni.Id}:{ni.Address}")));
@@ -127,9 +134,13 @@ namespace Nyris.Crdt.Distributed.Services
 
             foreach (var strategy in _strategies)
             {
+                _logger.LogInformation("Executing {StrategyName} discovery strategy", strategy.GetType().Name);
                 await foreach (var address in strategy.GetNodeCandidates(cancellationToken))
                 {
                     if (set.Contains(address)) continue;
+
+                    _logger.LogInformation("Strategy yielded candidate {NodeCandidateName} at address '{NodeCandidateAddress}'",
+                        address.Name, address.Address);
 
                     set.Add(address);
                     yield return address;

@@ -17,7 +17,7 @@ You can find everything in one place in the [sample project](/sample/Nyris.Crdt.
 ##### 1. Add nuget packages for Nyris.Crdt.Distributed and .Crdt.Distributed.SourceGenerator
 
 SourceGenerator analyses CRDTs defined in your project and generates 3 things:
-	- IDtoPassingService and DtoPassingService - those in turn provide the basis 
+	- IManagedCrdtService and ManagedCrdtService - those in turn provide the basis 
 	for [protobuf-net.Grpc](https://github.com/protobuf-net/protobuf-net.Grpc) to create grpc
 	services (Code First grpc)
 	- Extention methods for IServiceCollection

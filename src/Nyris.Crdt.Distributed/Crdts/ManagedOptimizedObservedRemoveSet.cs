@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 
@@ -35,10 +35,10 @@ namespace Nyris.Crdt.Distributed.Crdts
             _observedState = new Dictionary<TActorId, uint>();
         }
 
-        protected ManagedOptimizedObservedRemoveSet(WithId<OrSetDto> orSetDto) : base(orSetDto.Id)
+        protected ManagedOptimizedObservedRemoveSet(OrSetDto orSetDto, string instanceId) : base(instanceId)
         {
-            _items = orSetDto.Dto?.Items ?? new HashSet<VersionedSignedItem<TActorId, TItem>>();
-            _observedState = orSetDto.Dto?.ObservedState ?? new Dictionary<TActorId, uint>();
+            _items = orSetDto?.Items ?? new HashSet<VersionedSignedItem<TActorId, TItem>>();
+            _observedState = orSetDto?.ObservedState ?? new Dictionary<TActorId, uint>();
         }
 
         /// <inheritdoc />
@@ -57,9 +57,9 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
-        public override async Task<OrSetDto> ToDtoAsync()
+        public override async Task<OrSetDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync();
+            await _semaphore.WaitAsync(cancellationToken);
             try
             {
                 return new OrSetDto
@@ -78,9 +78,9 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<OrSetDto> EnumerateDtoBatchesAsync()
+        public override async IAsyncEnumerable<OrSetDto> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            yield return await ToDtoAsync(); // unfortunately making ORSet a delta Crdt is not an easy task
+            yield return await ToDtoAsync(cancellationToken); // unfortunately making ORSet a delta Crdt is not an easy task
         }
 
         public override HashSet<TItem> Value
@@ -133,14 +133,15 @@ namespace Nyris.Crdt.Distributed.Crdts
             await StateChangedAsync();
         }
 
-        public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<TActorId, TItem> other)
+        public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<TActorId, TItem> other,
+            CancellationToken cancellationToken = default)
         {
             if (CalculateHash().SequenceEqual(other.CalculateHash()))
             {
                 return MergeResult.Identical;
             }
 
-            await _semaphore.WaitAsync();
+            await _semaphore.WaitAsync(cancellationToken);
             try
             {
                 // variables names a taken from the paper, they do not have obvious meaning by themselves

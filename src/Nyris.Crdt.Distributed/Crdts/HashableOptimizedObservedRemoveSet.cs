@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Sets;
@@ -13,7 +14,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
         }
 
-        private HashableOptimizedObservedRemoveSet(Dto dto) : base(dto)
+        private HashableOptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) : base(optimizedObservedRemoveSetDto)
         {
         }
 
@@ -28,6 +29,12 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
-        public new static HashableOptimizedObservedRemoveSet<TActorId, TItem> FromDto(Dto dto) => new(dto);
+        public new static HashableOptimizedObservedRemoveSet<TActorId, TItem> FromDto(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) => new(optimizedObservedRemoveSetDto);
+
+        public new sealed class Factory : ICRDTFactory<HashableOptimizedObservedRemoveSet<TActorId, TItem>, HashSet<TItem>, OptimizedObservedRemoveSetDto>
+        {
+            /// <inheritdoc />
+            public HashableOptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) => FromDto(optimizedObservedRemoveSetDto);
+        }
     }
 }

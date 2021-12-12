@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Nyris.Crdt.Distributed.Strategies.Discovery;
 
@@ -21,6 +22,17 @@ namespace Nyris.Crdt.Distributed
 
             _services.AddSingleton(options);
             _services.AddSingleton<IDiscoveryStrategy, KubernetesDiscoveryStrategy>();
+            return this;
+        }
+
+        public ManagedCrdtsServicesBuilder WithAddressListDiscovery(List<Uri>? addresses)
+        {
+            if (addresses != null)
+            {
+                _services.AddSingleton<IDiscoveryStrategy, AddressListDiscoveryStrategy>(_ =>
+                    new AddressListDiscoveryStrategy(addresses));
+            }
+
             return this;
         }
     }

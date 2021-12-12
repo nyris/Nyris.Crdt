@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
+using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
@@ -22,11 +23,12 @@ namespace Nyris.Crdt.Distributed.Crdts
     /// <typeparam name="TDto">It's a dto type, that is used as a data contract for grpc
     /// communication. So it should be properly annotated with <see cref="ProtoContract"/>
     /// and <see cref="ProtoMember"/>.</typeparam>
-    public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : IAsyncCRDT<TImplementation, TRepresentation, TDto>, IHashableAndHaveUniqueName
-        where TImplementation : IAsyncCRDT<TImplementation, TRepresentation, TDto>
+    public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : IAsyncCRDT<TImplementation, TRepresentation, TDto>, IHashable
+        where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
     {
         public readonly string InstanceId;
-        private readonly AsyncQueue<WithId<TDto>> _queue;
+        private readonly AsyncQueue<DtoMessage<TDto>> _queue;
+        private string? _typeName;
 
         /// <summary>
         /// Constructor.
@@ -41,22 +43,31 @@ namespace Nyris.Crdt.Distributed.Crdts
             InstanceId = instanceId;
         }
 
+        protected string TypeName
+        {
+            get
+            {
+                if (_typeName != null) return _typeName;
+                _typeName = TypeNameCompressor.GetName(GetType());
+                return _typeName;
+            }
+        }
+
         /// <inheritdoc />
         public abstract TRepresentation Value { get; }
 
         /// <inheritdoc />
-        public abstract Task<MergeResult> MergeAsync(TImplementation other);
+        public abstract Task<MergeResult> MergeAsync(TImplementation other, CancellationToken cancellationToken = default);
+
+        /// <param name="cancellationToken"></param>
+        /// <inheritdoc />
+        public abstract Task<TDto> ToDtoAsync(CancellationToken cancellationToken = default);
 
         /// <inheritdoc />
-        public abstract Task<TDto> ToDtoAsync();
+        public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
 
-        /// <inheritdoc />
-        public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync();
-
-        protected async Task StateChangedAsync() => _queue.Enqueue((await ToDtoAsync()).WithId(InstanceId));
-
-        /// <inheritdoc />
-        public abstract string TypeName { get; }
+        protected async Task StateChangedAsync()
+            => _queue.Enqueue(new DtoMessage<TDto>(TypeName, InstanceId, await ToDtoAsync()));
 
         /// <inheritdoc />
         public abstract ReadOnlySpan<byte> CalculateHash();

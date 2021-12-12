@@ -17,28 +17,28 @@ namespace ConsoleApp
         {
             using var channel = GrpcChannel.ForAddress("http://localhost:4999");
 
-            var client = channel.CreateGrpcService<IDtoPassingService>();
+            var client = channel.CreateGrpcService<IManagedCrdtService>();
         }
 
-        private static async IAsyncEnumerable<WithId<ManagedCrdtRegistry<NodeId, NodeId,
-            ManagedGrowthSet, ManagedGrowthSet, HashSet<int>,
-            List<int>, GrowthSetFactory>.RegistryDto>> GetEnumerable()
-        {
-            yield return new WithId<ManagedCrdtRegistry<NodeId, NodeId, ManagedGrowthSet, ManagedGrowthSet, HashSet<int>,
-                List<int>, GrowthSetFactory>.RegistryDto>
-            {
-                Id = "whatever",
-                Dto = new ManagedCrdtRegistry<NodeId, NodeId, ManagedGrowthSet, ManagedGrowthSet, HashSet<int>,
-                    List<int>, GrowthSetFactory>.RegistryDto
-                    {
-                        Dict = new Dictionary<NodeId, WithId<List<int>>>(),
-                        Keys = new OptimizedObservedRemoveSet<NodeId, NodeId>.Dto
-                        {
-                            Items = new HashSet<VersionedSignedItem<NodeId, NodeId>>(),
-                            ObservedState = new Dictionary<NodeId, uint>()
-                        }
-                    }
-            };
-        }
+        // private static async IAsyncEnumerable<WithId<ManagedCrdtRegistry<NodeId, NodeId,
+        //     ManagedGrowthSet, ManagedGrowthSet, HashSet<int>,
+        //     List<int>, GrowthSetFactory>.RegistryDto>> GetEnumerable()
+        // {
+        //     yield return new WithId<ManagedCrdtRegistry<NodeId, NodeId, ManagedGrowthSet, ManagedGrowthSet, HashSet<int>,
+        //         List<int>, GrowthSetFactory>.RegistryDto>
+        //     {
+        //         Id = "whatever",
+        //         Value = new ManagedCrdtRegistry<NodeId, NodeId, ManagedGrowthSet, ManagedGrowthSet, HashSet<int>,
+        //             List<int>, GrowthSetFactory>.RegistryDto
+        //             {
+        //                 Dict = new Dictionary<NodeId, WithId<List<int>>>(),
+        //                 Keys = new OptimizedObservedRemoveSet<NodeId, NodeId>.OptimizedObservedRemoveSetDto
+        //                 {
+        //                     Items = new HashSet<VersionedSignedItem<NodeId, NodeId>>(),
+        //                     ObservedState = new Dictionary<NodeId, uint>()
+        //                 }
+        //             }
+        //     };
+        // }
     }
 }

@@ -16,21 +16,23 @@ namespace Nyris.Crdt.Distributed
                 options.EnableDetailedErrors = true;
             });
 
-            services.AddInternals<IDtoPassingService>();
+            services.AddInternals<IManagedCrdtService>();
 
             services.AddSingleton<TContext>();
             services.AddSingleton<ManagedCrdtContext, TContext>(sp => sp.GetRequiredService<TContext>());
 
-            {{~ for type in CrdtInfos ~}}
-            services.AddConnectionServices<IDtoPassingService, {{ type.CrdtTypeName }}, {{ type.AllArgumentsString }}>();
-            {{~ end ~}}
+{{~ for type in DtoInfos ~}}
+    {{~ for crdtInfo in type.CrdtInfos ~}}
+            services.AddConnectionServices<{{ crdtInfo.TypeName }}, {{ crdtInfo.AllArgumentsString }}>();
+    {{~ end ~}}
+{{~ end ~}}
 
             return new ManagedCrdtsServicesBuilder(services);
         }
 
         public static IEndpointRouteBuilder MapManagedCrdtService(this IEndpointRouteBuilder endpoints)
         {
-            endpoints.MapGrpcService<DtoPassingService>();
+            endpoints.MapGrpcService<ManagedCrdtService>();
             return endpoints;
         }
     }

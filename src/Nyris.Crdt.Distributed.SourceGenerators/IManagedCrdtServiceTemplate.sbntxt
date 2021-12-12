@@ -7,15 +7,23 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+using Nyris.Crdt.Distributed.Grpc;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using System.ServiceModel;
 
 namespace Nyris.Crdt.Distributed
 {
     [ServiceContract]
-    public interface IDtoPassingService {{ if CrdtInfos.size > 0 }}:{{ end }}{{for type in CrdtInfos}}{{ if for.index > 0 }},{{end}} IProxy<{{type.DtoTypeName}}>{{end}}
+    public interface IManagedCrdtService {{ if DtoInfos.size > 0 }}:{{ end }}
+        {{~ for type in DtoInfos ~}}
+            {{ if for.index > 0 }},{{end}} IDtoPassingGrpcService<{{type.DtoTypeName}}>
+        {{~ end ~}}
+        {{~ for op in OperationInfos ~}}
+            , IOperationPassingGrpcService<{{op.OperationType}}, {{op.KeyType}}>
+        {{~ end ~}}
     {
     }
 }

@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts;
-using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -15,9 +16,9 @@ namespace Nyris.Crdt.AspNetExample
         {
         }
 
-        private ManagedGrowthSet(WithId<List<int>> values) : base(values.Id)
+        private ManagedGrowthSet(List<int> values, string instanceId) : base(instanceId)
         {
-            Value = values.Dto?.ToHashSet() ?? new HashSet<int>();
+            Value = values?.ToHashSet() ?? new HashSet<int>();
         }
 
         /// <inheritdoc />
@@ -30,18 +31,20 @@ namespace Nyris.Crdt.AspNetExample
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(ManagedGrowthSet other)
+        public override async Task<MergeResult> MergeAsync(ManagedGrowthSet other,
+            CancellationToken cancellationToken = default)
         {
             Value.UnionWith(other.Value);
             await StateChangedAsync();
             return MergeResult.ConflictSolved;
         }
 
+        /// <param name="cancellationToken"></param>
         /// <inheritdoc />
-        public override Task<List<int>> ToDtoAsync() => Task.FromResult(Value.ToList());
+        public override Task<List<int>> ToDtoAsync(CancellationToken cancellationToken = default) => Task.FromResult(Value.ToList());
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<List<int>> EnumerateDtoBatchesAsync()
+        public override async IAsyncEnumerable<List<int>> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             foreach (var i in Value)
             {
@@ -49,8 +52,8 @@ namespace Nyris.Crdt.AspNetExample
             }
         }
 
-        /// <inheritdoc />
-        public override string TypeName { get; } = nameof(ManagedGrowthSet);
+        // /// <inheritdoc />
+        // public override string TypeName { get; } = nameof(ManagedGrowthSet);
 
         /// <inheritdoc />
         public override ReadOnlySpan<byte> CalculateHash()
@@ -66,12 +69,12 @@ namespace Nyris.Crdt.AspNetExample
         public static readonly IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
             DefaultFactory = new GrowthSetFactory();
 
-        public static ManagedGrowthSet FromDto(WithId<List<int>> dto) => new(dto);
+        public static ManagedGrowthSet FromDto(List<int> dto, string instanceId) => new(dto, instanceId);
     }
 
     public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
     {
         /// <inheritdoc />
-        public ManagedGrowthSet Create(WithId<List<int>> dto) => ManagedGrowthSet.FromDto(dto);
+        public ManagedGrowthSet Create(List<int> dto, string instanceId) => ManagedGrowthSet.FromDto(dto, instanceId);
     }
 }

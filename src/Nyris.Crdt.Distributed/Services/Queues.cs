@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Services
 {
@@ -8,10 +9,10 @@ namespace Nyris.Crdt.Distributed.Services
     {
         private static readonly ConcurrentDictionary<Type, object> QueueDictionary = new();
 
-        public static AsyncQueue<WithId<TDto>> GetQueue<TDto>(Type crdtType)
+        public static AsyncQueue<DtoMessage<TDto>> GetQueue<TDto>(Type crdtType)
         {
-            return (AsyncQueue<WithId<TDto>>) QueueDictionary
-                .GetOrAdd(crdtType, _ => new AsyncQueue<WithId<TDto>>());
+            return (AsyncQueue<DtoMessage<TDto>>) QueueDictionary
+                .GetOrAdd(crdtType, _ => new AsyncQueue<DtoMessage<TDto>>());
         }
     }
 }

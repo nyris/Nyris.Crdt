@@ -3,10 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Extensions;
-using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 
@@ -30,9 +30,9 @@ namespace Nyris.Crdt.Distributed.Crdts
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
         }
 
-        protected ManagedLastWriteWinsDeltaRegistry(WithId<LastWriteWinsDto> dto) : base(dto.Id)
+        protected ManagedLastWriteWinsDeltaRegistry(LastWriteWinsDto dto, string instanceId) : base(instanceId)
         {
-            _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto.Dto?.Items
+            _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto?.Items
                 ?? new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>());
         }
 
@@ -112,12 +112,14 @@ namespace Nyris.Crdt.Distributed.Crdts
             return item.TimeStamp.CompareTo(timeStamp) == 0;
         }
 
-        public override async Task<MergeResult> MergeAsync(ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp> other)
+        public override async Task<MergeResult> MergeAsync(
+            ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp> other,
+            CancellationToken cancellationToken = default)
         {
             if (other._items.IsEmpty) return MergeResult.NotUpdated;
 
             var conflictSolved = false;
-            await _semaphore.WaitAsync();
+            await _semaphore.WaitAsync(cancellationToken);
             try
             {
                 foreach (var key in other._items.Keys)
@@ -134,8 +136,9 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
+        /// <param name="cancellationToken"></param>
         /// <inheritdoc />
-        public override async Task<LastWriteWinsDto> ToDtoAsync()
+        public override async Task<LastWriteWinsDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
             var keys = Interlocked.Exchange(ref _nextDto, new List<TKey>());
             var items = new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(keys.Count);
@@ -155,7 +158,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<LastWriteWinsDto> EnumerateDtoBatchesAsync()
+        public override async IAsyncEnumerable<LastWriteWinsDto> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             const int maxBatchSize = 10;
             foreach (var batch in _items.Batch(maxBatchSize))
