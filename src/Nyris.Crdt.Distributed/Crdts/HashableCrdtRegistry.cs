@@ -3,39 +3,32 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
-namespace Nyris.Crdt
+namespace Nyris.Crdt.Distributed.Crdts
 {
-    /// <summary>
-    /// An immutable key-value registry based on <see cref="OptimizedObservedRemoveSet{TActorId,TItem}"/>,
-    /// that is a CRDT.
-    /// </summary>
-    /// <typeparam name="TActorId"></typeparam>
-    /// <typeparam name="TItemKey"></typeparam>
-    /// <typeparam name="TItemValue"></typeparam>
-    /// <typeparam name="TItemValueDto"></typeparam>
-    /// <typeparam name="TItemValueFactory"></typeparam>
-    /// <typeparam name="TItemValueRepresentation"></typeparam>
-    public class CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>
+    public sealed class HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory,
+            TItemValueRepresentation>
         : ICRDT<
-            CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>,
-            Dictionary<TItemKey, TItemValueRepresentation>,
-            CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>.CrdtRegistryDto>
-        where TItemKey : IEquatable<TItemKey>
-        where TActorId : IEquatable<TActorId>
-        where TItemValue : class, ICRDT<TItemValue, TItemValueRepresentation, TItemValueDto>
+            HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>,
+            IReadOnlyDictionary<TItemKey, TItemValueRepresentation>,
+            HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>.HashableCrdtRegistryDto>,
+            IHashable
+        where TItemKey : IEquatable<TItemKey>, IHashable
+        where TActorId : IEquatable<TActorId>, IHashable
+        where TItemValue : class, ICRDT<TItemValue, TItemValueRepresentation, TItemValueDto>, IHashable
         where TItemValueFactory : ICRDTFactory<TItemValue, TItemValueRepresentation, TItemValueDto>, new()
     {
         private static readonly TItemValueFactory Factory = new();
 
-        protected readonly OptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
-        protected readonly ConcurrentDictionary<TItemKey, TItemValue> _dictionary;
+        private readonly HashableOptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
+        private readonly ConcurrentDictionary<TItemKey, TItemValue> _dictionary;
         private readonly object _mergeLock = new();
 
         /// <inheritdoc />
-        public Dictionary<TItemKey, TItemValueRepresentation> Value
+        public IReadOnlyDictionary<TItemKey, TItemValueRepresentation> Value
         {
             get
             {
@@ -46,17 +39,27 @@ namespace Nyris.Crdt
             }
         }
 
-        public CrdtRegistry()
+        public HashableCrdtRegistry()
         {
-            _keys = new OptimizedObservedRemoveSet<TActorId, TItemKey>();
+            _keys = new HashableOptimizedObservedRemoveSet<TActorId, TItemKey>();
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
         }
 
-        private CrdtRegistry(CrdtRegistryDto crdtRegistryDto)
+        private HashableCrdtRegistry(HashableCrdtRegistryDto hashableCrdtRegistryDto)
         {
-            _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(crdtRegistryDto.Keys);
-            _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(crdtRegistryDto.Dict?.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
+            _keys = HashableOptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(hashableCrdtRegistryDto.Keys);
+            _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(hashableCrdtRegistryDto.Dict?.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
                           ?? new Dictionary<TItemKey, TItemValue>());
+        }
+
+        /// <inheritdoc />
+        public ReadOnlySpan<byte> CalculateHash()
+        {
+            lock (_mergeLock)
+            {
+                return HashingHelper.Combine(HashingHelper.Combine(_keys),
+                    HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key)));
+            }
         }
 
         public bool TryAdd(TActorId actorId, TItemKey key, TItemValue value)
@@ -83,7 +86,7 @@ namespace Nyris.Crdt
             }
         }
 
-        public MergeResult Merge(CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation> other)
+        public MergeResult Merge(HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation> other)
         {
             lock (_mergeLock)
             {
@@ -121,11 +124,11 @@ namespace Nyris.Crdt
             }
         }
 
-        public CrdtRegistryDto ToDto()
+        public HashableCrdtRegistryDto ToDto()
         {
             lock (_mergeLock)
             {
-                return new CrdtRegistryDto
+                return new HashableCrdtRegistryDto
                 {
                     Keys = _keys.ToDto(),
                     Dict = _dictionary.ToDictionary(pair => pair.Key, pair => pair.Value.ToDto())
@@ -133,11 +136,11 @@ namespace Nyris.Crdt
             }
         }
 
-        public static CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation> FromDto(CrdtRegistryDto crdtRegistryDto)
-            => new(crdtRegistryDto);
+        public static HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation> FromDto(HashableCrdtRegistryDto hashableCrdtRegistryDto)
+            => new(hashableCrdtRegistryDto);
 
         [ProtoContract]
-        public sealed class CrdtRegistryDto
+        public sealed class HashableCrdtRegistryDto
         {
             [ProtoMember(1)]
             public OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto Keys { get; set; }

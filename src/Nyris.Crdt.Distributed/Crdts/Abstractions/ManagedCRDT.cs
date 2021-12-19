@@ -6,7 +6,7 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Utils;
 
-namespace Nyris.Crdt.Distributed.Crdts
+namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
     /// <summary>
     /// Base type for all managedCRDTs. When inheriting, do not forget to call <see cref="StateChangedAsync"/> in all update methods.

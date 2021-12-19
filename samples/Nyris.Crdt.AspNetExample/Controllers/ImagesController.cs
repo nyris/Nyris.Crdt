@@ -28,6 +28,14 @@ namespace Nyris.Crdt.AspNetExample.Controllers
             return Ok(new { data = index.Values });
         }
 
+        [HttpGet("{indexId:guid}")]
+        public async Task<IActionResult> CreateIndexAsync(Guid indexId)
+        {
+            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(IndexId.FromGuid(indexId),
+                () => (_thisNodeId, new ImageInfoLwwRegistry(indexId.ToString("N"))));
+            return Ok(new { data = index.Values });
+        }
+
         [HttpGet]
         public IActionResult GetAll() => Ok(_context.ImageCollectionsRegistry.Value);
 

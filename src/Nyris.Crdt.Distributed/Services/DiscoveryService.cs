@@ -10,6 +10,7 @@ using Grpc.Net.Client.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;

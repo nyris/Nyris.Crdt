@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 
-namespace Nyris.Crdt.Distributed.Crdts
+namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
     /// <summary>
     /// Optimized Observed-Remove Set is a CRDT proposed by Annette Bieniusa & Co: https://softech.cs.uni-kl.de/homepage/staff/AnnetteBieniusa/paper/techrep2012-semantics.pdf
@@ -93,7 +93,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
-        public async Task AddAsync(TItem item, TActorId actorPerformingAddition)
+        public virtual async Task AddAsync(TItem item, TActorId actorPerformingAddition)
         {
             await _semaphore.WaitAsync();
             try
@@ -117,9 +117,9 @@ namespace Nyris.Crdt.Distributed.Crdts
             await StateChangedAsync();
         }
 
-        public Task RemoveAsync(TItem item) => RemoveAsync(i => i.Equals(item));
+        public virtual Task RemoveAsync(TItem item) => RemoveAsync(i => i.Equals(item));
 
-        public async Task RemoveAsync(Func<TItem, bool> condition)
+        public virtual async Task RemoveAsync(Func<TItem, bool> condition)
         {
             await _semaphore.WaitAsync();
             try

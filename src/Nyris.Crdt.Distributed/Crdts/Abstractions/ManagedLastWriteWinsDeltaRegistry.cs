@@ -10,12 +10,12 @@ using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 
-namespace Nyris.Crdt.Distributed.Crdts
+namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
     public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>
         : ManagedCRDT<
             ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>,
-            Dictionary<TKey, TValue>,
+            IReadOnlyDictionary<TKey, TValue>,
             ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
         where TValue : IHashable
         where TKey : IEquatable<TKey>
@@ -37,7 +37,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override Dictionary<TKey, TValue> Value =>
+        public override IReadOnlyDictionary<TKey, TValue> Value =>
             _items.Where(pair => !pair.Value.Deleted)
                 .ToDictionary(pair => pair.Key, pair => pair.Value.Value);
 

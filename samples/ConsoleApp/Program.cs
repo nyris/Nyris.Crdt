@@ -1,12 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Grpc.Net.Client;
-using Nyris.Crdt;
-using Nyris.Crdt.AspNetExample;
 using Nyris.Crdt.Distributed;
-using Nyris.Crdt.Distributed.Crdts;
-using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Sets;
 using ProtoBuf.Grpc.Client;
 
 namespace ConsoleApp

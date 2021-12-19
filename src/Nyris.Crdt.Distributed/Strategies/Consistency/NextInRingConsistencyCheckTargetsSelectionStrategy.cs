@@ -18,7 +18,7 @@ namespace Nyris.Crdt.Distributed.Strategies.Consistency
                 var thisNodePosition = orderedList.BinarySearch(thisNodeId);
                 return new[] { orderedList[thisNodePosition == orderedList.Count - 1 ? 0 : thisNodePosition + 1] };
             }
-            catch (ArgumentOutOfRangeException e)
+            catch (ArgumentOutOfRangeException)
             {
                 return new[] { orderedList.First() };
             }

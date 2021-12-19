@@ -4,13 +4,12 @@ using System.Threading.Tasks;
 using Grpc.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Consistency;
 using Nyris.Crdt.Distributed.Utils;
-using ProtoBuf.Grpc;
 
 namespace Nyris.Crdt.Distributed.Services
 {
@@ -22,7 +21,7 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly IChannelManager _channelManager;
         private readonly IConsistencyCheckTargetsSelectionStrategy _strategy;
         private readonly NodeId _thisNodeId;
-        private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(60);
+        private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(30);
 
         private readonly ILogger<ConsistencyService<TCrdt, TImplementation, TRepresentation, TDto>> _logger;
 

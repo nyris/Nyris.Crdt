@@ -5,14 +5,13 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
-using Nyris.Crdt.Distributed.Extensions;
-using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
-namespace Nyris.Crdt.Distributed.Crdts
+namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
     /// <summary>
     /// An immutable key-value registry based on <see cref="ManagedOptimizedObservedRemoveSet{TActorId,TItem}"/>,
@@ -28,7 +27,7 @@ namespace Nyris.Crdt.Distributed.Crdts
     public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory>
         : ManagedCRDT<
             ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory>,
-            Dictionary<TItemKey, TItemValueRepresentation>,
+            IReadOnlyDictionary<TItemKey, TItemValueRepresentation>,
             ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory>.RegistryDto>,
             ICreateManagedCrdtsInside
         where TItemKey : IEquatable<TItemKey>, IHashable
@@ -54,14 +53,14 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
             var keys = registryDto?.Keys ?? new OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto();
             _keys = HashableOptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(keys);
-            var dict = registryDto?.Dict
-                           .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value.Value!, pair.Value.Id))
+            var dict = registryDto?.InstanceIds
+                           .ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
                        ?? new Dictionary<TItemKey, TItemValue>();
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(dict);
         }
 
         /// <inheritdoc />
-        public override Dictionary<TItemKey, TItemValueRepresentation> Value => _dictionary
+        public override IReadOnlyDictionary<TItemKey, TItemValueRepresentation> Value => _dictionary
             .ToDictionary(pair => pair.Key, pair => pair.Value.Value);
 
         public ManagedCrdtContext ManagedCrdtContext
@@ -74,24 +73,25 @@ namespace Nyris.Crdt.Distributed.Crdts
         public async Task<TItemValue> GetOrCreateAsync(TItemKey key, Func<(TActorId, TItemValue)> createFunc)
         {
             await _semaphore.WaitAsync();
-            var created = false;
+            TItemValue value;
             try
             {
-                if (_dictionary.TryGetValue(key, out var value)) return value;
+                if (_dictionary.TryGetValue(key, out var v)) return v;
 
                 var (actorId, newValue) = createFunc();
 
                 _keys.Add(key, actorId);
                 _dictionary.TryAdd(key, newValue);
                 ManagedCrdtContext.Add(newValue, Factory);
-                created = true;
-                return newValue;
+                value = newValue;
             }
             finally
             {
                 _semaphore.Release();
-                if(created) await StateChangedAsync();
             }
+
+            await StateChangedAsync();
+            return value;
         }
 
         public async Task RemoveAsync(TItemKey key)
@@ -123,37 +123,28 @@ namespace Nyris.Crdt.Distributed.Crdts
                 var keyResult = _keys.Merge(other._keys);
 
                 // drop values that no longer have keys
-                if (keyResult == MergeResult.ConflictSolved)
-                {
-                    foreach (var keyToDrop in _dictionary.Keys.Except(_keys.Value))
-                    {
-                        if (_dictionary.TryRemove(keyToDrop, out var crdt))
-                        {
-                            ManagedCrdtContext.Remove<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>(crdt);
-                        }
-                    }
-                }
-
-                // merge values
                 conflict = keyResult == MergeResult.ConflictSolved;
-                foreach (var key in _keys.Value)
-                {
-                    var iHave = _dictionary.TryGetValue(key, out var myValue);
-                    var otherHas = other._dictionary.TryGetValue(key, out var otherValue);
+                if (!conflict)return keyResult;
 
-                    if (iHave && otherHas)
+                foreach (var keyToDrop in _dictionary.Keys.Except(_keys.Value))
+                {
+                    if (_dictionary.TryRemove(keyToDrop, out var crdt))
                     {
-                        var valueResult = await myValue!.MergeAsync(otherValue!, cancellationToken);
-                        conflict = conflict || valueResult == MergeResult.ConflictSolved;
-                    }
-                    else if (otherHas)
-                    {
-                        _dictionary[key] = otherValue!;
-                        conflict = true;
-                        ManagedCrdtContext.Add(otherValue!, Factory);
+                        ManagedCrdtContext.Remove<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>(crdt);
                     }
                 }
-                return conflict ? MergeResult.ConflictSolved : MergeResult.Identical;
+
+                // crdts that are not new, are already managed by the context (i.e. updates are propagated and synced)
+                foreach (var keyToAdd in _keys.Value.Except(_dictionary.Keys))
+                {
+                    if (other._dictionary.TryGetValue(keyToAdd, out var v) &&
+                        _dictionary.TryAdd(keyToAdd, v))
+                    {
+                        ManagedCrdtContext.Add(v, Factory);
+                    }
+                }
+
+                return MergeResult.ConflictSolved;
             }
             finally
             {
@@ -167,14 +158,10 @@ namespace Nyris.Crdt.Distributed.Crdts
             await _semaphore.WaitAsync(cancellationToken);
             try
             {
-                var keyValuePairTasks =
-                    _dictionary.Select(pair => new {key = pair.Key, valueTask = pair.Value.ToDtoAsync(cancellationToken)}).ToList();
-                await Task.WhenAll(keyValuePairTasks.Select(pair => pair.valueTask));
                 return new RegistryDto
                 {
                     Keys = _keys.ToDto(),
-                    Dict = keyValuePairTasks.ToDictionary(pair => pair.key,
-                        pair => pair.valueTask.Result.WithId(_dictionary[pair.key].InstanceId))
+                    InstanceIds = _dictionary.ToDictionary(pair => pair.Key, pair => pair.Value.InstanceId)
                 };
             }
             finally
@@ -186,48 +173,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         /// <inheritdoc />
         public override async IAsyncEnumerable<RegistryDto> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            // we are forced into assumption, that registry usually has few keys but large values/iterable
-            // TODO: is it safe to not wait for semaphore here? (do I need it anywhere?)
-            var enumeratingKeys = _keys.Value.ToDictionary(v => v, _ => true);
-            var enumerators = _dictionary
-                .ToDictionary(pair => pair.Key,
-                    pair => pair.Value.EnumerateDtoBatchesAsync(cancellationToken).GetAsyncEnumerator(cancellationToken));
-            try
-            {
-                var finished = 0;
-                var keysDto = _keys.ToDto();
-
-                while (true)
-                {
-                    var dict = new Dictionary<TItemKey, WithId<TItemValueDto>>();
-                    foreach (var key in enumeratingKeys.Where(pair => pair.Value).Select(pair => pair.Key).ToList())
-                    {
-                        if (!await enumerators[key].MoveNextAsync())
-                        {
-                            enumeratingKeys[key] = false;
-                            ++finished;
-                            continue;
-                        }
-
-                        dict[key] = enumerators[key].Current.WithId(_dictionary[key].InstanceId);
-                    }
-
-                    yield return new RegistryDto
-                    {
-                        Keys = keysDto,
-                        Dict = dict
-                    };
-
-                    if (finished == enumerators.Count) yield break;
-                }
-            }
-            finally
-            {
-                foreach (var enumerator in enumerators.Values)
-                {
-                    await enumerator.DisposeAsync();
-                }
-            }
+            yield return await ToDtoAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -241,7 +187,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             public OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto Keys { get; set; } = new();
 
             [ProtoMember(2)]
-            public Dictionary<TItemKey, WithId<TItemValueDto>> Dict { get; set; } = new();
+            public Dictionary<TItemKey, string> InstanceIds { get; set; } = new();
         }
     }
 }

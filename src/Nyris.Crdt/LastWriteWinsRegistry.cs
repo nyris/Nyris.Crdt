@@ -3,18 +3,18 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Newtonsoft.Json;
+using ProtoBuf;
 
 namespace Nyris.Crdt
 {
     public class LastWriteWinsRegistry<TKey, TValue, TTimeStamp>
-        : ICRDT<
-            LastWriteWinsRegistry<TKey, TValue, TTimeStamp>,
-            Dictionary<TKey, TValue>>
+        : ICRDT<LastWriteWinsRegistry<TKey, TValue, TTimeStamp>,
+            IReadOnlyDictionary<TKey, TValue>,
+            LastWriteWinsRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsRegistryDto>
         where TKey : IEquatable<TKey>
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
-        private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
+        protected readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
         private readonly object _mergeLock = new();
 
         public LastWriteWinsRegistry()
@@ -28,7 +28,7 @@ namespace Nyris.Crdt
         }
 
         /// <inheritdoc />
-        public Dictionary<TKey, TValue> Value {
+        public IReadOnlyDictionary<TKey, TValue> Value {
             get
             {
                 lock (_mergeLock)
@@ -52,9 +52,7 @@ namespace Nyris.Crdt
         public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             // ReSharper disable once InconsistentlySynchronizedField - updates on individual items are atomic
-            var found = _items.TryGetValue(key, out var timeStampedItem);
-
-            if (!found || timeStampedItem.Deleted)
+            if (!_items.TryGetValue(key, out var timeStampedItem) || timeStampedItem.Deleted)
             {
                 value = default;
                 return false;
@@ -143,50 +141,18 @@ namespace Nyris.Crdt
             }
         }
 
-        public string Serialize()
-        {
-            lock (_mergeLock)
+        /// <inheritdoc />
+        public LastWriteWinsRegistryDto ToDto() =>
+            new()
             {
-                return JsonConvert.SerializeObject(_items);
-            }
-        }
+                Items = _items.ToDictionary(pair => pair.Key, pair => pair.Value)
+            };
 
-        public static LastWriteWinsRegistry<TKey, TValue, TTimeStamp> Deserialize(string data)
+        [ProtoContract]
+        public sealed class LastWriteWinsRegistryDto
         {
-            var items = JsonConvert.DeserializeObject<ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>>(data);
-            return new LastWriteWinsRegistry<TKey, TValue, TTimeStamp>(items);
-        }
-
-        public LastWriteWinsRegistry<TKey, TValue, TTimeStamp> Copy(IEnumerable<TKey> keys)
-        {
-            var resultingItems = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
-
-            lock (_mergeLock)
-            {
-                foreach (var key in keys)
-                {
-                    _items.TryGetValue(key, out var value);
-                    resultingItems.TryAdd(key, value);
-                }
-            }
-
-            return new LastWriteWinsRegistry<TKey, TValue, TTimeStamp>(resultingItems);
-        }
-
-        /// <summary>
-        /// Removes items from registry entirely.
-        /// Warning - this is NOT a CRDT compliant operation.
-        /// </summary>
-        /// <param name="data"></param>
-        public void Purge(LastWriteWinsRegistry<TKey, TValue, TTimeStamp> data)
-        {
-            lock (_mergeLock)
-            {
-                foreach (var pair in data._items)
-                {
-                    ((ICollection<KeyValuePair<TKey, TimeStampedItem<TValue, TTimeStamp>>>) _items).Remove(pair);
-                }
-            }
+            [ProtoMember(1)]
+            public Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> Items { get; set; } = new();
         }
     }
 }

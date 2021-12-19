@@ -26,7 +26,7 @@ namespace Nyris.Crdt.Distributed.Utils
             }
         }
 
-        public static byte[] Combine(IHashable obj1, IHashable obj2)
+        public static ReadOnlySpan<byte> Combine(IHashable obj1, IHashable obj2)
         {
             var sha1 = Pool.Get();
             try
@@ -41,7 +41,7 @@ namespace Nyris.Crdt.Distributed.Utils
             }
         }
 
-        public static byte[] Combine(IHashable obj1, IHashable obj2, IHashable obj3)
+        public static ReadOnlySpan<byte> Combine(IHashable obj1, IHashable obj2, IHashable obj3)
         {
             var sha1 = Pool.Get();
             try

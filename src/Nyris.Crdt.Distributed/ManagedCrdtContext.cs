@@ -7,6 +7,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Crdts.Abstractions;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
@@ -16,6 +18,7 @@ namespace Nyris.Crdt.Distributed
     public abstract class ManagedCrdtContext
     {
         private readonly ConcurrentDictionary<TypeAndInstanceId, object> _managedCrdts = new();
+        private readonly ConcurrentDictionary<TypeAndInstanceId, INodesWithReplicaProvider> _partiallyReplicated = new();
         private readonly ConcurrentDictionary<Type, object> _crdtFactories = new();
         private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashable> _sameManagedCrdts = new();
         private readonly ConcurrentDictionary<Type, HashSet<TypeNameAndInstanceId>> _typeToTypeNameMapping = new();
@@ -40,8 +43,9 @@ namespace Nyris.Crdt.Distributed
             }
 
             var typeNameAndInstanceId = new TypeNameAndInstanceId(TypeNameCompressor.GetName<TCrdt>(), crdt.InstanceId);
+            var typeAndInstanceId = new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId);
 
-            if (!_managedCrdts.TryAdd(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), crdt)
+            if (!_managedCrdts.TryAdd(typeAndInstanceId, crdt)
                 || !_sameManagedCrdts.TryAdd(typeNameAndInstanceId, crdt))
             {
                 throw new ManagedCrdtContextSetupException($"Failed to add crdt of type {typeof(TCrdt)} " +
@@ -61,11 +65,25 @@ namespace Nyris.Crdt.Distributed
                     return nameAndId;
                 });
 
-            // ReSharper disable once SuspiciousTypeConversion.Global
             if (crdt is ICreateManagedCrdtsInside compoundCrdt)
             {
                 compoundCrdt.ManagedCrdtContext = this;
             }
+
+            if (crdt is IRebalanceAtNodeChange crdtThatNeedsToRebalance)
+            {
+                Nodes.RebalanceOnChange(crdtThatNeedsToRebalance);
+            }
+        }
+
+        internal void Add<TCrdt, TImplementation, TRepresentation, TDto>(TCrdt crdt,
+            IManagedCRDTFactory<TCrdt, TImplementation, TRepresentation, TDto> factory,
+            INodesWithReplicaProvider nodesWithReplicaProvider)
+            where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
+            where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
+        {
+            Add(crdt, factory);
+            _partiallyReplicated.TryAdd(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), nodesWithReplicaProvider);
         }
 
         internal void Remove<TCrdt, TImplementation, TRepresentation, TDto>(TCrdt crdt)
@@ -106,20 +124,33 @@ namespace Nyris.Crdt.Distributed
             return await crdt.ToDtoAsync(cancellationToken);
         }
 
-        public async Task ApplyAsync<TCrdt, TImplementation, TRepresentation, TDto, TOperation>(TOperation operation, string instanceId)
-            where TCrdt : ManageCRDTWithSerializableOperations<TImplementation, TRepresentation, TDto, TOperation>, TImplementation
-            where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
-            where TOperation : Operation
+        public async Task ApplyAsync<TCrdt, TKey, TCollection, TCollectionRepresentation, TCollectionDto, TCollectionOperation, TCollectionFactory>(TKey key,
+            TCollectionOperation operation,
+            string instanceId,
+            CancellationToken cancellationToken = default)
+            where TCrdt : PartiallyReplicatedCRDTRegistry<TCrdt, TKey, TCollection, TCollectionRepresentation, TCollectionDto, TCollectionOperation, TCollectionFactory>
+            where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
+            where TCollection : ManagedCRDTWithSerializableOperations<TCollection, TCollectionRepresentation, TCollectionDto, TCollectionOperation>
+            where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionRepresentation, TCollectionDto>, new()
         {
-            if (!TryGetCrdtWithFactory<TCrdt, TImplementation, TRepresentation, TDto>(instanceId, out var crdt, out _))
+            if (!TryGetCrdtWithFactory<TCrdt,
+                    TCrdt,
+                    Dictionary<TKey, TCollection>,
+                    PartiallyReplicatedCRDTRegistry<TCrdt,
+                        TKey,
+                        TCollection,
+                        TCollectionRepresentation,
+                        TCollectionDto,
+                        TCollectionOperation,
+                        TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>(instanceId, out var crdt, out _))
             {
-                throw new ManagedCrdtContextSetupException($"Applying operation of type {typeof(TOperation)} " +
+                throw new ManagedCrdtContextSetupException($"Applying operation of type {typeof(TCollectionOperation)} " +
                                                            $"to crdt {typeof(TCrdt)} with id {instanceId} failed. " +
-                                                           "Check that you Add-ed appropriate managed crdt type and " +
+                                                           "Check that you Add-ed appropriate partially replicated crdt type and " +
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            await crdt.ApplyAsync(operation);
+            await crdt.ApplyAsync(key, operation, cancellationToken);
         }
 
         public ReadOnlySpan<byte> GetHash(TypeNameAndInstanceId nameAndInstanceId) =>
@@ -170,6 +201,11 @@ namespace Nyris.Crdt.Distributed
 
         internal IEnumerable<NodeInfo> GetNodesThatHaveReplica<TCrdt>(string instanceId)
         {
+            if (_partiallyReplicated.TryGetValue(new TypeAndInstanceId(typeof(TCrdt), instanceId), out var nodesWithReplicasProvider))
+            {
+                return nodesWithReplicasProvider.GetNodesThatShouldHaveReplicaOfCollection(instanceId);
+            }
+
             return Nodes.Value;
         }
 

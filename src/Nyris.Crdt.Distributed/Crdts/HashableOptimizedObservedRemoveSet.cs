@@ -6,7 +6,7 @@ using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
-    internal sealed class HashableOptimizedObservedRemoveSet<TActorId, TItem> : OptimizedObservedRemoveSet<TActorId, TItem>, IHashable
+    public sealed class HashableOptimizedObservedRemoveSet<TActorId, TItem> : OptimizedObservedRemoveSet<TActorId, TItem>, IHashable
         where TItem : IEquatable<TItem>, IHashable
         where TActorId : IEquatable<TActorId>, IHashable
     {

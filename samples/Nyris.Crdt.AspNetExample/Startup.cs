@@ -10,7 +10,6 @@ using MongoDB.Driver;
 using Newtonsoft.Json;
 using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.Crdt.Distributed;
-using Nyris.EventBus.AspNetCore;
 using Serilog;
 
 namespace Nyris.Crdt.AspNetExample

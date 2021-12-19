@@ -5,7 +5,8 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Crdts.Abstractions;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -76,5 +77,8 @@ namespace Nyris.Crdt.AspNetExample
     {
         /// <inheritdoc />
         public ManagedGrowthSet Create(List<int> dto, string instanceId) => ManagedGrowthSet.FromDto(dto, instanceId);
+
+        /// <inheritdoc />
+        public ManagedGrowthSet Create(string instanceId) => new ManagedGrowthSet(instanceId);
     }
 }

@@ -200,15 +200,15 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             {
                 if (current.Name == PartiallyReplicatedCRDTRegistryTypeName)
                 {
-                    var keyType = current.TypeArguments.First();
-                    var operationType = current.TypeArguments.Last();
+                    var keyType = current.TypeArguments[1];
+                    var operationType = current.TypeArguments[^2];
 
-                    var collectionType = current.TypeArguments[1].ToDisplayString();
+                    var collectionType = current.TypeArguments[2].ToDisplayString();
                     _log.AppendLine($"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
                                     "Generated gRPC service will include transport operations for operations " +
                                     $"of {collectionType} (descendent records of {operationType.ToDisplayString()})");
 
-                    var otherParams = current.TypeArguments.Skip(3).Take(4).Select(s => s.ToDisplayString());
+                    var otherParams = current.TypeArguments.Skip(1).Select(s => s.ToDisplayString());
                     var crdtTypeParams = $"{collectionType}, {string.Join(", ", otherParams)}";
 
                     operationCandidate = new KeyOperationPairCandidate(keyType.ToDisplayString(), operationType, crdtTypeParams);

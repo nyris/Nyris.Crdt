@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nyris.Crdt.Distributed.Crdts;
+using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Strategies.Consistency;

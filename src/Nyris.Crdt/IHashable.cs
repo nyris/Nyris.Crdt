@@ -1,6 +1,6 @@
 using System;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt
 {
     public interface IHashable
     {

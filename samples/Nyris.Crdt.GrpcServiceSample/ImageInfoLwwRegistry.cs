@@ -1,9 +1,7 @@
-using System;
-using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 
-namespace Nyris.Crdt.AspNetExample
+namespace Nyris.Crdt.GrpcServiceSample
 {
     public sealed class ImageInfoLwwRegistry : ManagedLastWriteWinsDeltaRegistry<Guid, ImageInfo, DateTime>
     {
