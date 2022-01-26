@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using Nyris.Crdt.AspNetExample.Mongo;
+using Nyris.Crdt.AspNetExample.Services;
 using Nyris.Crdt.Distributed;
 using Serilog;
 
@@ -31,6 +32,7 @@ namespace Nyris.Crdt.AspNetExample
         {
             services.AddLogging(builder => builder.AddSerilog());
 
+            services.AddGrpc();
             services.AddManagedCrdts<MyContext>()
                 .WithKubernetesDiscovery(options =>
                 {
@@ -84,6 +86,7 @@ namespace Nyris.Crdt.AspNetExample
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapGrpcService<GrpcService>();
                 endpoints.MapControllers();
                 endpoints.MapManagedCrdtService();
                 endpoints.MapHealthChecks("/health");

@@ -66,8 +66,16 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
 
-        protected async Task StateChangedAsync()
-            => _queue.Enqueue(new DtoMessage<TDto>(TypeName, InstanceId, await ToDtoAsync()));
+        protected internal async Task StateChangedAsync(int propagationCounter = 0, CancellationToken cancellationToken = default)
+        {
+            var dtoMessage = new DtoMessage<TDto>(TypeName,
+                InstanceId,
+                await ToDtoAsync(cancellationToken),
+                propagationCounter);
+
+            _queue.Enqueue(dtoMessage);
+            await dtoMessage.MaybeWaitForCompletionAsync(cancellationToken);
+        }
 
         /// <inheritdoc />
         public abstract ReadOnlySpan<byte> CalculateHash();

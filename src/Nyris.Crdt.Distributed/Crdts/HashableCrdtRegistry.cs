@@ -16,8 +16,8 @@ namespace Nyris.Crdt.Distributed.Crdts
             IReadOnlyDictionary<TItemKey, TItemValueRepresentation>,
             HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>.HashableCrdtRegistryDto>,
             IHashable
-        where TItemKey : IEquatable<TItemKey>, IHashable
-        where TActorId : IEquatable<TActorId>, IHashable
+        where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>, IHashable
+        where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
         where TItemValue : class, ICRDT<TItemValue, TItemValueRepresentation, TItemValueDto>, IHashable
         where TItemValueFactory : ICRDTFactory<TItemValue, TItemValueRepresentation, TItemValueDto>, new()
     {
@@ -45,7 +45,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
         }
 
-        private HashableCrdtRegistry(HashableCrdtRegistryDto hashableCrdtRegistryDto)
+        internal HashableCrdtRegistry(HashableCrdtRegistryDto hashableCrdtRegistryDto)
         {
             _keys = HashableOptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(hashableCrdtRegistryDto.Keys);
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(hashableCrdtRegistryDto.Dict?.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
@@ -57,7 +57,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
             lock (_mergeLock)
             {
-                return HashingHelper.Combine(HashingHelper.Combine(_keys),
+                return HashingHelper.Combine(_keys.CalculateHash(),
                     HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key)));
             }
         }

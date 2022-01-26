@@ -36,7 +36,6 @@ namespace Nyris.Crdt.AspNetExample
             CancellationToken cancellationToken = default)
         {
             Value.UnionWith(other.Value);
-            await StateChangedAsync();
             return MergeResult.ConflictSolved;
         }
 

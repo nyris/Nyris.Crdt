@@ -13,7 +13,7 @@ namespace Nyris.Crdt.Distributed.Strategies.PartialReplication
             where TKey : IEquatable<TKey>, IComparable<TKey>
         {
             var result = new Dictionary<TKey, IList<NodeInfo>>(collectionSizes.Count);
-            var orderedNodes= nodes.OrderBy(id => id).ToList();
+            var orderedNodes= nodes.OrderBy(nodeInfo => nodeInfo.Id).ToList();
             var orderedKeys = collectionSizes.OrderByDescending(pair => pair.Value).Select(pair => pair.Key).ToList();
 
             var count = 0;

@@ -11,11 +11,16 @@
 <!--    </PropertyGroup>-->
 
     <ItemGroup>
+        <Protobuf Include="Protos\api.proto" GrpcServices="Server" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Grpc.AspNetCore" Version="2.40.0" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="5.0.12" />
         <PackageReference Include="MongoDB.Driver" Version="2.12.4" />
-        <PackageReference Include="Nyris.Model.Ids" Version="0.1.0" />
-        <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.3.0" />
-        <PackageReference Include="Nyris.EventBus.AspNetCore" Version="0.13.1" />
+        <PackageReference Include="Nyris.Model.Ids" Version="1.4.2" />
+        <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.5.0" />
+        <PackageReference Include="Nyris.EventBus.AspNetCore" Version="0.15.0" />
     </ItemGroup>
 
     <!-- Open Telemetry -->

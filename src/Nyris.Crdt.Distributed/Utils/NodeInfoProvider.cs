@@ -7,12 +7,14 @@ using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Utils
 {
-    internal static class NodeInfoProvider
+    internal sealed class NodeInfoProvider : INodeInfoProvider
     {
-        public static readonly NodeId ThisNodeId = NodeId.FromGuid(Guid.NewGuid());
-        private static NodeInfo? _info;
+        private NodeInfo? _info;
 
-        public static NodeInfo GetMyNodeInfo()
+        /// <inheritdoc />
+        public NodeId ThisNodeId { get; } = NodeId.FromGuid(Guid.NewGuid());
+
+        public NodeInfo GetMyNodeInfo()
         {
             if (_info != null) return _info;
 

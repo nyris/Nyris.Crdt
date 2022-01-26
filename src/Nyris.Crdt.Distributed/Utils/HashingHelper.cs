@@ -152,11 +152,10 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 foreach (var (key, item) in items)
                 {
-                    // TODO: GetHashCode will not be equal across nodes for some types. How to enforce it properly?
-                    sha1.AppendData(BitConverter.GetBytes(key.GetHashCode()));
+                    sha1.AppendData(CalculateHash(key));
                     sha1.AppendData(BitConverter.GetBytes(item.Deleted));
                     sha1.AppendData(item.Value.CalculateHash());
-                    sha1.AppendData(BitConverter.GetBytes(item.TimeStamp.GetHashCode()));
+                    sha1.AppendData(CalculateHash(item.TimeStamp));
                 }
 
                 return sha1.GetHashAndReset();
@@ -226,6 +225,26 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 Pool.Return(sha1);
             }
+        }
+
+        private static ReadOnlySpan<byte> CalculateHash<T>(T value) where T : notnull
+        {
+            return value switch
+            {
+                short shortValue => BitConverter.GetBytes(shortValue),
+                int intValue => BitConverter.GetBytes(intValue),
+                long longValue => BitConverter.GetBytes(longValue),
+                ushort ushortValue => BitConverter.GetBytes(ushortValue),
+                uint uintValue => BitConverter.GetBytes(uintValue),
+                ulong ulongValue => BitConverter.GetBytes(ulongValue),
+                float floatValue => BitConverter.GetBytes(floatValue),
+                double doubleValue => BitConverter.GetBytes(doubleValue),
+                char charValue => BitConverter.GetBytes(charValue),
+                string stringValue => Encoding.Default.GetBytes(stringValue),
+                DateTime dateTime => BitConverter.GetBytes(dateTime.ToBinary()),
+                IHashable hashable => hashable.CalculateHash(),
+                _ => BitConverter.GetBytes(value.GetHashCode())
+            };
         }
 
         private sealed class DoNothingOnReturnHashPoolPolicy : IPooledObjectPolicy<IncrementalHash>

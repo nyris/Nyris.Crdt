@@ -8,7 +8,7 @@ namespace Nyris.Crdt.Distributed.Crdts
 {
     public sealed class HashableOptimizedObservedRemoveSet<TActorId, TItem> : OptimizedObservedRemoveSet<TActorId, TItem>, IHashable
         where TItem : IEquatable<TItem>, IHashable
-        where TActorId : IEquatable<TActorId>, IHashable
+        where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
     {
         public HashableOptimizedObservedRemoveSet()
         {

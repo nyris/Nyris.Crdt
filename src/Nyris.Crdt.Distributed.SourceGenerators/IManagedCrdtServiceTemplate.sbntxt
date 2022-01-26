@@ -22,7 +22,7 @@ namespace Nyris.Crdt.Distributed
             {{ if for.index > 0 }},{{end}} IDtoPassingGrpcService<{{type.DtoTypeName}}>
         {{~ end ~}}
         {{~ for op in OperationInfos ~}}
-            , IOperationPassingGrpcService<{{op.OperationType}}, {{op.KeyType}}>
+            , IOperationPassingGrpcService<{{op.OperationType}}, {{ op.OperationResponseType }}, {{op.KeyType}}>
         {{~ end ~}}
     {
     }

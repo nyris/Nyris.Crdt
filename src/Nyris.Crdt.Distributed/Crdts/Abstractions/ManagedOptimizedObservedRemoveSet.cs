@@ -17,13 +17,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     /// It is O(E*n + n), where E is the number of elements and n is the number of actors.
     /// </summary>
     [DebuggerDisplay("{_items.Count < 10 ? string.Join(';', _items) : \"... a lot of items ...\"}")]
-    public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem>
+    public abstract class ManagedOptimizedObservedRemoveSet<TImplementation, TActorId, TItem>
         : ManagedCRDT<
-            ManagedOptimizedObservedRemoveSet<TActorId, TItem>,
+            TImplementation,
             HashSet<TItem>,
-            ManagedOptimizedObservedRemoveSet<TActorId, TItem>.OrSetDto>
+            ManagedOptimizedObservedRemoveSet<TImplementation, TActorId, TItem>.OrSetDto>
         where TItem : IEquatable<TItem>, IHashable
         where TActorId : IEquatable<TActorId>, IHashable
+        where TImplementation : ManagedOptimizedObservedRemoveSet<TImplementation, TActorId, TItem>
     {
         private HashSet<VersionedSignedItem<TActorId, TItem>> _items;
         private readonly Dictionary<TActorId, uint> _observedState;
@@ -133,7 +134,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             await StateChangedAsync();
         }
 
-        public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<TActorId, TItem> other,
+        public override async Task<MergeResult> MergeAsync(TImplementation other,
             CancellationToken cancellationToken = default)
         {
             if (CalculateHash().SequenceEqual(other.CalculateHash()))
@@ -179,7 +180,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 _semaphore.Release();
             }
-            await StateChangedAsync();
 
             return MergeResult.ConflictSolved;
         }

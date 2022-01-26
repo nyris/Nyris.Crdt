@@ -10,34 +10,36 @@ using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
-    public sealed class NodeSet : ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>
+    public sealed class NodeSet : ManagedOptimizedObservedRemoveSet<NodeSet, NodeId, NodeInfo>
     {
-        private static readonly NodeInfo ThisNodeInfo = NodeInfoProvider.GetMyNodeInfo();
+        private readonly NodeInfo _thisNodeInfo;
         private readonly ConcurrentBag<IRebalanceAtNodeChange> _needRebalancing = new();
 
         /// <inheritdoc />
-        public NodeSet(string id) : base(id)
+        public NodeSet(string id, INodeInfoProvider? nodeInfoProvider = null) : base(id)
         {
+            _thisNodeInfo = (nodeInfoProvider ?? DefaultConfiguration.NodeInfoProvider).GetMyNodeInfo();
         }
 
-        private NodeSet(OrSetDto orSetDto, string instanceId) : base(orSetDto, instanceId)
+        private NodeSet(OrSetDto orSetDto, string instanceId, INodeInfoProvider? nodeInfoProvider = null)
+            : base(orSetDto, instanceId)
         {
+            _thisNodeInfo = (nodeInfoProvider ?? DefaultConfiguration.NodeInfoProvider).GetMyNodeInfo();
         }
 
         internal void RebalanceOnChange(IRebalanceAtNodeChange element) => _needRebalancing.Add(element);
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo> other,
-            CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(NodeSet other, CancellationToken cancellationToken = default)
         {
             var result = await base.MergeAsync(other, cancellationToken);
 
-            if (!Value.Contains(ThisNodeInfo))
+            if (!Value.Contains(_thisNodeInfo))
             {
-                await AddAsync(ThisNodeInfo, ThisNodeInfo.Id);
+                await AddAsync(_thisNodeInfo, _thisNodeInfo.Id);
             }
 
-            if(result == MergeResult.ConflictSolved) RebalanceAll();
+            if(result == MergeResult.ConflictSolved) await RebalanceAllAsync();
             return result;
         }
 
@@ -45,34 +47,34 @@ namespace Nyris.Crdt.Distributed.Crdts
         public override async Task AddAsync(NodeInfo item, NodeId actorPerformingAddition)
         {
             await base.AddAsync(item, actorPerformingAddition);
-            RebalanceAll();
+            await RebalanceAllAsync();
         }
 
         /// <inheritdoc />
         public override async Task RemoveAsync(NodeInfo item)
         {
             await base.RemoveAsync(item);
-            RebalanceAll();
+            await RebalanceAllAsync();
         }
 
         /// <inheritdoc />
         public override async Task RemoveAsync(Func<NodeInfo, bool> condition)
         {
             await base.RemoveAsync(condition);
-            RebalanceAll();
+            await RebalanceAllAsync();
         }
 
-        private void RebalanceAll()
+        private async Task RebalanceAllAsync()
         {
             foreach (var element in _needRebalancing)
             {
-                element.Rebalance();
+                await element.RebalanceAsync();
             }
         }
 
-        public static readonly IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, OrSetDto> DefaultFactory = new Factory();
+        public static readonly IManagedCRDTFactory<NodeSet, HashSet<NodeInfo>, OrSetDto> DefaultFactory = new Factory();
 
-        private sealed class Factory : IManagedCRDTFactory<NodeSet, ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>, OrSetDto>
+        private sealed class Factory : IManagedCRDTFactory<NodeSet, HashSet<NodeInfo>, OrSetDto>
         {
             public NodeSet Create(OrSetDto orSetDto, string instanceId) => new (orSetDto, instanceId);
 

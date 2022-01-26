@@ -6,15 +6,18 @@ services:
       dockerfile: Dockerfile.Local
     ports:
       - "5000:80"
+      - "5001:8080"
   node-1:
     build:
       context: .
       dockerfile: Dockerfile.Local
     ports:
-      - "5001:80"
+      - "6000:80"
+      - "6001:8080"
   node-2:
     build:
       context: .
       dockerfile: Dockerfile.Local
     ports:
-      - "5002:80"
+      - "7000:80"
+      - "7001:8080"

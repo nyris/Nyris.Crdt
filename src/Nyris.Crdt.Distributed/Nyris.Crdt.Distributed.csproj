@@ -12,7 +12,12 @@
         <PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="1.0.152" />
         <PackageReference Include="KubernetesClient" Version="5.0.10" />
     </ItemGroup>
-    
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Nyris.Crdt.Tests" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    </ItemGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\Nyris.Crdt\Nyris.Crdt.csproj" />
     </ItemGroup>

@@ -1,11 +1,11 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
-using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Consistency;
@@ -13,24 +13,23 @@ using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Services
 {
-    internal sealed class ConsistencyService<TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
-        where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
-        where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
+    internal sealed class ConsistencyService<TCrdt, TRepresentation, TDto> : BackgroundService
+        where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
     {
         private readonly ManagedCrdtContext _context;
         private readonly IChannelManager _channelManager;
         private readonly IConsistencyCheckTargetsSelectionStrategy _strategy;
         private readonly NodeId _thisNodeId;
-        private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(30);
+        private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(20);
 
-        private readonly ILogger<ConsistencyService<TCrdt, TImplementation, TRepresentation, TDto>> _logger;
+        private readonly ILogger<ConsistencyService<TCrdt, TRepresentation, TDto>> _logger;
 
         /// <inheritdoc />
         public ConsistencyService(ManagedCrdtContext context,
             IChannelManager channelManager,
             IConsistencyCheckTargetsSelectionStrategy strategy,
             NodeInfo thisNode,
-            ILogger<ConsistencyService<TCrdt, TImplementation, TRepresentation, TDto>> logger)
+            ILogger<ConsistencyService<TCrdt, TRepresentation, TDto>> logger)
         {
             _context = context;
             _channelManager = channelManager;
@@ -65,37 +64,62 @@ namespace Nyris.Crdt.Distributed.Services
 
             foreach (var instanceId in _context.GetInstanceIds<TCrdt>())
             {
-                var nodesWithReplica = _context.GetNodesThatHaveReplica<TCrdt>(instanceId);
-                foreach (var nodeId in _strategy.GetTargetNodes(nodesWithReplica, _thisNodeId))
+                var nameAndInstanceId = new TypeNameAndInstanceId(typeName, instanceId);
+                var nodesThatShouldHaveReplica = _context.GetNodesThatHaveReplica(nameAndInstanceId).ToList();
+
+                var markForDeletion = nodesThatShouldHaveReplica.Count == 0
+                                      || nodesThatShouldHaveReplica.All(ni => ni.Id != _thisNodeId);
+
+                foreach (var nodeId in _strategy.GetTargetNodes(nodesThatShouldHaveReplica, _thisNodeId))
                 {
-                    _logger.LogDebug("Executing consistency check for {CrdtType} with node {NodeId}",
-                        typeof(TCrdt), nodeId);
-                    if (!_channelManager.TryGet<IDtoPassingGrpcService<TDto>>(nodeId, out var client))
-                    {
-                        _logger.LogError("Could not get a proxy to node with Id {NodeId}", nodeId);
-                        continue;
-                    }
+                    markForDeletion &= await TryHandleConsistencyCheckAsync(nameAndInstanceId, nodeId, cancellationToken);
+                }
 
-                    var nameAndInstanceId = new TypeNameAndInstanceId(typeName, instanceId);
-                    var hash = await client.GetHashAsync(nameAndInstanceId, cancellationToken);
-                    var hashMsg = new TypeNameAndHash(typeName, hash).WithId(instanceId);
-
-                    if (_context.IsHashEqual(hashMsg)) continue;
-
-                    _logger.LogInformation("Hash {MyHash} of {CrdtType} with id {CrdtInstanceId} does not " +
-                                           "match with local one",
-                        hash, typeName, instanceId);
-                    await SyncCrdtsAsync(client, typeName, instanceId, cancellationToken);
+                if (markForDeletion)
+                {
+                    await _context.RemoveAsync<TCrdt, TRepresentation, TDto>(nameAndInstanceId, cancellationToken);
                 }
             }
         }
 
-        private async Task SyncCrdtsAsync(IDtoPassingGrpcService<TDto> dtoPassingGrpcService, string typeName, string instanceId, CancellationToken cancellationToken)
+        private async Task<bool> TryHandleConsistencyCheckAsync(TypeNameAndInstanceId nameAndInstanceId, NodeId nodeId, CancellationToken cancellationToken)
         {
-            _logger.LogDebug("Syncing CRDT of type {CrdtType} with instanceId {InstanceId}",
-                typeof(TCrdt), instanceId);
+            if (!_channelManager.TryGet<IDtoPassingGrpcService<TDto>>(nodeId, out var client))
+            {
+                _logger.LogError("Could not get a proxy to node with Id {NodeId}", nodeId);
+                return false;
+            }
 
-            var enumerable = _context.EnumerateDtoBatchesAsync<TCrdt, TImplementation, TRepresentation, TDto>(instanceId, cancellationToken);
+            var hash = await client.GetHashAsync(nameAndInstanceId, cancellationToken);
+            if (_context.IsHashEqual(nameAndInstanceId, hash))
+            {
+                _logger.LogDebug("Crdt {CrdtType} with id {CrdtInstanceId} is consistent between " +
+                                       "this node ({ThisNodeId}) and node with id {NodeId}. Hash: '{MyHash}'",
+                    nameAndInstanceId.TypeName,
+                    nameAndInstanceId.InstanceId,
+                    _thisNodeId,
+                    nodeId,
+                    Convert.ToHexString(hash));
+                return true;
+            }
+
+            _logger.LogInformation("Crdt {CrdtType} with id {CrdtInstanceId} is not consistent between " +
+                                   "this node ({ThisNodeId}, hash: '{MyHash}') " +
+                                   "and node {NodeId} (hash: '{ReceivedHash}')",
+                nameAndInstanceId.TypeName,
+                nameAndInstanceId.InstanceId,
+                _thisNodeId,
+                Convert.ToHexString(_context.GetHash(nameAndInstanceId)),
+                nodeId,
+                Convert.ToHexString(hash));
+            return await SyncCrdtsAsync(client, nameAndInstanceId.TypeName, nameAndInstanceId.InstanceId, cancellationToken);
+        }
+
+        private async Task<bool> SyncCrdtsAsync(IDtoPassingGrpcService<TDto> dtoPassingGrpcService, string typeName, string instanceId, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Syncing CRDT of type {CrdtType} with instanceId {InstanceId}", typeof(TCrdt), instanceId);
+
+            var enumerable = _context.EnumerateDtoBatchesAsync<TCrdt, TRepresentation, TDto>(instanceId, cancellationToken);
             var callOptions = new CallOptions(new Metadata
             {
                 new("instance-id", instanceId),
@@ -103,8 +127,10 @@ namespace Nyris.Crdt.Distributed.Services
             }, cancellationToken: cancellationToken);
             await foreach (var dto in dtoPassingGrpcService.EnumerateCrdtAsync(enumerable, callOptions).WithCancellation(cancellationToken))
             {
-                await _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(dto, instanceId, cancellationToken);
+                await _context.MergeAsync<TCrdt, TRepresentation, TDto>(dto, instanceId, cancellationToken: cancellationToken);
             }
+
+            return true;
         }
     }
 }

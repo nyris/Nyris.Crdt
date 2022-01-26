@@ -23,16 +23,16 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         [HttpGet("{indexId:guid}")]
         public async Task<IActionResult> GetIndexAsync(Guid indexId)
         {
-            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(IndexId.FromGuid(indexId),
-                () => (_thisNodeId, new ImageInfoLwwRegistry(indexId.ToString("N"))));
+            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(CollectionId.FromGuid(indexId),
+                () => (_thisNodeId, new ImageInfoLwwCollection(indexId.ToString("N"))));
             return Ok(new { data = index.Values });
         }
 
         [HttpGet("{indexId:guid}")]
         public async Task<IActionResult> CreateIndexAsync(Guid indexId)
         {
-            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(IndexId.FromGuid(indexId),
-                () => (_thisNodeId, new ImageInfoLwwRegistry(indexId.ToString("N"))));
+            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(CollectionId.FromGuid(indexId),
+                () => (_thisNodeId, new ImageInfoLwwCollection(indexId.ToString("N"))));
             return Ok(new { data = index.Values });
         }
 
@@ -42,10 +42,10 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         [HttpPost]
         public async Task<IActionResult> ImageDataSetAsync([FromBody] ImageDataSetEvent data)
         {
-            var indexId = IndexId.FromGuid(data.IndexId);
+            var indexId = CollectionId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwRegistry(data.IndexId.ToString("N"))));
-            if (!index.TrySet(data.ImageUuid, new ImageInfo(data.DownloadUri, data.ImageId), DateTime.UtcNow,
+                () => (_thisNodeId, new ImageInfoLwwCollection(data.IndexId.ToString("N"))));
+            if (!index.TrySet(ImageGuid.FromGuid(data.ImageUuid), new ImageInfo(data.DownloadUri, data.ImageId), DateTime.UtcNow,
                 out var img))
             {
                 return Conflict(img);
@@ -56,10 +56,10 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         [HttpDelete]
         public async Task<IActionResult> ImageDeletedAsync([FromBody] ImageDeletedEvent data)
         {
-            var indexId = IndexId.FromGuid(data.IndexId);
+            var indexId = CollectionId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwRegistry(data.IndexId.ToString("N"))));
-            if (!index.TryRemove(data.ImageUuid, DateTime.UtcNow, out var image))
+                () => (_thisNodeId, new ImageInfoLwwCollection(data.IndexId.ToString("N"))));
+            if (!index.TryRemove(ImageGuid.FromGuid(data.ImageUuid), DateTime.UtcNow, out var image))
             {
                 return NotFound();
             }

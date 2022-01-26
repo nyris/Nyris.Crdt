@@ -22,7 +22,8 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
         // TODO: currently it does not seem possible to reference another project from source generator project, fix when possible
         private const string ManagedCRDTTypeName = "ManagedCRDT";
         private const string PartiallyReplicatedCRDTRegistryTypeName = "PartiallyReplicatedCRDTRegistry";
-        private const string OperationBaseClass = "Nyris.Crdt.Distributed.Crdts.Operation";
+        private const string OperationBaseClassMetadataName = "Nyris.Crdt.Distributed.Crdts.Operations.Operation`1";
+        private const string OperationBaseClass = "Operation";
 
         private readonly StringBuilder _log = new("/*");
 
@@ -61,19 +62,21 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             }
 
             _log.AppendLine("*/");
+            // _log.Clear();
             context.AddSource("Logs", SourceText.From(_log.ToString(), Encoding.UTF8));
         }
 
         private static IEnumerable<(Template, string)> EnumerateTemplates()
         {
             foreach (var templateFileName in new[]
+                     {
+                         "ManagedCrdtServiceTemplate.sbntxt",
+                         "IManagedCrdtServiceTemplate.sbntxt",
+                         "ServiceCollectionExtensionsTemplate.sbntxt"
+                     })
             {
-                "ManagedCrdtServiceTemplate.sbntxt",
-                "IManagedCrdtServiceTemplate.sbntxt",
-                "ServiceCollectionExtensionsTemplate.sbntxt"
-            })
-            {
-                yield return (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName), templateFileName);
+                yield return (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
+                    templateFileName);
             }
         }
 
@@ -90,16 +93,18 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             var nodeSet = context.Compilation.GetTypeByMetadataName("Nyris.Crdt.Distributed.Crdts.NodeSet");
             if (!TryGetCrdtInfo(nodeSet, out var crdtInfo, out _))
             {
-                _log.AppendLine("Something went wrong - could not get crdtInfo of a known class Nyris.Crdt.Distributed.Crdts.NodeSet");
+                _log.AppendLine(
+                    "Something went wrong - could not get crdtInfo of a known class Nyris.Crdt.Distributed.Crdts.NodeSet");
             }
+
             crdtInfos.Add(crdtInfo);
 
             // process user-defined crdts
-            var operationInfosCandidates = new List<KeyOperationPairCandidate>();
             foreach (var candidateClass in candidates)
             {
                 _log.AppendLine("Analysing class: " + candidateClass.Identifier.ToFullString());
-                var namedTypeSymbol = context.Compilation.GetSemanticModel(candidateClass.SyntaxTree).GetDeclaredSymbol(candidateClass);
+                var namedTypeSymbol = context.Compilation.GetSemanticModel(candidateClass.SyntaxTree)
+                    .GetDeclaredSymbol(candidateClass);
                 if (namedTypeSymbol == null)
                 {
                     _log.AppendLine("Something went wrong - semantic model did not produce an INamedTypeSymbol");
@@ -112,73 +117,14 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                     continue;
                 }
 
-                if (!TryGetCrdtInfo(namedTypeSymbol, out crdtInfo, out var operationCandidate)) continue;
+                if (!TryGetCrdtInfo(namedTypeSymbol, out crdtInfo, out var operations)) continue;
+
+                foreach (var operation in operations)
+                {
+                    operationInfos.Add(operation);
+                }
 
                 crdtInfos.Add(crdtInfo);
-                if (operationCandidate != null) operationInfosCandidates.Add(operationCandidate);
-            }
-
-            // construct operation records tree
-            var operationsTree = new TypeSymbolNode(context.Compilation.GetTypeByMetadataName(OperationBaseClass));
-            var typeToNode = new Dictionary<ITypeSymbol, TypeSymbolNode>(SymbolEqualityComparer.Default);
-
-            foreach (var recordDeclaration in operationCandidates)
-            {
-                _log.AppendLine("Analysing record: " + recordDeclaration.Identifier.ToFullString());
-                var namedTypeSymbol = context.Compilation.GetSemanticModel(recordDeclaration.SyntaxTree).GetDeclaredSymbol(recordDeclaration);
-                if (namedTypeSymbol == null)
-                {
-                    _log.AppendLine("Something went wrong - semantic model did not produce an INamedTypeSymbol");
-                    continue;
-                }
-                PopulateOperationRecordsTree(namedTypeSymbol, operationsTree, typeToNode);
-            }
-
-            // foreach operation-key candidate, traverse descendents of operation to get all concrete pairs
-            _log.AppendLine("Examining candidates to get all descendents of operations");
-            foreach (var op in operationInfosCandidates)
-            {
-                if (!typeToNode.ContainsKey(op.OperationType))
-                {
-                    _log.AppendLine($"Something went wrong - {op.OperationType.ToDisplayString()} was not found in a tree");
-                    continue;
-                }
-
-                foreach (var symbolNode in typeToNode[op.OperationType]
-                             .Traverse()
-                             .Where(node => !node.Value.IsAbstract))
-                {
-                    operationInfos.Add(new RoutedOperationInfo(symbolNode.Value.ToDisplayString(), op.Key, op.CrdtTypeParams));
-                }
-            }
-        }
-
-        /// <summary>
-        /// Traverse a given symbol ancestors. If symbol has an ancestor that is at a given root,
-        /// adds entire chain to the tree. Thus - when given a particular class or record at the root
-        /// and called on a list of other classes/records that inherit from it, it reconstructs an accurate
-        /// inheritance tree (i.e. mapping from a class/record to all it's children)
-        /// </summary>
-        /// <param name="symbol"></param>
-        /// <param name="root"></param>
-        /// <param name="typeToNode"></param>
-        private static void PopulateOperationRecordsTree(INamedTypeSymbol symbol,
-            TypeSymbolNode root,
-            IDictionary<ITypeSymbol, TypeSymbolNode> typeToNode)
-        {
-            var classHierarchy = new Stack<ITypeSymbol>();
-
-            for (var current = symbol;
-                 current != null && current.ToDisplayString() != "object";
-                 current = current.BaseType)
-            {
-                // if we encountered record that is at the root, merge entire chain with the tree, in reverse order
-                if (SymbolEqualityComparer.Default.Equals(current, root.Value))
-                {
-                    root.Add(classHierarchy, typeToNode);
-                }
-                // else continue to grow the chain
-                else classHierarchy.Push(current);
             }
         }
 
@@ -187,35 +133,48 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
         /// </summary>
         /// <param name="symbol"></param>
         /// <param name="crdtInfo"></param>
-        /// <param name="keyOperationPairCandidate"></param>
+        /// <param name="operations"></param>
         /// <returns>True if symbol is a managedCrdt, false otherwise</returns>
         private bool TryGetCrdtInfo(INamedTypeSymbol symbol,
             [NotNullWhen(true)] out CrdtInfo crdtInfo,
-            [MaybeNullWhen(true)] out KeyOperationPairCandidate keyOperationPairCandidate)
+            out IEnumerable<RoutedOperationInfo> operations)
         {
             var current = symbol.BaseType;
-            KeyOperationPairCandidate operationCandidate = null;
+            var operationInfos = (IEnumerable<RoutedOperationInfo>)ArraySegment<RoutedOperationInfo>.Empty;
 
             while (current != null && current.ToDisplayString() != "object")
             {
                 if (current.Name == PartiallyReplicatedCRDTRegistryTypeName)
                 {
+                    var implementationType = current.TypeArguments[0];
                     var keyType = current.TypeArguments[1];
-                    var operationType = current.TypeArguments[^2];
 
-                    var collectionType = current.TypeArguments[2].ToDisplayString();
-                    _log.AppendLine($"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
-                                    "Generated gRPC service will include transport operations for operations " +
-                                    $"of {collectionType} (descendent records of {operationType.ToDisplayString()})");
+                    _log.AppendLine(
+                        $"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
+                        "Generated gRPC service will include methods for applying its operations.");
 
                     var otherParams = current.TypeArguments.Skip(1).Select(s => s.ToDisplayString());
-                    var crdtTypeParams = $"{collectionType}, {string.Join(", ", otherParams)}";
+                    var crdtTypeParams = $"{implementationType.ToDisplayString()}, {string.Join(", ", otherParams)}";
 
-                    operationCandidate = new KeyOperationPairCandidate(keyType.ToDisplayString(), operationType, crdtTypeParams);
-                    _log.Append("Adding candidate for operation-key pair: ")
-                        .Append(operationCandidate.OperationType.ToDisplayString())
-                        .Append(" - ")
-                        .AppendLine(operationCandidate.Key);
+                    // get attributes of symbol
+                    // get type arguments of constructor
+
+                    // TODO: check if inherited from operationType and operationResultType
+                    var operationType = current.TypeArguments[^3];
+                    var operationResultType = current.TypeArguments[^2];
+
+                    operationInfos = symbol.GetAttributes()
+                        .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
+                        .Select(attr =>
+                        {
+                            var operationConcreteType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
+                            var operationResponseConcreteType = attr.ConstructorArguments[1].Value as INamedTypeSymbol;
+
+                            return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
+                                operationResponseConcreteType?.ToDisplayString(),
+                                keyType.ToDisplayString(),
+                                crdtTypeParams);
+                        });
                 }
 
                 if (current.Name == ManagedCRDTTypeName)
@@ -230,7 +189,7 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                         CrdtTypeName: symbol.ToDisplayString(),
                         AllArgumentsString: allArgumentsString,
                         DtoTypeName: dtoString);
-                    keyOperationPairCandidate = operationCandidate;
+                    operations = operationInfos;
                     return true;
                 }
 
@@ -238,58 +197,8 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             }
 
             crdtInfo = null;
-            keyOperationPairCandidate = null;
+            operations = operationInfos;
             return false;
-        }
-
-        private record KeyOperationPairCandidate(string Key, ITypeSymbol OperationType, string CrdtTypeParams)
-        {
-            public string Key { get; } = Key;
-            public ITypeSymbol OperationType { get; } = OperationType;
-            public string CrdtTypeParams { get; } = CrdtTypeParams;
-        }
-
-        private class TypeSymbolNode
-        {
-            public readonly ITypeSymbol Value;
-            public readonly Dictionary<ITypeSymbol, TypeSymbolNode> Nodes;
-
-            public TypeSymbolNode(ITypeSymbol value)
-            {
-                Value = value;
-                Nodes = new Dictionary<ITypeSymbol, TypeSymbolNode>(SymbolEqualityComparer.Default);
-            }
-
-            /// <summary>
-            /// Add a list of symbols to a tree. i-th symbol in a list is assumed to be inherited from (i-1)-th symbol
-            /// </summary>
-            /// <param name="symbols"></param>
-            /// <param name="typeToNode">A mapping from symbol to nodes, to which newly created nodes will be added.</param>
-            public void Add(IEnumerable<ITypeSymbol> symbols, IDictionary<ITypeSymbol, TypeSymbolNode> typeToNode)
-            {
-                var current = this;
-                foreach (var symbol in symbols)
-                {
-                    if (!current.Nodes.ContainsKey(symbol))
-                    {
-                        var newNode = new TypeSymbolNode(symbol);
-                        current.Nodes[symbol] = newNode;
-                        typeToNode[symbol] = newNode;
-                    }
-                    current = current.Nodes[symbol];
-                }
-            }
-
-            public IEnumerable<TypeSymbolNode> Traverse()
-            {
-                yield return this;
-                if (Nodes.Count <= 0) yield break;
-
-                foreach (var node in Nodes.Values.SelectMany(node => node.Traverse()))
-                {
-                    yield return node;
-                }
-            }
         }
     }
 }

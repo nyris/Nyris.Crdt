@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+option csharp_namespace = "Nyris.Crdt.AspNetExample";
+
+package GrpcServiceSample;
+
+service Api {
+  rpc SayHello (HelloRequest) returns (HelloReply);
+
+  rpc CreateImagesCollection (Collection) returns (Collection);
+  rpc ImagesCollectionExists(Collection) returns (BoolResponse);
+  rpc CreateImage (Image) returns (Image);
+  rpc GetImage (ImageUuids) returns (Image);
+
+  rpc CreateImagesCollectionPR (Collection) returns (Collection);
+  rpc ImagesCollectionExistsPR(Collection) returns (BoolResponse);
+  rpc CreateImagePR (Image) returns (Image);
+  rpc GetImagePR (ImageUuids) returns (Image);
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string message = 1;
+}
+
+message Collection {
+  string id = 1;
+}
+
+message BoolResponse {
+  bool value = 1;
+}
+
+message ImageUuids {
+  string collectionId = 1;
+  string imageUuid = 2;
+}
+
+message Image {
+  string guid = 1;
+  string collectionId = 2;
+  bytes id = 3;
+  string downloadUri = 4;
+}

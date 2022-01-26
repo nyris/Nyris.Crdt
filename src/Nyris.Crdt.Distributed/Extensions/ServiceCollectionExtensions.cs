@@ -13,27 +13,25 @@ namespace Nyris.Crdt.Distributed.Extensions
 {
     public static partial class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddInternals<TGrpcService>(this IServiceCollection services)
+        public static IServiceCollection AddInternals<TGrpcService>(this IServiceCollection services,
+            INodeInfoProvider? nodeInfoProvider = null)
             where TGrpcService : class
         {
             services.AddSingleton<IChannelManager, ChannelManager<TGrpcService>>();
             services.AddHostedService<DiscoveryService<TGrpcService>>();
 
-            services.TryAddSingleton(NodeInfoProvider.GetMyNodeInfo());
+            services.TryAddSingleton((nodeInfoProvider ?? DefaultConfiguration.NodeInfoProvider).GetMyNodeInfo());
             services.TryAddSingleton<IPropagationStrategy, NextInRingPropagationStrategy>();
             services.TryAddSingleton<IConsistencyCheckTargetsSelectionStrategy, NextInRingConsistencyCheckTargetsSelectionStrategy>();
 
-            services.AddConnectionServices<NodeSet,
-                    ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>, HashSet<NodeInfo>,
-                    ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo>.OrSetDto>();
+            services.AddConnectionServices<NodeSet, HashSet<NodeInfo>, NodeSet.OrSetDto>();
             return services;
         }
 
-        public static IServiceCollection AddConnectionServices<TCrdt, TImplementation, TRepresentation, TDto>(this IServiceCollection services)
-            where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
-            where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
+        public static IServiceCollection AddConnectionServices<TCrdt, TRepresentation, TDto>(this IServiceCollection services)
+            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
             => services
-                .AddHostedService<PropagationService<TCrdt, TImplementation, TRepresentation, TDto>>()
-                .AddHostedService<ConsistencyService<TCrdt, TImplementation, TRepresentation, TDto>>();
+                .AddHostedService<PropagationService<TCrdt, TRepresentation, TDto>>()
+                .AddHostedService<ConsistencyService<TCrdt, TRepresentation, TDto>>();
     }
 }

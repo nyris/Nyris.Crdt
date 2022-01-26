@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
+using Nyris.Crdt.Distributed.Crdts.Operations;
+using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
@@ -22,40 +24,56 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     /// </summary>
     /// <typeparam name="TKey"></typeparam>
     /// <typeparam name="TCollection"></typeparam>
-    /// <typeparam name="TDto"></typeparam>
     /// <typeparam name="TCollectionRepresentation"></typeparam>
     /// <typeparam name="TCollectionDto"></typeparam>
-    /// <typeparam name="TCollectionOperation"></typeparam>
-    /// <typeparam name="TImplementation"></typeparam>
+    /// <typeparam name="TCollectionOperationBase"></typeparam>
     /// <typeparam name="TCollectionFactory"></typeparam>
+    /// <typeparam name="TCollectionOperationResponseBase"></typeparam>
+    /// <typeparam name="TImplementation"></typeparam>
     public abstract class PartiallyReplicatedCRDTRegistry<TImplementation,
             TKey,
             TCollection,
             TCollectionRepresentation,
             TCollectionDto,
-            TCollectionOperation,
+            TCollectionOperationBase,
+            TCollectionOperationResponseBase,
             TCollectionFactory>
-        : ManagedCRDT<TImplementation, Dictionary<TKey, TCollection>, PartiallyReplicatedCRDTRegistry<TImplementation,
-                TKey,
-                TCollection,
-                TCollectionRepresentation,
-                TCollectionDto,
-                TCollectionOperation,
-                TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>,
-            ICreateManagedCrdtsInside,
+        : ManagedCRDT<TImplementation,
+                IReadOnlyDictionary<TKey, TCollectionRepresentation>,
+                PartiallyReplicatedCRDTRegistry<TImplementation,
+                    TKey,
+                    TCollection,
+                    TCollectionRepresentation,
+                    TCollectionDto,
+                    TCollectionOperationBase,
+                    TCollectionOperationResponseBase,
+                    TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>,
+            ICreateAndDeleteManagedCrdtsInside,
             IRebalanceAtNodeChange,
             INodesWithReplicaProvider
         where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
-        where TCollection : ManagedCRDTWithSerializableOperations<TCollection, TCollectionRepresentation, TCollectionDto, TCollectionOperation>
-        where TImplementation : PartiallyReplicatedCRDTRegistry<TImplementation, TKey, TCollection, TCollectionRepresentation, TCollectionDto, TCollectionOperation, TCollectionFactory>
+        where TCollection : ManagedCRDTWithSerializableOperations<TCollection,
+            TCollectionRepresentation,
+            TCollectionDto,
+            TCollectionOperationBase,
+            TCollectionOperationResponseBase>
+        where TCollectionOperationBase : Operation
+        where TCollectionOperationResponseBase : OperationResponse
         where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionRepresentation, TCollectionDto>, new()
+        where TImplementation : PartiallyReplicatedCRDTRegistry<TImplementation,
+            TKey,
+            TCollection,
+            TCollectionRepresentation,
+            TCollectionDto,
+            TCollectionOperationBase,
+            TCollectionOperationResponseBase,
+            TCollectionFactory>
     {
         // ReSharper disable once StaticMemberInGenericType
         private static readonly Random Random = new();
-        // ReSharper disable once StaticMemberInGenericType
-        private static readonly NodeInfo ThisNode = NodeInfoProvider.GetMyNodeInfo();
         private static readonly TCollectionFactory Factory = new();
 
+        private readonly NodeInfo _thisNode;
         private readonly IPartialReplicationStrategy _partialReplicationStrategy;
         private readonly SemaphoreSlim _semaphore = new(1);
         private ManagedCrdtContext? _context;
@@ -71,7 +89,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             CollectionSize,
             CollectionSize.CollectionSizeDto,
             CollectionSize.CollectionSizeFactory,
-            ulong> _keys;
+            ulong> _collectionInfos;
 
         private readonly HashableLastWriteWinsRegistry<string, TKey, DateTime> _instanceIdToKeys;
 
@@ -86,13 +104,36 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             HashSet<NodeId>> _currentState;
 
         /// <inheritdoc />
-        protected PartiallyReplicatedCRDTRegistry(string instanceId, IPartialReplicationStrategy? shardingStrategy = null) : base(instanceId)
+        protected PartiallyReplicatedCRDTRegistry(string instanceId,
+            IPartialReplicationStrategy? shardingStrategy = null,
+            INodeInfoProvider? nodeInfoProvider = null) : base(instanceId)
         {
+            _thisNode = (nodeInfoProvider ?? DefaultConfiguration.NodeInfoProvider).GetMyNodeInfo();
             _partialReplicationStrategy = shardingStrategy ?? DefaultConfiguration.PartialReplicationStrategy;
-            _keys = new HashableCrdtRegistry<NodeId, TKey, CollectionSize, CollectionSize.CollectionSizeDto, CollectionSize.CollectionSizeFactory, ulong>();
+            _collectionInfos = new HashableCrdtRegistry<NodeId, TKey, CollectionSize, CollectionSize.CollectionSizeDto, CollectionSize.CollectionSizeFactory, ulong>();
             _currentState = new HashableCrdtRegistry<NodeId, TKey, HashableOptimizedObservedRemoveSet<NodeId, NodeId>, OptimizedObservedRemoveSet<NodeId, NodeId>.OptimizedObservedRemoveSetDto, HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory, HashSet<NodeId>>();
             _collections = new ConcurrentDictionary<TKey, TCollection>();
             _instanceIdToKeys = new HashableLastWriteWinsRegistry<string, TKey, DateTime>();
+            _desiredDistribution = new Dictionary<TKey, IList<NodeInfo>>();
+        }
+
+        protected PartiallyReplicatedCRDTRegistry(PartiallyReplicatedCrdtRegistryDto dto,
+            string instanceId,
+            IPartialReplicationStrategy? shardingStrategy = null,
+            INodeInfoProvider? nodeInfoProvider = null) : base(instanceId)
+        {
+            _thisNode = (nodeInfoProvider ?? DefaultConfiguration.NodeInfoProvider).GetMyNodeInfo();
+            _collectionInfos = new HashableCrdtRegistry<NodeId, TKey, CollectionSize, CollectionSize.CollectionSizeDto,
+                CollectionSize.CollectionSizeFactory, ulong>(dto.Keys);
+            _currentState =
+                new HashableCrdtRegistry<NodeId, TKey, HashableOptimizedObservedRemoveSet<NodeId, NodeId>,
+                    OptimizedObservedRemoveSet<NodeId, NodeId>.OptimizedObservedRemoveSetDto,
+                    HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory, HashSet<NodeId>>(dto.CurrentState);
+            _instanceIdToKeys = new HashableLastWriteWinsRegistry<string, TKey, DateTime>(dto.InstanceIdToKeys);
+
+            // should be irrelevant
+            _collections = new ConcurrentDictionary<TKey, TCollection>();
+            _partialReplicationStrategy = shardingStrategy ?? DefaultConfiguration.PartialReplicationStrategy;
             _desiredDistribution = new Dictionary<TKey, IList<NodeInfo>>();
         }
 
@@ -101,7 +142,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// (since only part of the data is local), so this will throw an exception.
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
-        public sealed override Dictionary<TKey, TCollection> Value => throw new NotImplementedException(
+        public sealed override Dictionary<TKey, TCollectionRepresentation> Value => throw new NotImplementedException(
             "Partially replicated registry can not provide a direct representation");
 
         /// <inheritdoc />
@@ -113,6 +154,28 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
+        async Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionAsync(string instanceId, CancellationToken cancellationToken)
+        {
+            if (!_instanceIdToKeys.TryGetValue(instanceId, out var key)) return;
+
+            await _semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                _instanceIdToKeys.TryRemove(instanceId, DateTime.UtcNow, out _);
+                _collectionInfos.Remove(key);
+                _collections.TryRemove(key, out _);
+                if (_currentState.TryGetValue(key, out var set))
+                {
+                    set.Remove(_thisNode.Id);
+                }
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
+        }
+
+        /// <inheritdoc />
         public override async Task<MergeResult> MergeAsync(TImplementation other, CancellationToken cancellationToken = default)
         {
             await _semaphore.WaitAsync(cancellationToken);
@@ -120,15 +183,18 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             var keysMerge = MergeResult.Identical;
             try
             {
-                keysMerge = _keys.Merge(other._keys);
+                keysMerge = _collectionInfos.Merge(other._collectionInfos);
                 var stateMerge = _currentState.Merge(other._currentState);
-                conflict = keysMerge == MergeResult.ConflictSolved || stateMerge == MergeResult.ConflictSolved;
+                var mappingMerge = _instanceIdToKeys.Merge(other._instanceIdToKeys);
+                conflict = keysMerge == MergeResult.ConflictSolved
+                           || stateMerge == MergeResult.ConflictSolved
+                           || mappingMerge == MergeResult.ConflictSolved;
             }
             finally
             {
                 _semaphore.Release();
-                if(conflict) await StateChangedAsync();
-                if(keysMerge == MergeResult.ConflictSolved)Rebalance();
+                if(keysMerge == MergeResult.ConflictSolved) await RebalanceAsync();
+                MaybeUpdateCurrentState();
             }
 
             return conflict ? MergeResult.ConflictSolved : MergeResult.Identical;
@@ -138,12 +204,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public override async Task<PartiallyReplicatedCrdtRegistryDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
             await _semaphore.WaitAsync(cancellationToken);
-
             try
             {
                 return new PartiallyReplicatedCrdtRegistryDto
                 {
-                    Keys = _keys.ToDto(),
+                    Keys = _collectionInfos.ToDto(),
                     CurrentState = _currentState.ToDto(),
                     InstanceIdToKeys = _instanceIdToKeys.ToDto()
                 };
@@ -161,22 +226,70 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_keys, _currentState, _instanceIdToKeys);
+        public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_collectionInfos, _currentState, _instanceIdToKeys);
 
-        public async Task<bool> TryAddCollectionAsync(TKey key, TCollection collection)
+        public async Task<bool> TryAddCollectionAsync(TKey key, TCollection collection, int waitForPropagationToNumNodes = 0)
         {
             await _semaphore.WaitAsync();
             try
             {
-                if (!_keys.TryAdd(NodeInfoProvider.ThisNodeId, key, new CollectionSize()) ||
+                // TODO: do we need a proper synchronization between _keys _collection and _instanceIdToKeys guarantees here?
+                if (!_collectionInfos.TryAdd(_thisNode.Id, key, new CollectionSize()) ||
                     !_collections.TryAdd(key, collection))
                 {
                     return false;
                 }
 
                 _instanceIdToKeys.TrySet(collection.InstanceId, key, DateTime.UtcNow, out _);
-                ManagedCrdtContext.Add(collection, Factory, this);
+                ManagedCrdtContext.Add(collection, Factory, this, this);
                 return true;
+            }
+            finally
+            {
+                _semaphore.Release();
+                await RebalanceAsync();
+                await StateChangedAsync(waitForPropagationToNumNodes);
+            }
+        }
+
+        public bool CollectionExists(TKey key) =>
+            _collectionInfos.TryGetValue(key, out _)
+            && _currentState.TryGetValue(key, out _)
+            && _instanceIdToKeys.Values.Contains(key);
+
+        public bool TryGetCollectionSize(TKey key, out ulong size)
+        {
+            if (!_collectionInfos.TryGetValue(key, out var collectionInfo))
+            {
+                size = 0;
+                return false;
+            }
+            size = collectionInfo.Value;
+            return true;
+        }
+
+        Task IRebalanceAtNodeChange.RebalanceAsync() => RebalanceAsync();
+
+        private async Task RebalanceAsync()
+        {
+            await _semaphore.WaitAsync();
+            try
+            {
+                var desiredDistribution = _partialReplicationStrategy
+                    .GetDistribution(_collectionInfos.Value, ManagedCrdtContext.Nodes.Value);
+
+                foreach (var (key, nodeInfos) in desiredDistribution)
+                {
+                    if (nodeInfos.Contains(_thisNode) && !_collections.ContainsKey(key))
+                    {
+                        var instanceId = _instanceIdToKeys.Value.First(pair => pair.Value.Equals(key)).Key;
+                        var managedCrdt = Factory.Create(instanceId);
+                        _collections.TryAdd(key, managedCrdt);
+                        ManagedCrdtContext.Add(managedCrdt, Factory, this, this);
+                    }
+                }
+
+                _desiredDistribution = desiredDistribution;
             }
             finally
             {
@@ -184,21 +297,21 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        void IRebalanceAtNodeChange.Rebalance() => Rebalance();
-
-        private void Rebalance()
+        private void MaybeUpdateCurrentState()
         {
-            var desiredDistribution = _partialReplicationStrategy.GetDistribution(_keys.Value, ManagedCrdtContext.Nodes.Value);
-            foreach (var (key, nodeInfos) in desiredDistribution)
+            foreach (var (key, collection) in _collections)
             {
-                if (nodeInfos.Contains(ThisNode) && !_collections.ContainsKey(key))
-                {
-                    var instanceId = _instanceIdToKeys.Value.First(pair => pair.Value.Equals(key)).Key;
-                    _collections.TryAdd(key, Factory.Create(instanceId));
-                }
-            }
+                if (!_collectionInfos.TryGetValue(key, out var collectionSize)) continue;
+                if (collection.Size != collectionSize.Value) continue;
 
-            _desiredDistribution = desiredDistribution;
+                if (!_currentState.TryGetValue(key, out var nodes))
+                {
+                    nodes = new HashableOptimizedObservedRemoveSet<NodeId, NodeId>();
+                    _currentState.TryAdd(_thisNode.Id, key, nodes);
+                }
+
+                if(!nodes.Contains(_thisNode.Id)) nodes.Add(_thisNode.Id, _thisNode.Id);
+            }
         }
 
         IList<NodeInfo> INodesWithReplicaProvider.GetNodesThatShouldHaveReplicaOfCollection(string instanceId)
@@ -212,33 +325,36 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return nodes;
         }
 
-        public async Task ApplyAsync(TKey key, TCollectionOperation operation, CancellationToken cancellationToken = default)
+        public async Task<TResponse> ApplyAsync<TOperation, TResponse>(TKey key, TOperation operation, CancellationToken cancellationToken = default)
+            where TOperation : TCollectionOperationBase
+            where TResponse : TCollectionOperationResponseBase
         {
             if (!_currentState.TryGetValue(key, out var nodesWithCollection))
             {
-                // TODO: specify a NotFound response
-                return;
+                // TODO: specify a NotFound response?
+                throw new KeyNotFoundException();
             }
 
-            if (nodesWithCollection.Contains(NodeInfoProvider.ThisNodeId))
+            if (nodesWithCollection.Contains(_thisNode.Id))
             {
-                await _collections[key].ApplyAsync(operation);
+                return (TResponse) await _collections[key].ApplyAsync(operation);
             }
-            else
-            {
-                var nodes = nodesWithCollection.Value.ToList();
-                var routeTo = nodes[Random.Next(0, nodes.Count)];
-                var channelManager = ChannelManagerAccessor.Manager ?? throw new InitializationException(
-                    "Operation can not be routed to a different node - Channel manager was not instantiated yet");
 
-                if (channelManager.TryGet<IOperationPassingGrpcService<TCollectionOperation, TKey>>(
-                        routeTo, out var client))
-                {
-                    await client.ApplyAsync(
-                        new CrdtOperation<TCollectionOperation, TKey>(TypeName, InstanceId, key, operation),
-                        cancellationToken);
-                }
+            var nodes = nodesWithCollection.Value.ToList();
+            var routeTo = nodes[Random.Next(0, nodes.Count)];
+            var channelManager = ChannelManagerAccessor.Manager ?? throw new InitializationException(
+                "Operation can not be routed to a different node - Channel manager was not instantiated yet");
+
+            if (!channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse, TKey>>(
+                    routeTo, out var client))
+            {
+                throw new GeneratedCodeExpectationsViolatedException(
+                    $"Could not get {typeof(IOperationPassingGrpcService<TOperation, TResponse, TKey>)}");
             }
+
+            return await client.ApplyAsync(
+                new CrdtOperation<TOperation, TKey>(TypeName, InstanceId, key, operation),
+                cancellationToken);
         }
 
         [ProtoContract]

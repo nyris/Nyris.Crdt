@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -14,7 +15,7 @@ using ProtoBuf;
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
     /// <summary>
-    /// An immutable key-value registry based on <see cref="ManagedOptimizedObservedRemoveSet{TActorId,TItem}"/>,
+    /// An immutable key-value registry based on <see cref="ManagedOptimizedObservedRemoveSet{TImplementation,TActorId,TItem}"/>,
     /// that is itself a CRDT.
     /// </summary>
     /// <typeparam name="TActorId">Actor id is used to keep track of who (which node) added what.</typeparam>
@@ -23,18 +24,17 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     /// <typeparam name="TItemValueDto"></typeparam>
     /// <typeparam name="TItemValueFactory"></typeparam>
     /// <typeparam name="TItemValueRepresentation"></typeparam>
-    /// <typeparam name="TItemValueImplementation"></typeparam>
-    public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory>
-        : ManagedCRDT<
-            ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory>,
+    /// <typeparam name="TImplementation"></typeparam>
+    public abstract class ManagedCrdtRegistry<TImplementation, TActorId, TItemKey, TItemValue, TItemValueRepresentation, TItemValueDto, TItemValueFactory>
+        : ManagedCRDT<TImplementation,
             IReadOnlyDictionary<TItemKey, TItemValueRepresentation>,
-            ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto, TItemValueFactory>.RegistryDto>,
-            ICreateManagedCrdtsInside
-        where TItemKey : IEquatable<TItemKey>, IHashable
-        where TActorId : IEquatable<TActorId>, IHashable
-        where TItemValue : ManagedCRDT<TItemValueImplementation, TItemValueRepresentation, TItemValueDto>, TItemValueImplementation
-        where TItemValueImplementation : ManagedCRDT<TItemValueImplementation, TItemValueRepresentation, TItemValueDto>
-        where TItemValueFactory : IManagedCRDTFactory<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>, new()
+            ManagedCrdtRegistry<TImplementation, TActorId, TItemKey, TItemValue, TItemValueRepresentation, TItemValueDto, TItemValueFactory>.RegistryDto>,
+            ICreateAndDeleteManagedCrdtsInside
+        where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>, IHashable
+        where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
+        where TItemValue : ManagedCRDT<TItemValue, TItemValueRepresentation, TItemValueDto>
+        where TItemValueFactory : IManagedCRDTFactory<TItemValue, TItemValueRepresentation, TItemValueDto>, new()
+        where TImplementation : ManagedCrdtRegistry<TImplementation, TActorId, TItemKey, TItemValue, TItemValueRepresentation, TItemValueDto, TItemValueFactory>
     {
         private static readonly TItemValueFactory Factory = new();
 
@@ -70,9 +70,58 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             set => _context = value;
         }
 
-        public async Task<TItemValue> GetOrCreateAsync(TItemKey key, Func<(TActorId, TItemValue)> createFunc)
+        /// <inheritdoc />
+        async Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionAsync(string instanceId,
+            CancellationToken cancellationToken)
         {
-            await _semaphore.WaitAsync();
+            var key = _dictionary.FirstOrDefault(pair => pair.Value.InstanceId == instanceId).Key;
+            if (key.Equals(default)) return;
+
+            await _semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                _dictionary.TryRemove(key, out _);
+                _keys.Remove(key);
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
+        }
+
+        public async Task<bool> TryAddAsync(TItemKey key,
+            TActorId actorId,
+            TItemValue value,
+            int waitForPropagationToNumNodes = 0,
+            CancellationToken cancellationToken = default)
+        {
+            await _semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                if (_keys.Contains(key)) return false;
+
+                _keys.Add(key, actorId);
+                _dictionary.TryAdd(key, value);
+                ManagedCrdtContext.Add(value, Factory);
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
+
+            await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes, cancellationToken: cancellationToken);
+            return true;
+        }
+
+        public bool TryGetValue(TItemKey key, [MaybeNullWhen(false)] out TItemValue value)
+            => _dictionary.TryGetValue(key, out value);
+
+        public async Task<TItemValue> GetOrCreateAsync(TItemKey key,
+            Func<(TActorId, TItemValue)> createFunc,
+            int waitForPropagationToNumNodes = 0,
+            CancellationToken cancellationToken = default)
+        {
+            await _semaphore.WaitAsync(cancellationToken);
             TItemValue value;
             try
             {
@@ -90,47 +139,45 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 _semaphore.Release();
             }
 
-            await StateChangedAsync();
+            await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes, cancellationToken: cancellationToken);
             return value;
         }
 
-        public async Task RemoveAsync(TItemKey key)
+        public async Task RemoveAsync(TItemKey key,
+            int waitForPropagationToNumNodes = 0,
+            CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync();
+            await _semaphore.WaitAsync(cancellationToken);
             try
             {
                 _keys.Remove(key);
                 if (_dictionary.TryRemove(key, out var value))
                 {
-                    ManagedCrdtContext.Remove<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>(value);
+                    ManagedCrdtContext.Remove<TItemValue, TItemValueRepresentation, TItemValueDto>(value);
                 }
             }
             finally
             {
                 _semaphore.Release();
-                await StateChangedAsync();
+                await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes, cancellationToken: cancellationToken);
             }
         }
 
-        public override async Task<MergeResult> MergeAsync(
-            ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueImplementation, TItemValueRepresentation,
-                TItemValueDto, TItemValueFactory> other, CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(TImplementation other, CancellationToken cancellationToken = default)
         {
             await _semaphore.WaitAsync(cancellationToken);
-            var conflict = false;
             try
             {
                 var keyResult = _keys.Merge(other._keys);
 
                 // drop values that no longer have keys
-                conflict = keyResult == MergeResult.ConflictSolved;
-                if (!conflict)return keyResult;
+                if (keyResult != MergeResult.ConflictSolved) return keyResult;
 
                 foreach (var keyToDrop in _dictionary.Keys.Except(_keys.Value))
                 {
                     if (_dictionary.TryRemove(keyToDrop, out var crdt))
                     {
-                        ManagedCrdtContext.Remove<TItemValue, TItemValueImplementation, TItemValueRepresentation, TItemValueDto>(crdt);
+                        ManagedCrdtContext.Remove<TItemValue, TItemValueRepresentation, TItemValueDto>(crdt);
                     }
                 }
 
@@ -149,7 +196,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             finally
             {
                 _semaphore.Release();
-                if(conflict) await StateChangedAsync();
             }
         }
 

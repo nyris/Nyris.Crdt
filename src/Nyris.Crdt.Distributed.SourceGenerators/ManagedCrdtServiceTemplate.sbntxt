@@ -44,14 +44,17 @@ namespace Nyris.Crdt.Distributed
 
         public async Task<byte[]> GetHashAsync(TypeNameAndInstanceId nameAndInstanceId, CancellationToken cancellationToken = default)
         {
-            return _context.GetHash(nameAndInstanceId).ToArray();
+            var hash = _context.GetHash(nameAndInstanceId).ToArray();
+            _logger.LogDebug("Sending hash '{Hash}' for {CrdtName}: {InstanceId}",
+                Convert.ToHexString(hash), nameAndInstanceId.TypeName, nameAndInstanceId.InstanceId);
+            return hash;
         }
 
 {{~ for op in OperationInfos ~}}
-        public Task ApplyAsync(CrdtOperation<{{ op.OperationType }}, {{ op.KeyType }}> operation, CancellationToken cancellationToken = default)
+        public Task<{{ op.OperationResponseType }}> ApplyAsync(CrdtOperation<{{ op.OperationType }}, {{ op.KeyType }}> operation, CancellationToken cancellationToken = default)
         {
             _logger.LogDebug("Received operation: {Dto}", JsonConvert.SerializeObject(operation));
-            return _context.ApplyAsync<{{ op.CrdtTypeParams }}>(operation.Key, operation.Operation, operation.InstanceId, cancellationToken);
+            return _context.ApplyAsync<{{ op.CrdtTypeParams }}, {{ op.OperationType }}, {{ op.OperationResponseType }}>(operation.Key, operation.Operation, operation.InstanceId, cancellationToken);
         }
 {{~ end ~}}
 
@@ -59,13 +62,16 @@ namespace Nyris.Crdt.Distributed
 {{~ if type.CrdtInfos.size == 1 ~}}
         public IAsyncEnumerable<{{ type.DtoTypeName }}> EnumerateCrdtAsync(IAsyncEnumerable<{{ type.DtoTypeName }}> dtos, CallContext context = default)
         {
-            return EnumerateCrdtAsync<{{ type.CrdtInfos[0].TypeName }}, {{ type.CrdtInfos[0].AllArgumentsString }}>(dtos, context);
+            return EnumerateCrdtAsync<{{ type.CrdtInfos[0].AllArgumentsString }}>(dtos, context);
         }
 
         public Task<{{ type.DtoTypeName }}> SendAsync(DtoMessage<{{ type.DtoTypeName }}> dto, CancellationToken cancellationToken = default)
         {
-            _logger.LogDebug("Received dto for id='{Id}': {Dto}", dto.Id, JsonConvert.SerializeObject(dto));
-            return _context.MergeAsync<{{ type.CrdtInfos[0].TypeName }}, {{ type.CrdtInfos[0].AllArgumentsString }}>(dto.Value, dto.Id);
+            _logger.LogDebug("Received dto for id='{Id}': {Dto}", dto.InstanceId, JsonConvert.SerializeObject(dto));
+            return _context.MergeAsync<{{ type.CrdtInfos[0].AllArgumentsString }}>(dto.Value,
+                dto.InstanceId,
+                propagationCounter: dto.PropagationCounter > 0 ? dto.PropagationCounter - 1 : 0,
+                cancellationToken: cancellationToken);
         }
 {{~ else ~}}
 
@@ -80,7 +86,7 @@ namespace Nyris.Crdt.Distributed
     {{~ for crdtInfo in type.CrdtInfos ~}}
             if ({{ crdtInfo.SafeTypeName }}.Equals(crdtTypeName, StringComparison.OrdinalIgnoreCase))
             {
-                return EnumerateCrdtAsync<{{ crdtInfo.TypeName }}, {{ crdtInfo.AllArgumentsString }}>(dtos, context);
+                return EnumerateCrdtAsync<{{ crdtInfo.AllArgumentsString }}>(dtos, context);
             }
     {{~ end ~}}
 
@@ -90,12 +96,15 @@ namespace Nyris.Crdt.Distributed
         public Task<{{ type.DtoTypeName }}> SendAsync(DtoMessage<{{ type.DtoTypeName }}> msg, CancellationToken cancellationToken = default)
         {
             _logger.LogDebug("Received dto for type='{TypeName}' and id='{Id}': {Dto}",
-                msg.CrdtTypeName, msg.Id, JsonConvert.SerializeObject(msg));
+                msg.TypeName, msg.InstanceId, JsonConvert.SerializeObject(msg));
 
     {{~ for crdtInfo in type.CrdtInfos ~}}
             if ({{ crdtInfo.SafeTypeName }}.Equals(msg.CrdtTypeName, StringComparison.OrdinalIgnoreCase))
             {
-                return _context.MergeAsync<{{ crdtInfo.TypeName }}, {{ crdtInfo.AllArgumentsString }}>(msg.Value, msg.Id);
+                return _context.MergeAsync<{{ crdtInfo.AllArgumentsString }}>(msg.Value,
+                    msg.InstanceId,
+                    propagationCounter: dto.PropagationCounter > 0 ? dto.PropagationCounter - 1 : 0,
+                    cancellationToken: cancellationToken);
             }
     {{~ end ~}}
 
@@ -104,9 +113,8 @@ namespace Nyris.Crdt.Distributed
 {{~ end ~}}
 {{~ end ~}}
 
-        private async IAsyncEnumerable<TDto> EnumerateCrdtAsync<TCrdt, TImplementation, TRepresentation, TDto>(IAsyncEnumerable<TDto> dtos, CallContext context = default)
-            where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
-            where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
+        private async IAsyncEnumerable<TDto> EnumerateCrdtAsync<TCrdt, TRepresentation, TDto>(IAsyncEnumerable<TDto> dtos, CallContext context = default)
+            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
         {
             var instanceId = context.RequestHeaders.GetValue("instance-id");
             if (string.IsNullOrEmpty(instanceId))
@@ -114,7 +122,7 @@ namespace Nyris.Crdt.Distributed
                 throw new GeneratedCodeExpectationsViolatedException($"Method {nameof(EnumerateCrdtAsync)} expected an InstanceId header to be present, but found none");
             }
 
-            if (!_context.TryGetCrdtWithFactory<TCrdt, TImplementation, TRepresentation, TDto>(instanceId, out var crdt, out var factory))
+            if (!_context.TryGetCrdtWithFactory<TCrdt, TRepresentation, TDto>(instanceId, out var crdt, out var factory))
             {
                 throw new ManagedCrdtContextSetupException($"Merging dto of type {typeof(TDto)} with id {instanceId} " +
                                                            "failed. Check that you Add-ed appropriate managed crdt type and " +
@@ -129,7 +137,7 @@ namespace Nyris.Crdt.Distributed
                 await crdt.MergeAsync(other, context.CancellationToken);
             }
 
-            await foreach(var dto in _context.EnumerateDtoBatchesAsync<TCrdt, TImplementation, TRepresentation, TDto>(instanceId, context.CancellationToken))
+            await foreach(var dto in _context.EnumerateDtoBatchesAsync<TCrdt, TRepresentation, TDto>(instanceId, context.CancellationToken))
             {
                 _logger.LogDebug("Sending dto during sync for id='{Id}': {Dto}", instanceId, JsonConvert.SerializeObject(dto));
                 yield return dto;

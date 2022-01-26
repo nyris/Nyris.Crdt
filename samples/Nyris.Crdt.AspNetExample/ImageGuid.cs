@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json;
@@ -5,15 +6,15 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Model.Converters;
 using ProtoBuf;
 
-namespace Nyris.Crdt.GrpcServiceSample
+namespace Nyris.Crdt.AspNetExample
 {
     /// <summary>
-    /// Represents an NodeId structure, which encapsulates Guid and allows to explicitly separate ids for different entities
+    /// Encapsulates Guid
     /// </summary>
-    [JsonConverter(typeof(InternalIdJsonConverter<IndexId, Factory>))]
-    [TypeConverter(typeof(InternalIdTypeConverter<IndexId, Factory>))]
+    [JsonConverter(typeof(InternalIdJsonConverter<ImageGuid, Factory>))]
+    [TypeConverter(typeof(InternalIdTypeConverter<ImageGuid, Factory>))]
     [ProtoContract]
-    public readonly struct IndexId : IEquatable<IndexId>, IFormattable, IComparable<IndexId>, IAs<Guid>, IHashable
+    public readonly struct ImageGuid : IEquatable<ImageGuid>, IFormattable, IComparable<ImageGuid>, IAs<Guid>, IHashable
     {
         /// <summary>
         /// Converts guid into NodeId.
@@ -21,49 +22,49 @@ namespace Nyris.Crdt.GrpcServiceSample
         /// <param name="id"></param>
         /// <returns></returns>
         [ProtoConverter]
-        public static IndexId FromGuid(Guid id) => new(id);
+        public static ImageGuid FromGuid(Guid id) => new(id);
 
         /// <summary>
         /// Generates new random Id.
         /// </summary>
         /// <returns></returns>
-        public static IndexId New() => new(Guid.NewGuid());
+        public static ImageGuid New() => new(Guid.NewGuid());
 
         /// <summary>
         /// Converts the string representation of an NodeId to the equivalent NodeId structure.
         /// </summary>
         /// <param name="input">input – The string to convert.</param>
         /// <returns></returns>
-        public static IndexId Parse(string input) => new(Guid.Parse(input));
+        public static ImageGuid Parse(string input) => new(Guid.Parse(input));
 
         /// <summary>
         /// A read-only instance of the NodeId structure, that can represent default or uninitialized value.
         /// </summary>
-        public static readonly IndexId Empty = new(Guid.Empty);
+        public static readonly ImageGuid Empty = new(Guid.Empty);
 
         /// <summary>
         /// Converts the string representation of an NodeId to the equivalent NodeId structure.
         /// </summary>
         /// <param name="input">A string containing the NodeId to convert</param>
-        /// <param name="indexId">An NodeId instance to contain the parsed value. If the method returns true,
+        /// <param name="imageGuid">An NodeId instance to contain the parsed value. If the method returns true,
         /// result contains a valid NodeId. If the method returns false, result equals Empty.</param>
         /// <returns>true if the parse operation was successful; otherwise, false.</returns>
-        public static bool TryParse(string input, [NotNullWhen(true)] out IndexId indexId)
+        public static bool TryParse(string input, [NotNullWhen(true)] out ImageGuid imageGuid)
         {
             if (Guid.TryParse(input, out var guid))
             {
-                indexId = FromGuid(guid);
+                imageGuid = FromGuid(guid);
                 return true;
             }
 
-            indexId = Empty;
+            imageGuid = Empty;
             return false;
         }
 
         [ProtoMember(1)]
         private readonly Guid _id;
 
-        private IndexId(Guid id)
+        private ImageGuid(Guid id)
         {
             _id = id;
         }
@@ -72,10 +73,10 @@ namespace Nyris.Crdt.GrpcServiceSample
         public Guid Value => _id;
 
         /// <inheritdoc />
-        public bool Equals(IndexId other) => _id.Equals(other._id);
+        public bool Equals(ImageGuid other) => _id.Equals(other._id);
 
         /// <inheritdoc />
-        public override bool Equals(object? obj) => obj is IndexId other && Equals(other);
+        public override bool Equals(object? obj) => obj is ImageGuid other && Equals(other);
 
         /// <inheritdoc />
         public override int GetHashCode() => _id.GetHashCode();
@@ -90,16 +91,16 @@ namespace Nyris.Crdt.GrpcServiceSample
         public ReadOnlySpan<byte> CalculateHash() => _id.ToByteArray();
 
         /// <inheritdoc />
-        public int CompareTo(IndexId other) => _id.CompareTo(other._id);
+        public int CompareTo(ImageGuid other) => _id.CompareTo(other._id);
 
-        public static bool operator ==(IndexId left, IndexId right) => left.Equals(right);
+        public static bool operator ==(ImageGuid left, ImageGuid right) => left.Equals(right);
 
-        public static bool operator !=(IndexId left, IndexId right) => !(left == right);
+        public static bool operator !=(ImageGuid left, ImageGuid right) => !(left == right);
 
-        private class Factory : IFactory<IndexId>
+        private class Factory : IFactory<ImageGuid>
         {
-            IndexId IFactory<IndexId>.Empty => Empty;
-            IndexId IFactory<IndexId>.Parse(string value) => IndexId.Parse(value);
+            ImageGuid IFactory<ImageGuid>.Empty => Empty;
+            ImageGuid IFactory<ImageGuid>.Parse(string value) => ImageGuid.Parse(value);
         }
     }
 }

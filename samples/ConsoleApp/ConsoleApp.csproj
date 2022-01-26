@@ -6,6 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Moq" Version="4.16.1" />
         <PackageReference Include="protobuf-net.Grpc" Version="1.0.152" />
         <PackageReference Include="protobuf-net.Grpc.ClientFactory" Version="1.0.152" />
         <PackageReference Include="System.Linq.Async" Version="5.0.0" />

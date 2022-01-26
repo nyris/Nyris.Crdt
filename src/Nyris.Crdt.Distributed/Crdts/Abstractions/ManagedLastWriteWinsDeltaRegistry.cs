@@ -12,14 +12,15 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
-    public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>
+    public abstract class ManagedLastWriteWinsDeltaRegistry<TImplementation, TKey, TValue, TTimeStamp>
         : ManagedCRDT<
-            ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>,
+            TImplementation,
             IReadOnlyDictionary<TKey, TValue>,
-            ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
+            ManagedLastWriteWinsDeltaRegistry<TImplementation, TKey, TValue, TTimeStamp>.LastWriteWinsDto>
         where TValue : IHashable
         where TKey : IEquatable<TKey>
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
+        where TImplementation : ManagedLastWriteWinsDeltaRegistry<TImplementation, TKey, TValue, TTimeStamp>
     {
         private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
         private readonly SemaphoreSlim _semaphore = new(1);
@@ -47,7 +48,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public bool IsEmpty => _items.IsEmpty;
 
-        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+        public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue? value)
         {
             // ReSharper disable once InconsistentlySynchronizedField - updates on individual items are atomic
             var found = _items.TryGetValue(key, out var timeStampedItem);
@@ -70,8 +71,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <param name="value"></param>
         /// <param name="timeStamp"></param>
         /// <param name="item"></param>
+        /// <param name="waitForPropagationToNumNodes"></param>
         /// <returns></returns>
-        public bool TrySet(TKey key, TValue value, TTimeStamp timeStamp, out TimeStampedItem<TValue, TTimeStamp> item)
+        public bool TrySet(TKey key,
+            TValue value,
+            TTimeStamp timeStamp,
+            out TimeStampedItem<TValue, TTimeStamp> item,
+            int waitForPropagationToNumNodes = 3)
         {
             item = _items.AddOrUpdate(key,
                 _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
@@ -112,9 +118,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return item.TimeStamp.CompareTo(timeStamp) == 0;
         }
 
-        public override async Task<MergeResult> MergeAsync(
-            ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp> other,
-            CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(TImplementation other, CancellationToken cancellationToken = default)
         {
             if (other._items.IsEmpty) return MergeResult.NotUpdated;
 
@@ -132,7 +136,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             finally
             {
                 _semaphore.Release();
-                if(conflictSolved) await StateChangedAsync();
             }
         }
 
@@ -140,6 +143,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override async Task<LastWriteWinsDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
+            if (_nextDto.Count == 0) return new LastWriteWinsDto();
+
             var keys = Interlocked.Exchange(ref _nextDto, new List<TKey>());
             var items = new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(keys.Count);
 
@@ -175,9 +180,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         /// <inheritdoc />
         public override ReadOnlySpan<byte> CalculateHash()
-            => HashingHelper.Combine(_items.OrderBy(i => i.Key));
+            => HashingHelper.Combine(_items.OrderBy(i => i.Value.TimeStamp));
 
-        private void CheckKeyForConflict(TKey key, ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp> other, ref bool conflictSolved)
+        private void CheckKeyForConflict(TKey key, TImplementation other, ref bool conflictSolved)
         {
             var iHave = _items.TryGetValue(key, out var myItem);
             var otherHas = other._items.TryGetValue(key, out var otherItem);

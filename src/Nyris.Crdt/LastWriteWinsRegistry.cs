@@ -22,9 +22,9 @@ namespace Nyris.Crdt
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
         }
 
-        private LastWriteWinsRegistry(ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> items)
+        protected LastWriteWinsRegistry(LastWriteWinsRegistryDto dto)
         {
-            _items = items;
+            _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto.Items);
         }
 
         /// <inheritdoc />

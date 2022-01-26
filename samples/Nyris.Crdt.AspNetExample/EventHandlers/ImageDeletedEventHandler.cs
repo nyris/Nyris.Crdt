@@ -27,10 +27,10 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
         /// <inheritdoc />
         protected override async Task TryHandleAsync(ImageDeletedEvent message, DateTime createdEvent)
         {
-            var indexId = IndexId.FromGuid(message.IndexId);
+            var indexId = CollectionId.FromGuid(message.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwRegistry(message.IndexId.ToString("N"))));
-            index.TryRemove(message.ImageUuid, createdEvent, out _);
+                () => (_thisNodeId, new ImageInfoLwwCollection(message.IndexId.ToString("N"))));
+            index.TryRemove(ImageGuid.FromGuid(message.ImageUuid), createdEvent, out _);
         }
     }
 }

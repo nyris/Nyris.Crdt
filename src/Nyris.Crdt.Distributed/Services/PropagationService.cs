@@ -11,19 +11,18 @@ using Nyris.Crdt.Distributed.Strategies.Propagation;
 
 namespace Nyris.Crdt.Distributed.Services
 {
-    internal sealed class PropagationService<TCrdt, TImplementation, TRepresentation, TDto> : BackgroundService
-        where TCrdt : ManagedCRDT<TImplementation, TRepresentation, TDto>, TImplementation
-        where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
+    internal sealed class PropagationService<TCrdt, TRepresentation, TDto> : BackgroundService
+        where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
     {
         private readonly ManagedCrdtContext _context;
         private readonly IPropagationStrategy _propagationStrategy;
         private readonly IChannelManager _channelManager;
-        private readonly ILogger<PropagationService<TCrdt, TImplementation, TRepresentation, TDto>> _logger;
+        private readonly ILogger<PropagationService<TCrdt, TRepresentation, TDto>> _logger;
         private readonly NodeId _thisNodeId;
 
         /// <inheritdoc />
         public PropagationService(ManagedCrdtContext context,
-            ILogger<PropagationService<TCrdt, TImplementation, TRepresentation, TDto>> logger,
+            ILogger<PropagationService<TCrdt, TRepresentation, TDto>> logger,
             NodeInfo thisNode,
             IPropagationStrategy propagationStrategy,
             IChannelManager channelManager)
@@ -47,7 +46,7 @@ namespace Nyris.Crdt.Distributed.Services
                     JsonConvert.SerializeObject(dto), queue.QueueLength);
                 try
                 {
-                    var nodesWithReplica = _context.GetNodesThatHaveReplica<TCrdt>(dto.Id);
+                    var nodesWithReplica = _context.GetNodesThatHaveReplica(new TypeNameAndInstanceId(dto.TypeName, dto.InstanceId));
                     foreach (var nodeId in _propagationStrategy.GetTargetNodes(nodesWithReplica, _thisNodeId))
                     {
                         if (!_channelManager.TryGet<IDtoPassingGrpcService<TDto>>(nodeId, out var client))
@@ -58,13 +57,17 @@ namespace Nyris.Crdt.Distributed.Services
 
                         var response = await client.SendAsync(dto, stoppingToken);
 
-                        _logger.LogDebug("Received back dto {Dto}",JsonConvert.SerializeObject(response));
-                        await _context.MergeAsync<TCrdt, TImplementation, TRepresentation, TDto>(response, dto.Id, stoppingToken);
+                        _logger.LogDebug("Received back dto {Dto}", JsonConvert.SerializeObject(response));
+                        await _context.MergeAsync<TCrdt, TRepresentation, TDto>(response, dto.InstanceId, cancellationToken: stoppingToken);
                     }
                 }
                 catch (Exception e)
                 {
                     _logger.LogError(e, "Unhandled exception during sending a dto");
+                }
+                finally
+                {
+                    dto.Complete();
                 }
             }
 

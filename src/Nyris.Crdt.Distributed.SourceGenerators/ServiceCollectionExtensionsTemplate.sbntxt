@@ -11,6 +11,7 @@ namespace Nyris.Crdt.Distributed
         public static ManagedCrdtsServicesBuilder AddManagedCrdts<TContext>(this IServiceCollection services)
             where TContext : ManagedCrdtContext
         {
+            ProtoBuf.Meta.RuntimeTypeModel.Default.IncludeDateTimeKind = true;
             services.AddCodeFirstGrpc(options =>
             {
                 options.EnableDetailedErrors = true;
@@ -23,7 +24,7 @@ namespace Nyris.Crdt.Distributed
 
 {{~ for type in DtoInfos ~}}
     {{~ for crdtInfo in type.CrdtInfos ~}}
-            services.AddConnectionServices<{{ crdtInfo.TypeName }}, {{ crdtInfo.AllArgumentsString }}>();
+            services.AddConnectionServices<{{ crdtInfo.AllArgumentsString }}>();
     {{~ end ~}}
 {{~ end ~}}
 

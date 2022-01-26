@@ -10,6 +10,14 @@ namespace Nyris.Crdt.Distributed.Crdts
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
         where TValue : IHashable
     {
+        public HashableLastWriteWinsRegistry()
+        {
+        }
+
+        internal HashableLastWriteWinsRegistry(LastWriteWinsRegistryDto dto) : base(dto)
+        {
+        }
+
         /// <inheritdoc />
         public ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_items.OrderBy(i => i.Value.TimeStamp));
     }

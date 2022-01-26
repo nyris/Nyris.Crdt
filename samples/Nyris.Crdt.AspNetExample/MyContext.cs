@@ -6,9 +6,13 @@ namespace Nyris.Crdt.AspNetExample
     {
         public MyContext()
         {
-            Add(ImageCollectionsRegistry, ItemInfoCollectionsRegistry.DefaultFactory);
+            Add(ImageCollectionsRegistry, ImageInfoCollectionsRegistry.DefaultFactory);
+            Add(PartiallyReplicatedImageCollectionsRegistry, PartiallyReplicatedImageInfoCollectionsRegistry.DefaultFactory);
         }
 
-        public ItemInfoCollectionsRegistry ImageCollectionsRegistry { get; } = new("whatever");
+        public ImageInfoCollectionsRegistry ImageCollectionsRegistry { get; } = new("sample-items-collections-registry");
+
+        public PartiallyReplicatedImageInfoCollectionsRegistry PartiallyReplicatedImageCollectionsRegistry { get; } =
+            new("partially-replicated-collection-registry");
     }
 }
