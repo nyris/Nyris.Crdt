@@ -6,6 +6,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
@@ -15,40 +17,39 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
-    public abstract class ManagedLastWriteWinsDeltaRegistryWithSerializableOperations<TImplementation, TKey, TValue, TTimeStamp>
-        : ManagedCRDTWithSerializableOperations<TImplementation,
-            IReadOnlyDictionary<TKey, TValue>,
-            ManagedLastWriteWinsDeltaRegistryWithSerializableOperations<TImplementation, TKey, TValue, TTimeStamp>.LWWDto,
-            RegistryOperation,
-            RegistryOperationResponse>
-        where TImplementation : ManagedLastWriteWinsDeltaRegistryWithSerializableOperations<TImplementation, TKey, TValue, TTimeStamp>
+    public abstract class ManagedLastWriteWinsDeltaRegistryWithSerializableOperations<TKey, TValue, TTimeStamp>
+        : ManagedCrdtRegistry<TKey, TValue, ManagedLastWriteWinsDeltaRegistryWithSerializableOperations<TKey, TValue, TTimeStamp>.LWWDto>,
+            IAcceptOperations<RegistryOperation, RegistryOperationResponse>
         where TValue : IHashable
         where TKey : IEquatable<TKey>
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
-        private readonly SemaphoreSlim _semaphore = new(1);
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
         private List<TKey> _nextDto = new();
 
+        private readonly ILogger? _logger;
+
         /// <inheritdoc />
-        protected ManagedLastWriteWinsDeltaRegistryWithSerializableOperations(string instanceId) : base(instanceId)
+        protected ManagedLastWriteWinsDeltaRegistryWithSerializableOperations(string instanceId, ILogger? logger = null)
+            : base(instanceId, logger)
         {
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
-        }
-
-        protected ManagedLastWriteWinsDeltaRegistryWithSerializableOperations(LWWDto dto, string instanceId) : base(instanceId)
-        {
-            _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto?.Items
-                ?? new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>());
+            _logger = logger;
         }
 
         /// <inheritdoc />
-        public override IReadOnlyDictionary<TKey, TValue> Value =>
+        public override async IAsyncEnumerable<KeyValuePair<TKey, TValue>> EnumerateItems(CancellationToken cancellationToken = default)
+        {
+            foreach (var (key, item) in _items.Where(pair => !pair.Value.Deleted))
+            {
+                yield return new KeyValuePair<TKey, TValue>(key, item.Value);
+            }
+        }
+
+        public IReadOnlyDictionary<TKey, TValue> Value =>
             _items.Where(pair => !pair.Value.Deleted)
                 .ToDictionary(pair => pair.Key, pair => pair.Value.Value);
-
-        /// <inheritdoc />
-        public override ulong Size => (ulong) _items.Count;
 
         public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue? value)
         {
@@ -65,20 +66,22 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return true;
         }
 
+        public override ulong Size => (ulong) _items.Count;
+
         /// <inheritdoc />
-        public override async Task<RegistryOperationResponse> ApplyAsync(RegistryOperation operation)
+        public virtual async Task<RegistryOperationResponse> ApplyAsync(RegistryOperation operation,
+            CancellationToken cancellationToken = default)
         {
             switch (operation)
             {
                 case GetValueOperation<TKey> getValueOperation:
-                    if (!TryGetValue(getValueOperation.Key, out var value)) throw new KeyNotFoundException();
+                    if (!TryGetValue(getValueOperation.Key, out var value))
+                    {
+                        throw new KeyNotFoundException($"Key {getValueOperation.Key} was not found in registry");
+                    }
                     return new ValueResponse<TValue>(value);
                 case AddValueOperation<TKey, TValue, TTimeStamp>(var key, var newValue, var timeStamp):
-                    if (!TrySet(key, newValue, timeStamp, out var added))
-                    {
-                        throw new ApplicationException();
-                    }
-
+                    var added = await SetAsync(key, newValue, timeStamp, 1, cancellationToken);
                     return new ValueResponse<TValue>(added.Value);
                 default:
                     throw new GeneratedCodeExpectationsViolatedException(
@@ -86,18 +89,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        /// <summary>
-        /// Adds item into the registry. "out item" param always contains an item. If return value is true,
-        /// item will contain item which was set. If false, it will contain item with the same key and later timestamp
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="value"></param>
-        /// <param name="timeStamp"></param>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        public bool TrySet(TKey key, TValue value, TTimeStamp timeStamp, out TimeStampedItem<TValue, TTimeStamp> item)
+        public async Task<TimeStampedItem<TValue, TTimeStamp>> SetAsync(TKey key,
+            TValue value,
+            TTimeStamp timeStamp,
+            int propagateToNodes = 0,
+            CancellationToken cancellationToken = default)
         {
-            item = _items.AddOrUpdate(key,
+            var item = _items.AddOrUpdate(key,
                 _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
                 (_, v) =>
                 {
@@ -109,11 +107,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     return v;
                 });
 
-            if (item.TimeStamp.CompareTo(timeStamp) != 0) return false;
+            if (item.TimeStamp.CompareTo(timeStamp) != 0) return item;
 
+            await AddItemToIndexesAsync(key, item.Value, cancellationToken: cancellationToken);
             _nextDto.Add(key);
-            _ = StateChangedAsync();
-            return true;
+            await StateChangedAsync(propagationCounter: propagateToNodes, cancellationToken: cancellationToken);
+            return item;
         }
 
         public bool TryRemove(TKey key, TTimeStamp timeStamp, out TimeStampedItem<TValue, TTimeStamp> item)
@@ -122,10 +121,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             // Just imagine if item was created and then deleted, but updates were reordered.
             item = _items.AddOrUpdate(key,
                 _ => new TimeStampedItem<TValue, TTimeStamp>(default!, timeStamp, true),
-                (_, v) =>
+                (__, v) =>
                 {
                     if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
 
+                    _ = RemoveFromIndexes(key, v.Value);
                     v.Deleted = true;
                     v.TimeStamp = timeStamp;
                     return v;
@@ -136,17 +136,18 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return item.TimeStamp.CompareTo(timeStamp) == 0;
         }
 
-        public override async Task<MergeResult> MergeAsync(TImplementation other, CancellationToken cancellationToken = default)
+        /// <inheritdoc />
+        public override async Task<MergeResult> MergeAsync(LWWDto other, CancellationToken cancellationToken = default)
         {
-            if (other._items.IsEmpty) return MergeResult.NotUpdated;
+            if (ReferenceEquals(other.Items, null) || other.Items.Count == 0) return MergeResult.NotUpdated;
 
             var conflictSolved = false;
             await _semaphore.WaitAsync(cancellationToken);
             try
             {
-                foreach (var key in other._items.Keys)
+                foreach (var key in other.Items.Keys)
                 {
-                    CheckKeyForConflict(key, other, ref conflictSolved);
+                    conflictSolved |= await CheckKeyForConflictAsync(key, other);
                 }
 
                 return conflictSolved ? MergeResult.ConflictSolved : MergeResult.NotUpdated;
@@ -200,13 +201,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public override ReadOnlySpan<byte> CalculateHash()
             => HashingHelper.Combine(_items.OrderBy(i => i.Value.TimeStamp));
 
-        private void CheckKeyForConflict(TKey key, TImplementation other, ref bool conflictSolved)
+        private async Task<bool> CheckKeyForConflictAsync(TKey key, LWWDto other)
         {
             var iHave = _items.TryGetValue(key, out var myItem);
-            var otherHas = other._items.TryGetValue(key, out var otherItem);
+            var otherHas = other.Items!.TryGetValue(key, out var otherItem);
 
-            conflictSolved = conflictSolved  // if conflict was in the previous key, keep the true value immediately
-                             || iHave != otherHas // or if current key is missing from one of the registries
+            var conflictSolved = iHave != otherHas // or if current key is missing from one of the registries
                              || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) != 0;
             // notes on last condition: notice that iHave and otherHas can have only 3 possibilities:
             // true-false, false-true and true-true. false-false is not possible, since in that case we would not
@@ -218,24 +218,29 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             // no need to update anything
             if (iHave && otherHas && myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) >= 0 || !otherHas)
             {
-                return;
+                return conflictSolved;
             }
 
             // reverse - update 'this' registry
             if (iHave && myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) < 0 || !iHave)
             {
+                if(iHave) await RemoveFromIndexes(key, myItem!.Value);
+
                 _nextDto.Add(key);
                 _items.AddOrUpdate(key,
                     _ => otherItem!,
-                    (_, __) => otherItem!);
+                    (_, _) => otherItem!);
+                await AddItemToIndexesAsync(key, otherItem!.Value);
             }
+
+            return conflictSolved;
         }
 
         [ProtoContract]
         public sealed class LWWDto
         {
             [ProtoMember(1)]
-            public Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> Items { get; set; } = new();
+            public Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>? Items { get; set; }
         }
     }
 }

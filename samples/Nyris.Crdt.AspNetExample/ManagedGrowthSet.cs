@@ -10,7 +10,7 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 
 namespace Nyris.Crdt.AspNetExample
 {
-    public sealed class ManagedGrowthSet : ManagedCRDT<ManagedGrowthSet, HashSet<int>, List<int>>
+    public sealed class ManagedGrowthSet : ManagedCRDT<List<int>>
     {
         /// <inheritdoc />
         public ManagedGrowthSet(string instanceId) : base(instanceId)
@@ -22,8 +22,7 @@ namespace Nyris.Crdt.AspNetExample
             Value = values?.ToHashSet() ?? new HashSet<int>();
         }
 
-        /// <inheritdoc />
-        public override HashSet<int> Value { get; } = new();
+        public HashSet<int> Value { get; } = new();
 
         public void Add(int item)
         {
@@ -32,10 +31,9 @@ namespace Nyris.Crdt.AspNetExample
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(ManagedGrowthSet other,
-            CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(List<int> other, CancellationToken cancellationToken = default)
         {
-            Value.UnionWith(other.Value);
+            Value.UnionWith(other);
             return MergeResult.ConflictSolved;
         }
 
@@ -66,13 +64,13 @@ namespace Nyris.Crdt.AspNetExample
             return md5.GetCurrentHash();
         }
 
-        public static readonly IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
+        public static readonly IManagedCRDTFactory<ManagedGrowthSet, List<int>>
             DefaultFactory = new GrowthSetFactory();
 
         public static ManagedGrowthSet FromDto(List<int> dto, string instanceId) => new(dto, instanceId);
     }
 
-    public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
+    public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, List<int>>
     {
         /// <inheritdoc />
         public ManagedGrowthSet Create(List<int> dto, string instanceId) => ManagedGrowthSet.FromDto(dto, instanceId);

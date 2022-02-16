@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Nyris.Crdt.Distributed.Utils
@@ -14,12 +15,18 @@ namespace Nyris.Crdt.Distributed.Utils
         public long QueueLength = 0L;
 
         private readonly SemaphoreSlim _enumerationSemaphore = new(1);
-        private readonly BufferBlock<T> _bufferBlock = new();
+        private readonly BufferBlock<T> _bufferBlock = new(new DataflowBlockOptions
+        {
+            BoundedCapacity = 10,
+            EnsureOrdered = true
+        });
 
-        public void Enqueue(T item)
+        public async Task EnqueueAsync(T item, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref QueueLength);
-            _bufferBlock.Post(item);
+            while(!await _bufferBlock.SendAsync(item, cancellationToken))
+            {
+            }
         }
 
         public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken token = default)

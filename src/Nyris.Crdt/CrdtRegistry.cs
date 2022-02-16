@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
@@ -17,32 +18,24 @@ namespace Nyris.Crdt
     /// <typeparam name="TItemValue"></typeparam>
     /// <typeparam name="TItemValueDto"></typeparam>
     /// <typeparam name="TItemValueFactory"></typeparam>
-    /// <typeparam name="TItemValueRepresentation"></typeparam>
-    public class CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>
-        : ICRDT<
-            CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>,
-            Dictionary<TItemKey, TItemValueRepresentation>,
-            CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation>.CrdtRegistryDto>
+    public class CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
+        : ICRDT<CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.CrdtRegistryDto>
         where TItemKey : IEquatable<TItemKey>
         where TActorId : IEquatable<TActorId>
-        where TItemValue : class, ICRDT<TItemValue, TItemValueRepresentation, TItemValueDto>
-        where TItemValueFactory : ICRDTFactory<TItemValue, TItemValueRepresentation, TItemValueDto>, new()
+        where TItemValue : class, ICRDT<TItemValueDto>
+        where TItemValueFactory : ICRDTFactory<TItemValue, TItemValueDto>, new()
     {
         private static readonly TItemValueFactory Factory = new();
 
-        protected readonly OptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
-        protected readonly ConcurrentDictionary<TItemKey, TItemValue> _dictionary;
+        private readonly OptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
+        private readonly ConcurrentDictionary<TItemKey, TItemValue> _dictionary;
         private readonly object _mergeLock = new();
 
-        /// <inheritdoc />
-        public Dictionary<TItemKey, TItemValueRepresentation> Value
+        public Dictionary<TItemKey, T> Value<T>(Func<TItemValue, T> expression)
         {
-            get
+            lock (_mergeLock)
             {
-                lock (_mergeLock)
-                {
-                    return _dictionary.ToDictionary(pair => pair.Key, pair => pair.Value.Value);
-                }
+                return _dictionary.ToDictionary(pair => pair.Key, pair => expression(pair.Value));
             }
         }
 
@@ -50,13 +43,6 @@ namespace Nyris.Crdt
         {
             _keys = new OptimizedObservedRemoveSet<TActorId, TItemKey>();
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
-        }
-
-        private CrdtRegistry(CrdtRegistryDto crdtRegistryDto)
-        {
-            _keys = OptimizedObservedRemoveSet<TActorId, TItemKey>.FromDto(crdtRegistryDto.Keys);
-            _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>(crdtRegistryDto.Dict?.ToDictionary(pair => pair.Key, pair => Factory.Create(pair.Value))
-                          ?? new Dictionary<TItemKey, TItemValue>());
         }
 
         public bool TryAdd(TActorId actorId, TItemKey key, TItemValue value)
@@ -83,11 +69,12 @@ namespace Nyris.Crdt
             }
         }
 
-        public MergeResult Merge(CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation> other)
+        /// <inheritdoc />
+        public MergeResult Merge(CrdtRegistryDto other)
         {
             lock (_mergeLock)
             {
-                var keyResult = _keys.Merge(other._keys);
+                var keyResult = _keys.MaybeMerge(other.Keys);
 
                 // drop values that no longer have keys
                 if (keyResult == MergeResult.ConflictSolved)
@@ -102,8 +89,9 @@ namespace Nyris.Crdt
                 var conflict = keyResult == MergeResult.ConflictSolved;
                 foreach (var key in _keys.Value)
                 {
+                    var otherValue = default(TItemValueDto);
                     var iHave = _dictionary.TryGetValue(key, out var myValue);
-                    var otherHas = other._dictionary.TryGetValue(key, out var otherValue);
+                    var otherHas = other.Dict?.TryGetValue(key, out otherValue) ?? false;
 
                     if (iHave && otherHas)
                     {
@@ -112,7 +100,7 @@ namespace Nyris.Crdt
                     }
                     else if (otherHas)
                     {
-                        _dictionary[key] = otherValue;
+                        _dictionary[key] = Factory.Create(otherValue!);
                         conflict = true;
                     }
                 }
@@ -133,17 +121,14 @@ namespace Nyris.Crdt
             }
         }
 
-        public static CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory, TItemValueRepresentation> FromDto(CrdtRegistryDto crdtRegistryDto)
-            => new(crdtRegistryDto);
-
         [ProtoContract]
         public sealed class CrdtRegistryDto
         {
             [ProtoMember(1)]
-            public OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto Keys { get; set; }
+            public OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto? Keys { get; set; }
 
             [ProtoMember(2)]
-            public Dictionary<TItemKey, TItemValueDto> Dict { get; set; }
+            public Dictionary<TItemKey, TItemValueDto>? Dict { get; set; }
         }
     }
 }

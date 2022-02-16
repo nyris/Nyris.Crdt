@@ -24,7 +24,7 @@ namespace Nyris.Crdt.Distributed
 
 {{~ for type in DtoInfos ~}}
     {{~ for crdtInfo in type.CrdtInfos ~}}
-            services.AddConnectionServices<{{ crdtInfo.AllArgumentsString }}>();
+            services.AddConnectionServices<{{ crdtInfo.TypeName }}, {{ crdtInfo.AllArgumentsString }}>();
     {{~ end ~}}
 {{~ end ~}}
 

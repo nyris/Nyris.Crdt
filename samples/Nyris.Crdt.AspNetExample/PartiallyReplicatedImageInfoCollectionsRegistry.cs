@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
@@ -11,11 +12,12 @@ namespace Nyris.Crdt.AspNetExample
 {
     [RequireOperation(typeof(AddValueOperation<ImageGuid, ImageInfo, DateTime>), typeof(ValueResponse<ImageInfo>))]
     [RequireOperation(typeof(GetValueOperation<ImageGuid>), typeof(ValueResponse<ImageInfo>))]
+    [RequireOperation(typeof(FindIdsOperation), typeof(ValueResponse<IList<ImageGuid>>))]
     public sealed class PartiallyReplicatedImageInfoCollectionsRegistry
-        : PartiallyReplicatedCRDTRegistry<PartiallyReplicatedImageInfoCollectionsRegistry,
-            CollectionId,
+        : PartiallyReplicatedCRDTRegistry<CollectionId,
             ImageInfoLwwCollectionWithSerializableOperations,
-            IReadOnlyDictionary<ImageGuid, ImageInfo>,
+            ImageGuid,
+            ImageInfo,
             ImageInfoLwwCollectionWithSerializableOperations.LWWDto,
             RegistryOperation,
             RegistryOperationResponse,
@@ -23,32 +25,43 @@ namespace Nyris.Crdt.AspNetExample
     {
         /// <inheritdoc />
         public PartiallyReplicatedImageInfoCollectionsRegistry(string instanceId,
-            IPartialReplicationStrategy? shardingStrategy = null,
-            INodeInfoProvider? nodeInfoProvider = null)
-            : base(instanceId, shardingStrategy, nodeInfoProvider)
-        {
-        }
-
-        private PartiallyReplicatedImageInfoCollectionsRegistry(PartiallyReplicatedCrdtRegistryDto registryDto,
-            string instanceId,
-            IPartialReplicationStrategy? shardingStrategy = null,
-            INodeInfoProvider? nodeInfoProvider = null)
-            : base(registryDto, instanceId, shardingStrategy, nodeInfoProvider)
+            ILogger? logger = null,
+            IPartialReplicationStrategy? partialReplicationStrategy = null,
+            INodeInfoProvider? nodeInfoProvider = null,
+            ImageInfoLwwCollectionWithSerializableOperations.ImageInfoLwwCollectionWithSerializableOperationsFactory? factory = null)
+            : base(instanceId,
+                logger: logger,
+                partialReplicationStrategy: partialReplicationStrategy,
+                nodeInfoProvider: nodeInfoProvider,
+                factory: factory)
         {
         }
 
         public static readonly PartiallyReplicatedImageInfoCollectionsRegistryFactory DefaultFactory = new();
 
         public sealed class PartiallyReplicatedImageInfoCollectionsRegistryFactory : IManagedCRDTFactory<PartiallyReplicatedImageInfoCollectionsRegistry,
-            IReadOnlyDictionary<CollectionId, IReadOnlyDictionary<ImageGuid, ImageInfo>>,
             PartiallyReplicatedCrdtRegistryDto>
         {
-            /// <inheritdoc />
-            public PartiallyReplicatedImageInfoCollectionsRegistry Create(PartiallyReplicatedCrdtRegistryDto registryDto,
-                string instanceId) => new(registryDto, instanceId);
+            private readonly ILogger? _logger;
+
+            private readonly ImageInfoLwwCollectionWithSerializableOperations.
+                ImageInfoLwwCollectionWithSerializableOperationsFactory? _factory;
+
+            public PartiallyReplicatedImageInfoCollectionsRegistryFactory()
+            {
+            }
+
+            public PartiallyReplicatedImageInfoCollectionsRegistryFactory(ILogger? logger, ImageInfoLwwCollectionWithSerializableOperations.
+                ImageInfoLwwCollectionWithSerializableOperationsFactory? factory)
+            {
+                _logger = logger;
+                _factory = factory;
+                _logger?.LogDebug("{FactoryName} created with logger", nameof(PartiallyReplicatedImageInfoCollectionsRegistryFactory));
+            }
 
             /// <inheritdoc />
-            public PartiallyReplicatedImageInfoCollectionsRegistry Create(string instanceId) => new(instanceId);
+            public PartiallyReplicatedImageInfoCollectionsRegistry Create(string instanceId)
+                => new(instanceId, logger: _logger, factory: _factory);
         }
     }
 }

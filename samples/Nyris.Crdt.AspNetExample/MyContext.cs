@@ -1,18 +1,36 @@
+using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed;
 
 namespace Nyris.Crdt.AspNetExample
 {
     public sealed class MyContext : ManagedCrdtContext
     {
-        public MyContext()
+        public MyContext(ILogger<MyContext> logger, ILoggerFactory loggerFactory) : base(logger)
         {
+            var imageInfoCollectionFactory = new ImageInfoLwwCollectionWithSerializableOperations
+                .ImageInfoLwwCollectionWithSerializableOperationsFactory(
+                    loggerFactory.CreateLogger<ImageInfoLwwCollectionWithSerializableOperations>());
+
+            var partiallyReplRegistryFactory =
+                new PartiallyReplicatedImageInfoCollectionsRegistry.
+                    PartiallyReplicatedImageInfoCollectionsRegistryFactory(
+                        loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
+                        imageInfoCollectionFactory);
+
+            PartiallyReplicatedImageCollectionsRegistry = new("partially-replicated-collection-registry",
+                logger: loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
+                factory: imageInfoCollectionFactory);
+            ImageCollectionsRegistry = new("sample-items-collections-registry",
+                loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>());
+
             Add(ImageCollectionsRegistry, ImageInfoCollectionsRegistry.DefaultFactory);
-            Add(PartiallyReplicatedImageCollectionsRegistry, PartiallyReplicatedImageInfoCollectionsRegistry.DefaultFactory);
+            Add(PartiallyReplicatedImageCollectionsRegistry, partiallyReplRegistryFactory);
+
+            IndexFactory.Register(ImageIdIndex.IndexName, () => new ImageIdIndex());
         }
 
-        public ImageInfoCollectionsRegistry ImageCollectionsRegistry { get; } = new("sample-items-collections-registry");
+        public ImageInfoCollectionsRegistry ImageCollectionsRegistry { get; }
 
-        public PartiallyReplicatedImageInfoCollectionsRegistry PartiallyReplicatedImageCollectionsRegistry { get; } =
-            new("partially-replicated-collection-registry");
+        public PartiallyReplicatedImageInfoCollectionsRegistry PartiallyReplicatedImageCollectionsRegistry { get; }
     }
 }

@@ -28,7 +28,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
             return Ok(new { data = index.Values });
         }
 
-        [HttpGet("{indexId:guid}")]
+        [HttpPost("{indexId:guid}")]
         public async Task<IActionResult> CreateIndexAsync(Guid indexId)
         {
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(CollectionId.FromGuid(indexId),
@@ -37,7 +37,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAll() => Ok(_context.ImageCollectionsRegistry.Value);
+        public IActionResult GetAll() => Ok(_context.ImageCollectionsRegistry.Value(collection => collection.Value));
 
         [HttpPost]
         public async Task<IActionResult> ImageDataSetAsync([FromBody] ImageDataSetEvent data)

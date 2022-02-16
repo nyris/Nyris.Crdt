@@ -14,10 +14,7 @@ namespace Nyris.Crdt.Sets
     /// </summary>
     [DebuggerDisplay("{_items.Count < 10 ? string.Join(';', _items) : \"... a lot of items ...\"}")]
     public class OptimizedObservedRemoveSet<TActorId, TItem>
-        : ICRDT<
-            OptimizedObservedRemoveSet<TActorId, TItem>,
-            HashSet<TItem>,
-            OptimizedObservedRemoveSet<TActorId, TItem>.OptimizedObservedRemoveSetDto>
+        : ICRDT<OptimizedObservedRemoveSet<TActorId, TItem>.OptimizedObservedRemoveSetDto>
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>
     {
@@ -33,8 +30,8 @@ namespace Nyris.Crdt.Sets
 
         protected OptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
         {
-            Items = optimizedObservedRemoveSetDto.Items;
-            ObservedState = optimizedObservedRemoveSetDto.ObservedState;
+            Items = optimizedObservedRemoveSetDto.Items ?? new HashSet<VersionedSignedItem<TActorId, TItem>>();
+            ObservedState = optimizedObservedRemoveSetDto.ObservedState ?? new Dictionary<TActorId, uint>();
         }
 
         public static OptimizedObservedRemoveSet<TActorId, TItem> FromDto(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
@@ -54,6 +51,57 @@ namespace Nyris.Crdt.Sets
                     .Aggregate(0, HashCode.Combine);
                 return HashCode.Combine(itemsHash, stateHash);
             }
+        }
+
+        /// <inheritdoc />
+        public MergeResult Merge(OptimizedObservedRemoveSetDto other)
+        {
+            if (ReferenceEquals(other.ObservedState, null) || other.ObservedState.Count == 0) return MergeResult.NotUpdated;
+            other.Items ??= new HashSet<VersionedSignedItem<TActorId, TItem>>();
+
+            lock (SetChangeLock)
+            {
+                // variables names a taken from the paper, they do not have obvious meaning by themselves
+                var m = Items.Intersect(other.Items).ToHashSet();
+
+                // we need to check if received dto is identical to this instance in order to return correct merge result
+                if (m.Count == Items.Count
+                    && Items.OrderBy(item => item.Actor).SequenceEqual(other.Items.OrderBy(item => item.Actor))
+                    && ObservedState.OrderBy(pair => pair.Key).SequenceEqual(other.ObservedState.OrderBy(pair => pair.Key)))
+                {
+                    return MergeResult.Identical;
+                }
+
+                var m1 = Items
+                    .Except(other.Items)
+                    .Where(i => !other.ObservedState.TryGetValue(i.Actor, out var otherVersion)
+                                || i.Version > otherVersion);
+
+                var m2 = other.Items
+                    .Except(Items)
+                    .Where(i => !ObservedState.TryGetValue(i.Actor, out var myVersion)
+                                || i.Version > myVersion);
+
+                var u = m.Union(m1).Union(m2);
+
+                // TODO: maybe make it faster then O(n^2)?
+                var o = Items
+                    .Where(item => Items.Any(i => item.Item.Equals(i.Item)
+                                                  && item.Actor.Equals(i.Actor)
+                                                  && item.Version < i.Version));
+
+                Items = u.Except(o).ToHashSet();
+
+                // observed state is a element-wise max of two vectors.
+                foreach (var actorId in ObservedState.Keys.ToList().Union(other.ObservedState.Keys))
+                {
+                    ObservedState.TryGetValue(actorId, out var thisVersion);
+                    other.ObservedState.TryGetValue(actorId, out var otherVersion);
+                    ObservedState[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
+                }
+            }
+
+            return MergeResult.ConflictSolved;
         }
 
         public OptimizedObservedRemoveSetDto ToDto()
@@ -106,61 +154,17 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        public MergeResult Merge(OptimizedObservedRemoveSet<TActorId, TItem> other)
-        {
-            if (GetHashCode() == other.GetHashCode())
-            {
-                return MergeResult.Identical;
-            }
-
-            lock (SetChangeLock)
-            {
-                // variables names a taken from the paper, they do not have obvious meaning by themselves
-                var m = Items.Intersect(other.Items);
-
-                var m1 = Items
-                    .Except(other.Items)
-                    .Where(i => !other.ObservedState.TryGetValue(i.Actor, out var otherVersion)
-                                || i.Version > otherVersion);
-
-                var m2 = other.Items
-                    .Except(Items)
-                    .Where(i => !ObservedState.TryGetValue(i.Actor, out var myVersion)
-                                || i.Version > myVersion);
-
-                var u = m.Union(m1).Union(m2);
-
-                // TODO: maybe make it faster then O(n^2)?
-                var o = Items
-                    .Where(item => Items.Any(i => item.Item.Equals(i.Item)
-                                                   && item.Actor.Equals(i.Actor)
-                                                   && item.Version < i.Version));
-
-                Items = u.Except(o).ToHashSet();
-
-                // observed state is a element-wise max of two vectors.
-                foreach (var actorId in ObservedState.Keys.ToList().Union(other.ObservedState.Keys))
-                {
-                    ObservedState.TryGetValue(actorId, out var thisVersion);
-                    other.ObservedState.TryGetValue(actorId, out var otherVersion);
-                    ObservedState[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
-                }
-            }
-
-            return MergeResult.ConflictSolved;
-        }
-
         [ProtoContract]
         public sealed class OptimizedObservedRemoveSetDto
         {
             [ProtoMember(1)]
-            public HashSet<VersionedSignedItem<TActorId, TItem>> Items { get; set; } = new();
+            public HashSet<VersionedSignedItem<TActorId, TItem>>? Items { get; set; }
 
             [ProtoMember(2)]
-            public Dictionary<TActorId, uint> ObservedState { get; set; } = new();
+            public Dictionary<TActorId, uint>? ObservedState { get; set; }
         }
 
-        public sealed class Factory : ICRDTFactory<OptimizedObservedRemoveSet<TActorId, TItem>, HashSet<TItem>, OptimizedObservedRemoveSetDto>
+        public sealed class Factory : ICRDTFactory<OptimizedObservedRemoveSet<TActorId, TItem>, OptimizedObservedRemoveSetDto>
         {
             /// <inheritdoc />
             public OptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) => FromDto(optimizedObservedRemoveSetDto);

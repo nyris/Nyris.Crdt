@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
@@ -13,7 +14,6 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed
 {
@@ -27,16 +27,19 @@ namespace Nyris.Crdt.Distributed
         private readonly ConcurrentDictionary<TypeNameAndInstanceId, INodesWithReplicaProvider> _partiallyReplicated = new();
         private readonly ConcurrentDictionary<TypeNameAndInstanceId, ICreateAndDeleteManagedCrdtsInside> _holders = new();
 
+        protected readonly ILogger<ManagedCrdtContext>? Logger;
+
         internal NodeSet Nodes { get; } = new("nodes_internal");
 
-        protected ManagedCrdtContext()
+        protected ManagedCrdtContext(ILogger<ManagedCrdtContext>? logger = null)
         {
+            Logger = logger;
             Add(Nodes, NodeSet.DefaultFactory);
         }
 
-        protected internal void Add<TCrdt, TRepresentation, TDto>(TCrdt crdt,
-            IManagedCRDTFactory<TCrdt, TRepresentation, TDto> factory)
-            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+        protected internal void Add<TCrdt, TDto>(TCrdt crdt,
+            IManagedCRDTFactory<TCrdt, TDto> factory)
+            where TCrdt : ManagedCRDT<TDto>
         {
             if (typeof(TCrdt).IsGenericType)
             {
@@ -46,7 +49,7 @@ namespace Nyris.Crdt.Distributed
                                                            $"Try creating concrete type, that inherits from {typeof(TCrdt)}");
             }
 
-            var typeNameAndInstanceId = new TypeNameAndInstanceId(TypeNameCompressor.GetName<TCrdt>(), crdt.InstanceId);
+            var typeNameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
             var typeAndInstanceId = new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId);
 
             if (!_managedCrdts.TryAdd(typeAndInstanceId, crdt)
@@ -74,28 +77,30 @@ namespace Nyris.Crdt.Distributed
                 compoundCrdt.ManagedCrdtContext = this;
             }
 
-            if (crdt is IRebalanceAtNodeChange crdtThatNeedsToRebalance)
+            if (crdt is IReactToOtherCrdtChange crdtWithDependencies)
             {
-                Nodes.RebalanceOnChange(crdtThatNeedsToRebalance);
+                Nodes.AddDependent(crdtWithDependencies);
             }
         }
 
-        internal void Add<TCrdt, TRepresentation, TDto>(TCrdt crdt,
-            IManagedCRDTFactory<TCrdt, TRepresentation, TDto> factory,
+        internal void Add<TCrdt, TDto>(TCrdt crdt,
+            IManagedCRDTFactory<TCrdt, TDto> factory,
             INodesWithReplicaProvider nodesWithReplicaProvider,
             ICreateAndDeleteManagedCrdtsInside holder)
-            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+            where TCrdt : ManagedCRDT<TDto>
         {
             Add(crdt, factory);
-            var nameAndInstanceId = new TypeNameAndInstanceId(TypeNameCompressor.GetName<TCrdt>(), crdt.InstanceId);
+            var nameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
             _partiallyReplicated.TryAdd(nameAndInstanceId, nodesWithReplicaProvider);
             _holders.TryAdd(nameAndInstanceId, holder);
         }
 
-        internal void Remove<TCrdt, TRepresentation, TDto>(TCrdt crdt)
-            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+        internal void Remove<TCrdt, TDto>(TCrdt crdt)
+            where TCrdt : ManagedCRDT<TDto>
         {
-            var typeNameAndInstanceId = new TypeNameAndInstanceId(TypeNameCompressor.GetName<TCrdt>(), crdt.InstanceId);
+            Logger?.LogDebug("Instance {InstanceId} of crdt {CrdtName} is being removed from context",
+                crdt.InstanceId, crdt.TypeName);
+            var typeNameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
 
             _managedCrdts.TryRemove(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), out _);
             _sameManagedCrdts.TryRemove(typeNameAndInstanceId, out _);
@@ -112,40 +117,46 @@ namespace Nyris.Crdt.Distributed
             _typeToTypeNameMapping.TryRemove(typeof(TCrdt), out _);
         }
 
-        internal async Task RemoveAsync<TCrdt, TRepresentation, TDto>(TypeNameAndInstanceId nameAndInstanceId,
+        internal async Task RemoveLocallyAsync<TCrdt, TDto>(TypeNameAndInstanceId nameAndInstanceId,
             CancellationToken cancellationToken = default)
-            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+            where TCrdt : ManagedCRDT<TDto>
         {
             if(_holders.TryGetValue(nameAndInstanceId, out var holder))
             {
-                await holder.MarkForDeletionAsync(nameAndInstanceId.InstanceId, cancellationToken);
+                await holder.MarkForDeletionLocallyAsync(nameAndInstanceId.InstanceId, cancellationToken);
             }
 
             _partiallyReplicated.TryRemove(nameAndInstanceId, out _);
-            if (TryGetCrdtWithFactory<TCrdt, TRepresentation, TDto>(nameAndInstanceId.InstanceId, out var crdt, out _))
+            if (TryGetCrdt<TCrdt, TDto>(nameAndInstanceId.InstanceId, out var crdt))
             {
-                Remove<TCrdt, TRepresentation, TDto>(crdt);
+                Remove<TCrdt, TDto>(crdt);
             }
         }
 
-        public async Task<TDto> MergeAsync<TCrdt, TRepresentation, TDto>(TDto dto,
+        public async Task<TDto> MergeAsync<TCrdt, TDto>(TDto dto,
             string instanceId,
             int propagationCounter = 0,
+            bool allowPropagation = true,
+            string traceId = "",
             CancellationToken cancellationToken = default)
-            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+            where TCrdt : ManagedCRDT<TDto>
         {
-            if (!TryGetCrdtWithFactory<TCrdt, TRepresentation, TDto>(instanceId, out var crdt, out var factory))
+            Logger?.LogDebug("TraceId {TraceId}: context received a dto to merge", traceId);
+            if (!TryGetCrdt<TCrdt, TDto>(instanceId, out var crdt))
             {
-                throw new ManagedCrdtContextSetupException($"Merging dto of type {typeof(TDto)} with id {instanceId} " +
+                throw new ManagedCrdtContextSetupException($"TraceId {traceId}: Merging dto of type {typeof(TDto)} with id {instanceId} " +
                                                            "failed. Check that you Add-ed appropriate managed crdt type and " +
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            var other = factory.Create(dto, instanceId);
-            var mergeResult = await crdt.MergeAsync(other, cancellationToken);
-            if (mergeResult == MergeResult.ConflictSolved)
+            // var other = factory.Create(dto, instanceId);
+            var mergeResult = await crdt.MergeAsync(dto, cancellationToken);
+            Logger?.LogDebug("TraceId {TraceId}: merging result {MergeResult}", traceId, mergeResult);
+            if (allowPropagation && mergeResult == MergeResult.ConflictSolved)
             {
-                await crdt.StateChangedAsync(propagationCounter: propagationCounter, cancellationToken: cancellationToken);
+                await crdt.StateChangedAsync(propagationCounter: propagationCounter,
+                    traceId: traceId,
+                    cancellationToken: cancellationToken);
             }
             return await crdt.ToDtoAsync(cancellationToken);
         }
@@ -153,7 +164,8 @@ namespace Nyris.Crdt.Distributed
         public async Task<TCollectionOperationResponse> ApplyAsync<TCrdt,
             TKey,
             TCollection,
-            TCollectionRepresentation,
+            TCollectionKey,
+            TCollectionValue,
             TCollectionDto,
             TCollectionOperationBase,
             TCollectionOperationResponseBase,
@@ -164,37 +176,34 @@ namespace Nyris.Crdt.Distributed
             TKey key,
             TCollectionOperation operation,
             string instanceId,
+            string traceId = "",
             CancellationToken cancellationToken = default)
-            where TCrdt : PartiallyReplicatedCRDTRegistry<TCrdt,
-                TKey,
+            where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
                 TCollection,
-                TCollectionRepresentation,
+                TCollectionKey,
+                TCollectionValue,
                 TCollectionDto,
                 TCollectionOperationBase,
                 TCollectionOperationResponseBase,
                 TCollectionFactory>
             where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
-            where TCollection : ManagedCRDTWithSerializableOperations<TCollection,
-                TCollectionRepresentation,
-                TCollectionDto,
-                TCollectionOperationBase,
-                TCollectionOperationResponseBase>
-            where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionRepresentation, TCollectionDto>, new()
+            where TCollection : ManagedCrdtRegistry<TCollectionKey, TCollectionValue, TCollectionDto>,
+                IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
+            where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()
             where TCollectionOperationBase : Operation
             where TCollectionOperationResponseBase : OperationResponse
             where TCollectionOperation : TCollectionOperationBase
             where TCollectionOperationResponse : TCollectionOperationResponseBase
         {
-            if (!TryGetCrdtWithFactory<TCrdt,
-                    IReadOnlyDictionary<TKey, TCollectionRepresentation>,
-                    PartiallyReplicatedCRDTRegistry<TCrdt,
-                        TKey,
+            if (!TryGetCrdt<TCrdt,
+                    PartiallyReplicatedCRDTRegistry<TKey,
                         TCollection,
-                        TCollectionRepresentation,
+                        TCollectionKey,
+                        TCollectionValue,
                         TCollectionDto,
                         TCollectionOperationBase,
                         TCollectionOperationResponseBase,
-                        TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>(instanceId, out var crdt, out _))
+                        TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>(instanceId, out var crdt))
             {
                 throw new ManagedCrdtContextSetupException($"Applying operation of type {typeof(TCollectionOperationBase)} " +
                                                            $"to crdt {typeof(TCrdt)} with id {instanceId} failed. " +
@@ -202,7 +211,10 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            return await crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key, operation, cancellationToken);
+            return await crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key,
+                operation,
+                traceId: traceId,
+                cancellationToken: cancellationToken);
         }
 
         public ReadOnlySpan<byte> GetHash(TypeNameAndInstanceId nameAndInstanceId) =>
@@ -227,9 +239,9 @@ namespace Nyris.Crdt.Distributed
             return crdt.CalculateHash().SequenceEqual(hash);
         }
 
-        public async IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync<TCrdt, TRepresentation, TDto>(string instanceId,
+        public async IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync<TCrdt, TDto>(string instanceId,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
-            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+            where TCrdt : ManagedCRDT<TDto>
         {
             if (!_managedCrdts.TryGetValue(new TypeAndInstanceId(typeof(TCrdt), instanceId), out var crdtObject))
             {
@@ -260,18 +272,13 @@ namespace Nyris.Crdt.Distributed
             return Nodes.Value;
         }
 
-        // ReSharper disable once MemberCanBePrivate.Global - used in a generated code
-        public bool TryGetCrdtWithFactory<TCrdt, TRepresentation, TDto>(string instanceId,
-            [NotNullWhen(true)] out TCrdt? crdt,
-            [NotNullWhen(true)] out IManagedCRDTFactory<TCrdt, TRepresentation, TDto>? factory)
-            where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+        private bool TryGetCrdt<TCrdt, TDto>(string instanceId,
+            [NotNullWhen(true)] out TCrdt? crdt)
+            where TCrdt : ManagedCRDT<TDto>
         {
             _managedCrdts.TryGetValue(new TypeAndInstanceId(typeof(TCrdt), instanceId), out var crdtObject);
-            _crdtFactories.TryGetValue(typeof(TCrdt), out var factoryObject);
-
             crdt = crdtObject as TCrdt;
-            factory = factoryObject as IManagedCRDTFactory<TCrdt, TRepresentation, TDto>;
-            return crdt != null && factory != null;
+            return crdt != null;
         }
     }
 }

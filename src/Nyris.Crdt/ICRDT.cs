@@ -1,16 +1,8 @@
 namespace Nyris.Crdt
 {
-    public interface ICRDT<in TImplementation, out TRepresentation>
-        where TImplementation : ICRDT<TImplementation, TRepresentation>
+    public interface ICRDT<TDto>
     {
-        TRepresentation Value { get; }
-
-        MergeResult Merge(TImplementation other);
-    }
-
-    public interface ICRDT<in TImplementation, out TRepresentation, out TDto> : ICRDT<TImplementation, TRepresentation>
-        where TImplementation : ICRDT<TImplementation, TRepresentation, TDto>
-    {
+        MergeResult Merge(TDto other);
         TDto ToDto();
     }
 }

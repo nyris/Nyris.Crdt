@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace Nyris.Crdt
 {
-    public interface IAsyncDtoBatchProvider<TDto>
+    public interface IAsyncDtoBatchProvider<out TDto>
     {
         IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
     }

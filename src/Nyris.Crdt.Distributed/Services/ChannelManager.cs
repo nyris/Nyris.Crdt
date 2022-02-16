@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
@@ -63,6 +64,9 @@ namespace Nyris.Crdt.Distributed.Services
             private readonly ConcurrentDictionary<NodeId, TGrpcService> _grpcClients;
             private readonly NodeId _nodeId;
 
+            private static readonly int TolerateErrorsTimes = 3;
+            private int _failures = 0;
+
             /// <inheritdoc />
             public FailureInterceptor(ConcurrentDictionary<NodeId, GrpcChannel> channels,
                 ManagedCrdtContext context,
@@ -93,20 +97,27 @@ namespace Nyris.Crdt.Distributed.Services
             {
                 try
                 {
-                    return await responseTask;
+                    var result = await responseTask;
+                    ResetFailureCounter();
+                    return result;
                 }
                 catch (Exception)
                 {
-                    await RemoveNodeAsync();
+                    await MaybeRemoveNodeAsync();
                     throw;
                 }
             }
 
-            private Task RemoveNodeAsync()
+            private void ResetFailureCounter() => Interlocked.Exchange(ref _failures, 0);
+
+            private async ValueTask MaybeRemoveNodeAsync()
             {
+                var failures = Interlocked.Increment(ref _failures);
+                if (failures < TolerateErrorsTimes) return;
+
                 _ = _context.Nodes.RemoveAsync(i => i.Id == _nodeId);
                 _grpcClients.TryRemove(_nodeId, out _);
-                return _channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask;
+                await (_channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask);
             }
         }
     }

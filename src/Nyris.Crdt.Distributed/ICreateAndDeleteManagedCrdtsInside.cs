@@ -7,6 +7,6 @@ namespace Nyris.Crdt.Distributed
     {
         ManagedCrdtContext ManagedCrdtContext { set; }
 
-        Task MarkForDeletionAsync(string instanceId, CancellationToken cancellationToken = default);
+        Task MarkForDeletionLocallyAsync(string instanceId, CancellationToken cancellationToken = default);
     }
 }

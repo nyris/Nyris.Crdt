@@ -146,22 +146,16 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             {
                 if (current.Name == PartiallyReplicatedCRDTRegistryTypeName)
                 {
-                    var implementationType = current.TypeArguments[0];
-                    var keyType = current.TypeArguments[1];
+                    var keyType = current.TypeArguments[0];
 
                     _log.AppendLine(
                         $"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
                         "Generated gRPC service will include methods for applying its operations.");
 
-                    var otherParams = current.TypeArguments.Skip(1).Select(s => s.ToDisplayString());
-                    var crdtTypeParams = $"{implementationType.ToDisplayString()}, {string.Join(", ", otherParams)}";
+                    var crdtTypeParams = string.Join(", ", current.TypeArguments.Select(s => s.ToDisplayString()));
 
                     // get attributes of symbol
                     // get type arguments of constructor
-
-                    // TODO: check if inherited from operationType and operationResultType
-                    var operationType = current.TypeArguments[^3];
-                    var operationResultType = current.TypeArguments[^2];
 
                     operationInfos = symbol.GetAttributes()
                         .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
@@ -173,7 +167,7 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                             return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
                                 operationResponseConcreteType?.ToDisplayString(),
                                 keyType.ToDisplayString(),
-                                crdtTypeParams);
+                                $"{symbol.ToDisplayString()}, {crdtTypeParams}");
                         });
                 }
 

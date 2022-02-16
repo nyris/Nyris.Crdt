@@ -1,7 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Utils;
@@ -15,20 +19,17 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     ///     DO NOT CHANGE THIS TYPE'S NAME LIGHTLY
     ///     It is used without referencing the type directly (or project at all) in the SourceGenerator project as const string.
     /// </remarks>
-    /// <typeparam name="TImplementation">The type that implements <see cref="IAsyncCRDT{TImplementation, TRepresentation, TDto}"/>.
-    /// Usually you pass here the your type, that inherits ManagedCRDT. </typeparam>
-    /// <typeparam name="TRepresentation">That's how CRDT looks on the outside.
-    /// For example, a fancy CRDT set, which tracks who is doing the deletion, still provides
-    /// a basic HashSet<> Value to it's users.</typeparam>
     /// <typeparam name="TDto">It's a dto type, that is used as a data contract for grpc
     /// communication. So it should be properly annotated with <see cref="ProtoContract"/>
     /// and <see cref="ProtoMember"/>.</typeparam>
-    public abstract class ManagedCRDT<TImplementation, TRepresentation, TDto> : IAsyncCRDT<TImplementation, TRepresentation, TDto>, IHashable
-        where TImplementation : ManagedCRDT<TImplementation, TRepresentation, TDto>
+    public abstract class ManagedCRDT<TDto>
+        : IAsyncCRDT<TDto>, IAsyncDtoBatchProvider<TDto>, IHashable
     {
         public readonly string InstanceId;
         private readonly AsyncQueue<DtoMessage<TDto>> _queue;
         private string? _typeName;
+        private readonly ConcurrentBag<IReactToOtherCrdtChange> _dependentCrdts = new();
+        private readonly ILogger? _logger;
 
         /// <summary>
         /// Constructor.
@@ -37,13 +38,15 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// For example, if there nodes (servers) A and B and they try to share two instanced of CRDT type T.
         /// When node A updates first instance and sends that update to B, B needs to somehow
         /// distinguish which instance was updated. </param>
-        protected ManagedCRDT(string instanceId)
+        /// <param name="logger"></param>
+        protected ManagedCRDT(string instanceId, ILogger? logger = null)
         {
             _queue = Queues.GetQueue<TDto>(GetType());
             InstanceId = instanceId;
+            _logger = logger;
         }
 
-        protected string TypeName
+        internal string TypeName
         {
             get
             {
@@ -53,11 +56,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        /// <inheritdoc />
-        public abstract TRepresentation Value { get; }
+        internal void AddDependent(IReactToOtherCrdtChange crdt) => _dependentCrdts.Add(crdt);
 
         /// <inheritdoc />
-        public abstract Task<MergeResult> MergeAsync(TImplementation other, CancellationToken cancellationToken = default);
+        public abstract Task<MergeResult> MergeAsync(TDto other, CancellationToken cancellationToken = default);
 
         /// <param name="cancellationToken"></param>
         /// <inheritdoc />
@@ -66,15 +68,30 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
 
-        protected internal async Task StateChangedAsync(int propagationCounter = 0, CancellationToken cancellationToken = default)
+        protected internal async Task StateChangedAsync(int propagationCounter = 0,
+            string traceId = "",
+            CancellationToken cancellationToken = default)
         {
             var dtoMessage = new DtoMessage<TDto>(TypeName,
                 InstanceId,
                 await ToDtoAsync(cancellationToken),
-                propagationCounter);
+                propagationCounter,
+                traceId);
 
-            _queue.Enqueue(dtoMessage);
-            await dtoMessage.MaybeWaitForCompletionAsync(cancellationToken);
+            _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
+            await _queue.EnqueueAsync(dtoMessage, cancellationToken);
+
+            if (_dependentCrdts.IsEmpty)
+            {
+                await dtoMessage.MaybeWaitForCompletionAsync(cancellationToken);
+                _logger?.LogDebug("TraceId: {TraceId}, dto was sent and awaited, returning", traceId);
+                return;
+            }
+
+            await Task.WhenAll(_dependentCrdts
+                .Select(crdt => crdt.HandleChangeInAnotherCrdtAsync(InstanceId, cancellationToken))
+                .Append(dtoMessage.MaybeWaitForCompletionAsync(cancellationToken)));
+            _logger?.LogDebug("TraceId: {TraceId}, dto was sent and awaited (including dependent crdts), returning", traceId);
         }
 
         /// <inheritdoc />

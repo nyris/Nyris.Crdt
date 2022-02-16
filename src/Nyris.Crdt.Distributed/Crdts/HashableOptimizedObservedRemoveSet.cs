@@ -1,20 +1,21 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
     public sealed class HashableOptimizedObservedRemoveSet<TActorId, TItem> : OptimizedObservedRemoveSet<TActorId, TItem>, IHashable
-        where TItem : IEquatable<TItem>, IHashable
-        where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
+        where TItem : IEquatable<TItem>
+        where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
         public HashableOptimizedObservedRemoveSet()
         {
         }
 
-        private HashableOptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) : base(optimizedObservedRemoveSetDto)
+        private HashableOptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
+            : base(optimizedObservedRemoveSetDto)
         {
         }
 
@@ -29,12 +30,14 @@ namespace Nyris.Crdt.Distributed.Crdts
             }
         }
 
-        public new static HashableOptimizedObservedRemoveSet<TActorId, TItem> FromDto(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) => new(optimizedObservedRemoveSetDto);
+        public new static HashableOptimizedObservedRemoveSet<TActorId, TItem> FromDto(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
+            => new(optimizedObservedRemoveSetDto);
 
-        public new sealed class Factory : ICRDTFactory<HashableOptimizedObservedRemoveSet<TActorId, TItem>, HashSet<TItem>, OptimizedObservedRemoveSetDto>
+        public new sealed class Factory : ICRDTFactory<HashableOptimizedObservedRemoveSet<TActorId, TItem>, OptimizedObservedRemoveSetDto>
         {
             /// <inheritdoc />
-            public HashableOptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) => FromDto(optimizedObservedRemoveSetDto);
+            public HashableOptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
+                => FromDto(optimizedObservedRemoveSetDto);
         }
     }
 }

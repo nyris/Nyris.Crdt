@@ -13,8 +13,8 @@ using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Services
 {
-    internal sealed class ConsistencyService<TCrdt, TRepresentation, TDto> : BackgroundService
-        where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+    internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
+        where TCrdt : ManagedCRDT<TDto>
     {
         private readonly ManagedCrdtContext _context;
         private readonly IChannelManager _channelManager;
@@ -22,14 +22,14 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly NodeId _thisNodeId;
         private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(20);
 
-        private readonly ILogger<ConsistencyService<TCrdt, TRepresentation, TDto>> _logger;
+        private readonly ILogger<ConsistencyService<TCrdt, TDto>> _logger;
 
         /// <inheritdoc />
         public ConsistencyService(ManagedCrdtContext context,
             IChannelManager channelManager,
             IConsistencyCheckTargetsSelectionStrategy strategy,
             NodeInfo thisNode,
-            ILogger<ConsistencyService<TCrdt, TRepresentation, TDto>> logger)
+            ILogger<ConsistencyService<TCrdt, TDto>> logger)
         {
             _context = context;
             _channelManager = channelManager;
@@ -77,7 +77,7 @@ namespace Nyris.Crdt.Distributed.Services
 
                 if (markForDeletion)
                 {
-                    await _context.RemoveAsync<TCrdt, TRepresentation, TDto>(nameAndInstanceId, cancellationToken);
+                    await _context.RemoveLocallyAsync<TCrdt, TDto>(nameAndInstanceId, cancellationToken);
                 }
             }
         }
@@ -93,13 +93,13 @@ namespace Nyris.Crdt.Distributed.Services
             var hash = await client.GetHashAsync(nameAndInstanceId, cancellationToken);
             if (_context.IsHashEqual(nameAndInstanceId, hash))
             {
-                _logger.LogDebug("Crdt {CrdtType} with id {CrdtInstanceId} is consistent between " +
-                                       "this node ({ThisNodeId}) and node with id {NodeId}. Hash: '{MyHash}'",
-                    nameAndInstanceId.TypeName,
-                    nameAndInstanceId.InstanceId,
-                    _thisNodeId,
-                    nodeId,
-                    Convert.ToHexString(hash));
+                // _logger.LogDebug("Crdt {CrdtType} with id {CrdtInstanceId} is consistent between " +
+                                       // "this node ({ThisNodeId}) and node with id {NodeId}. Hash: '{MyHash}'",
+                    // nameAndInstanceId.TypeName,
+                    // nameAndInstanceId.InstanceId,
+                    // _thisNodeId,
+                    // nodeId,
+                    // Convert.ToHexString(hash));
                 return true;
             }
 
@@ -117,9 +117,9 @@ namespace Nyris.Crdt.Distributed.Services
 
         private async Task<bool> SyncCrdtsAsync(IDtoPassingGrpcService<TDto> dtoPassingGrpcService, string typeName, string instanceId, CancellationToken cancellationToken)
         {
-            _logger.LogDebug("Syncing CRDT of type {CrdtType} with instanceId {InstanceId}", typeof(TCrdt), instanceId);
+            // _logger.LogDebug("Syncing CRDT of type {CrdtType} with instanceId {InstanceId}", typeof(TCrdt), instanceId);
 
-            var enumerable = _context.EnumerateDtoBatchesAsync<TCrdt, TRepresentation, TDto>(instanceId, cancellationToken);
+            var enumerable = _context.EnumerateDtoBatchesAsync<TCrdt, TDto>(instanceId, cancellationToken);
             var callOptions = new CallOptions(new Metadata
             {
                 new("instance-id", instanceId),
@@ -127,7 +127,7 @@ namespace Nyris.Crdt.Distributed.Services
             }, cancellationToken: cancellationToken);
             await foreach (var dto in dtoPassingGrpcService.EnumerateCrdtAsync(enumerable, callOptions).WithCancellation(cancellationToken))
             {
-                await _context.MergeAsync<TCrdt, TRepresentation, TDto>(dto, instanceId, cancellationToken: cancellationToken);
+                await _context.MergeAsync<TCrdt, TDto>(dto, instanceId, allowPropagation: false, cancellationToken: cancellationToken);
             }
 
             return true;

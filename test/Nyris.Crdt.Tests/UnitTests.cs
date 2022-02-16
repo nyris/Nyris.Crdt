@@ -28,12 +28,10 @@ public class UnitTests
             .ToList();
 
         var collectionId = CollectionId.Parse("0bcacccc-77d8-45f3-a823-10b705b34692");
-        var collection = new ImageInfoLwwCollectionWithSerializableOperations("0");
-        await registries[0].TryAddCollectionAsync(collectionId, collection);
+        await registries[0].TryAddCollectionAsync(collectionId, "0");
         registries[0].CalculateHash().SequenceEqual(registries[1].CalculateHash()).Should().BeFalse();
 
         await SyncCrdtsAsync<PartiallyReplicatedImageInfoCollectionsRegistry,
-            IReadOnlyDictionary<CollectionId, IReadOnlyDictionary<ImageGuid, ImageInfo>>,
             PartiallyReplicatedImageInfoCollectionsRegistry.PartiallyReplicatedCrdtRegistryDto,
             PartiallyReplicatedImageInfoCollectionsRegistry.PartiallyReplicatedImageInfoCollectionsRegistryFactory>(registries,
             PartiallyReplicatedImageInfoCollectionsRegistry.DefaultFactory);
@@ -62,7 +60,6 @@ public class UnitTests
         registries[0].CalculateHash().SequenceEqual(registries[1].CalculateHash()).Should().BeFalse();
 
         await SyncCrdtsAsync<ImageInfoCollectionsRegistry,
-            IReadOnlyDictionary<CollectionId, IReadOnlyDictionary<ImageGuid, ImageInfo>>,
             ImageInfoCollectionsRegistry.RegistryDto,
             ImageInfoCollectionsRegistry.RegistryFactory>(registries, ImageInfoCollectionsRegistry.DefaultFactory);
 
@@ -70,6 +67,38 @@ public class UnitTests
         {
             registries[i].CalculateHash().SequenceEqual(registries[i + 1].CalculateHash()).Should().BeTrue();
         }
+    }
+
+    [Fact]
+    public async Task CollectionInfosRegistryWorks()
+    {
+        var registry1 = new HashableCrdtRegistry<NodeId, CollectionId, CollectionInfo,
+            CollectionInfo.CollectionInfoDto,
+            CollectionInfo.CollectionInfoFactory>();
+
+        var registry2 = new HashableCrdtRegistry<NodeId, CollectionId, CollectionInfo,
+            CollectionInfo.CollectionInfoDto,
+            CollectionInfo.CollectionInfoFactory>();
+
+        var collectionId1 = CollectionId.New();
+        var node1 = NodeId.New();
+        var collectionId2 = CollectionId.New();
+        var node2 = NodeId.New();
+
+        registry1.TryAdd(node1, collectionId1, new CollectionInfo { Name = "1", Size = 1 }).Should().BeTrue();
+        registry2.TryAdd(node2, collectionId2, new CollectionInfo { Name = "2", Size = 2 }).Should().BeTrue();
+
+        registry1.Merge(registry2.ToDto()).Should().Be(MergeResult.ConflictSolved);
+        registry1[collectionId2].Name.Should().Be("2");
+        registry1[collectionId2].Size.Should().Be(2);
+        registry1[collectionId1].Name.Should().Be("1");
+        registry1[collectionId1].Size.Should().Be(1);
+
+        registry2.Remove(collectionId2);
+        registry1.Merge(registry2.ToDto()).Should().Be(MergeResult.ConflictSolved);
+        registry1.TryGetValue(collectionId2, out _).Should().BeFalse();
+        registry1[collectionId1].Name.Should().Be("1");
+        registry1[collectionId1].Size.Should().Be(1);
     }
 
     private async Task<IList<NodeMock>> PrepareNodeMocksAsync(int n)
@@ -90,19 +119,17 @@ public class UnitTests
             {
                 var dtoI = await result[i].Context.Nodes.ToDtoAsync();
                 var dtoJ = await result[j].Context.Nodes.ToDtoAsync();
-                await result[i].Context.Nodes.MergeAsync(NodeSet.DefaultFactory
-                    .Create(dtoJ, result[i].Context.Nodes.InstanceId));
-                await result[j].Context.Nodes.MergeAsync(NodeSet.DefaultFactory
-                    .Create(dtoI, result[j].Context.Nodes.InstanceId));
+                await result[i].Context.Nodes.MergeAsync(dtoJ);
+                await result[j].Context.Nodes.MergeAsync(dtoI);
             }
         }
 
         return result;
     }
 
-    private async Task SyncCrdtsAsync<TCrdt, TRepresentation, TDto, TFactory>(IList<TCrdt> crdts, TFactory factory)
-        where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
-        where TFactory : IManagedCRDTFactory<TCrdt, TRepresentation, TDto>
+    private async Task SyncCrdtsAsync<TCrdt, TDto, TFactory>(IList<TCrdt> crdts, TFactory factory)
+        where TCrdt : ManagedCRDT<TDto>
+        where TFactory : IManagedCRDTFactory<TCrdt, TDto>
     {
 
         for (var i = 0; i < crdts.Count; ++i)
@@ -111,12 +138,12 @@ public class UnitTests
             {
                 await foreach (var dto in crdts[i].EnumerateDtoBatchesAsync())
                 {
-                    await crdts[j].MergeAsync(factory.Create(dto, ""));
+                    await crdts[j].MergeAsync(dto);
                 }
 
                 await foreach (var dto in crdts[j].EnumerateDtoBatchesAsync())
                 {
-                    await crdts[i].MergeAsync(factory.Create(dto, ""));
+                    await crdts[i].MergeAsync(dto);
                 }
             }
         }

@@ -7,15 +7,20 @@ package GrpcServiceSample;
 service Api {
   rpc SayHello (HelloRequest) returns (HelloReply);
 
-  rpc CreateImagesCollection (Collection) returns (Collection);
-  rpc ImagesCollectionExists(Collection) returns (BoolResponse);
+  rpc CreateImagesCollection (Collection) returns (CollectionIdMessage);
+  rpc GetCollectionInfo (CollectionIdMessage) returns (Collection);
+  rpc ImagesCollectionExists(CollectionIdMessage) returns (BoolResponse);
   rpc CreateImage (Image) returns (Image);
   rpc GetImage (ImageUuids) returns (Image);
+  rpc DeleteCollection (CollectionIdMessage) returns (BoolResponse);
 
-  rpc CreateImagesCollectionPR (Collection) returns (Collection);
-  rpc ImagesCollectionExistsPR(Collection) returns (BoolResponse);
+  rpc CreateImagesCollectionPR (Collection) returns (CollectionIdMessage);
+  rpc GetCollectionInfoPR (CollectionIdMessage) returns (Collection);
+  rpc ImagesCollectionExistsPR(CollectionIdMessage) returns (BoolResponse);
   rpc CreateImagePR (Image) returns (Image);
   rpc GetImagePR (ImageUuids) returns (Image);
+  rpc FindImagePR (FindImageById) returns (ImageUuidList);
+  rpc DeleteCollectionPR (CollectionIdMessage) returns (BoolResponse);
 }
 
 message HelloRequest {
@@ -26,8 +31,16 @@ message HelloReply {
   string message = 1;
 }
 
+message CollectionIdMessage {
+  string id = 1;
+  string traceId = 2;
+}
+
 message Collection {
   string id = 1;
+  string name = 2;
+  uint64 size = 3;
+  string traceId = 4;
 }
 
 message BoolResponse {
@@ -37,6 +50,19 @@ message BoolResponse {
 message ImageUuids {
   string collectionId = 1;
   string imageUuid = 2;
+  string traceId = 3;
+}
+
+message FindImageById {
+  string collectionId = 1;
+  bytes id = 2;
+  string traceId = 3;
+}
+
+message ImageUuidList {
+  string collectionId = 1;
+  repeated string imageUuid = 2;
+  string traceId = 3;
 }
 
 message Image {
@@ -44,4 +70,5 @@ message Image {
   string collectionId = 2;
   bytes id = 3;
   string downloadUri = 4;
+  string traceId = 5;
 }

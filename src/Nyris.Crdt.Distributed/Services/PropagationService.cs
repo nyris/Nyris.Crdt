@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -11,18 +12,18 @@ using Nyris.Crdt.Distributed.Strategies.Propagation;
 
 namespace Nyris.Crdt.Distributed.Services
 {
-    internal sealed class PropagationService<TCrdt, TRepresentation, TDto> : BackgroundService
-        where TCrdt : ManagedCRDT<TCrdt, TRepresentation, TDto>
+    internal sealed class PropagationService<TCrdt, TDto> : BackgroundService
+        where TCrdt : ManagedCRDT<TDto>
     {
         private readonly ManagedCrdtContext _context;
         private readonly IPropagationStrategy _propagationStrategy;
         private readonly IChannelManager _channelManager;
-        private readonly ILogger<PropagationService<TCrdt, TRepresentation, TDto>> _logger;
+        private readonly ILogger<PropagationService<TCrdt, TDto>> _logger;
         private readonly NodeId _thisNodeId;
 
         /// <inheritdoc />
         public PropagationService(ManagedCrdtContext context,
-            ILogger<PropagationService<TCrdt, TRepresentation, TDto>> logger,
+            ILogger<PropagationService<TCrdt, TDto>> logger,
             NodeInfo thisNode,
             IPropagationStrategy propagationStrategy,
             IChannelManager channelManager)
@@ -42,11 +43,17 @@ namespace Nyris.Crdt.Distributed.Services
                 typeof(TCrdt), typeof(TDto));
             await foreach (var dto in queue)
             {
-                _logger.LogDebug("Preparing to send dto {Dto}. \nQueue size: {QueueSize}",
-                    JsonConvert.SerializeObject(dto), queue.QueueLength);
+                _logger.LogDebug("TraceId: {TraceId}, Preparing to send dto {Dto}. \nQueue size: {QueueSize}",
+                    dto.TraceId, JsonConvert.SerializeObject(dto), queue.QueueLength);
                 try
                 {
-                    var nodesWithReplica = _context.GetNodesThatHaveReplica(new TypeNameAndInstanceId(dto.TypeName, dto.InstanceId));
+                    var nodesWithReplica = _context
+                        .GetNodesThatHaveReplica(new TypeNameAndInstanceId(dto.TypeName, dto.InstanceId))
+                        .ToList();
+
+                    _logger.LogDebug("TraceId: {TraceId}, context yielded the following nodes with replica: {Nodes}",
+                        dto.TraceId, string.Join("; ", nodesWithReplica.Select(ni => $"{ni.Id}:{ni.Address}")));
+
                     foreach (var nodeId in _propagationStrategy.GetTargetNodes(nodesWithReplica, _thisNodeId))
                     {
                         if (!_channelManager.TryGet<IDtoPassingGrpcService<TDto>>(nodeId, out var client))
@@ -57,8 +64,9 @@ namespace Nyris.Crdt.Distributed.Services
 
                         var response = await client.SendAsync(dto, stoppingToken);
 
-                        _logger.LogDebug("Received back dto {Dto}", JsonConvert.SerializeObject(response));
-                        await _context.MergeAsync<TCrdt, TRepresentation, TDto>(response, dto.InstanceId, cancellationToken: stoppingToken);
+                        _logger.LogDebug("TraceId: {TraceId}, Received back dto {Dto}",
+                            dto.TraceId, JsonConvert.SerializeObject(response));
+                        await _context.MergeAsync<TCrdt, TDto>(response, dto.InstanceId, cancellationToken: stoppingToken);
                     }
                 }
                 catch (Exception e)
@@ -67,6 +75,7 @@ namespace Nyris.Crdt.Distributed.Services
                 }
                 finally
                 {
+                    _logger.LogDebug("TraceId: {TraceId}, releasing dto", dto.TraceId);
                     dto.Complete();
                 }
             }

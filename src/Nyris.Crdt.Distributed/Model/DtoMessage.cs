@@ -8,7 +8,8 @@ namespace Nyris.Crdt.Distributed.Model
     public sealed record DtoMessage<TDto>([property: ProtoMember(1)] string TypeName,
         [property: ProtoMember(2)] string InstanceId,
         [property: ProtoMember(3)] TDto Value,
-        [property: ProtoMember(4)] int PropagationCounter = 0)
+        [property: ProtoMember(4)] int PropagationCounter = 0,
+        [property: ProtoMember(5)] string TraceId = "")
     {
         private SemaphoreSlim? _semaphore;
 

@@ -14,7 +14,6 @@ using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Discovery;
-using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf.Grpc.Client;
 
 namespace Nyris.Crdt.Distributed.Services
@@ -110,15 +109,13 @@ namespace Nyris.Crdt.Distributed.Services
             }
 
             var dto = await _context.Nodes.ToDtoAsync();
-            var msg = new DtoMessage<NodeSet.OrSetDto>(TypeNameCompressor.GetName<NodeSet>(),
-                _context.Nodes.InstanceId,
-                dto);
+            var msg = new DtoMessage<NodeSet.OrSetDto>(_context.Nodes.TypeName, _context.Nodes.InstanceId, dto);
             var response = await proxy.SendAsync(msg);
 
             _logger.LogDebug("Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
                 name, response.Items.Count, response.ObservedState.Count);
 
-            await _context.MergeAsync<NodeSet, HashSet<NodeInfo>, NodeSet.OrSetDto>(response, _context.Nodes.InstanceId);
+            await _context.MergeAsync<NodeSet, NodeSet.OrSetDto>(response, _context.Nodes.InstanceId);
 
             _logger.LogDebug("State after merging: {NodeList}", string.Join(", ",
                 _context.Nodes.Value.Select(ni => $"{ni.Id}:{ni.Address}")));
