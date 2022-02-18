@@ -16,79 +16,6 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
-    public interface IIndex<in TKey, in TItem>
-    {
-        string UniqueName { get; }
-        Task AddAsync(TKey key, TItem item, CancellationToken cancellationToken = default);
-        Task RemoveAsync(TKey key, TItem item, CancellationToken cancellationToken = default);
-    }
-
-    public interface IIndex<in TInput, TKey, in TItem> : IIndex<TKey, TItem>
-    {
-        Task<IList<TKey>> FindAsync(TInput input);
-    }
-
-    public abstract class ManagedCrdtRegistry<TKey, TItem, TDto> : ManagedCRDT<TDto>
-    {
-        private readonly ConcurrentDictionary<string, IIndex<TKey, TItem>> _indexes = new();
-        private readonly ILogger? _logger;
-
-        /// <inheritdoc />
-        protected ManagedCrdtRegistry(string instanceId, ILogger? logger = null) : base(instanceId, logger)
-        {
-            _logger = logger;
-        }
-
-        public abstract ulong Size { get; }
-
-        public abstract IAsyncEnumerable<KeyValuePair<TKey, TItem>> EnumerateItems(
-            CancellationToken cancellationToken = default);
-
-        public void RemoveIndex(IIndex<TKey, TItem> index) => RemoveIndex(index.UniqueName);
-        public void RemoveIndex(string name) => _indexes.TryRemove(name, out _);
-
-        public async Task AddIndexAsync(IIndex<TKey, TItem> index, CancellationToken cancellationToken = default)
-        {
-            if (_indexes.ContainsKey(index.UniqueName)) return;
-
-            await foreach (var (key, item) in EnumerateItems(cancellationToken))
-            {
-                await index.AddAsync(key, item, cancellationToken);
-            }
-
-            _indexes.TryAdd(index.UniqueName, index);
-        }
-
-        protected Task RemoveFromIndexes(TKey key, TItem item, CancellationToken cancellationToken = default)
-            => Task.WhenAll(_indexes.Values.Select(i =>
-            {
-                _logger?.LogDebug("Removing {ItemKey} from {IndexName}", key, i.UniqueName);
-                return i.RemoveAsync(key, item, cancellationToken);
-            }));
-
-        protected Task AddItemToIndexesAsync(TKey key, TItem item, CancellationToken cancellationToken = default)
-        {
-            return Task.WhenAll(_indexes.Values.Select(i =>
-            {
-                _logger?.LogDebug("Adding {ItemKey} to {IndexName}", key, i.UniqueName);
-                return i.AddAsync(key, item, cancellationToken);
-            }));
-        }
-
-        protected bool TryGetIndex<TIndex>(string indexName, [NotNullWhen(true)] out TIndex? result)
-            where TIndex : class
-        {
-            if (!_indexes.TryGetValue(indexName, out var index))
-            {
-                result = default;
-                return false;
-            }
-
-            result = index as TIndex;
-            return result != null;
-        }
-    }
-
     /// <summary>
     /// An immutable key-value registry based on <see cref="ManagedOptimizedObservedRemoveSet{TImplementation,TActorId,TItem}"/>,
     /// that is itself a CRDT.
@@ -98,15 +25,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     /// <typeparam name="TItemValue">Type of the values in the registry</typeparam>
     /// <typeparam name="TItemValueDto"></typeparam>
     /// <typeparam name="TItemValueFactory"></typeparam>
-    /// <typeparam name="TImplementation"></typeparam>
-    public abstract class ManagedCrdtRegistry<TImplementation, TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
-        : ManagedCrdtRegistry<TItemKey, TItemValue, ManagedCrdtRegistry<TImplementation, TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.RegistryDto>,
+    public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
+        : ManagedCrdtRegistryBase<TItemKey, TItemValue, ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.RegistryDto>,
             ICreateAndDeleteManagedCrdtsInside
         where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>, IHashable
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
         where TItemValue : ManagedCRDT<TItemValueDto>
         where TItemValueFactory : IManagedCRDTFactory<TItemValue, TItemValueDto>, new()
-        where TImplementation : ManagedCrdtRegistry<TImplementation, TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
     {
         private readonly ILogger? _logger;
         private static readonly TItemValueFactory Factory = new();

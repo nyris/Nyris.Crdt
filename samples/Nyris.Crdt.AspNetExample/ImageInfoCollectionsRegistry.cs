@@ -5,8 +5,7 @@ using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
 {
-    public sealed class ImageInfoCollectionsRegistry : ManagedCrdtRegistry<ImageInfoCollectionsRegistry,
-        NodeId,
+    public sealed class ImageInfoCollectionsRegistry : ManagedCrdtRegistry<NodeId,
         CollectionId,
         ImageInfoLwwCollection,
         ImageInfoLwwCollection.LastWriteWinsDto,

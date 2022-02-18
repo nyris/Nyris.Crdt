@@ -187,7 +187,7 @@ namespace Nyris.Crdt.Distributed
                 TCollectionOperationResponseBase,
                 TCollectionFactory>
             where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
-            where TCollection : ManagedCrdtRegistry<TCollectionKey, TCollectionValue, TCollectionDto>,
+            where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
                 IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
             where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()
             where TCollectionOperationBase : Operation

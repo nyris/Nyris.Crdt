@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Utils;
@@ -14,16 +15,16 @@ using ProtoBuf;
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
     public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>
-        : ManagedCrdtRegistry<TKey, TValue, ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
+        : ManagedCrdtRegistryBase<TKey, TValue, ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
         where TValue : IHashable
         where TKey : IEquatable<TKey>
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
-        private readonly SemaphoreSlim _semaphore = new(1);
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
         private List<TKey> _nextDto = new();
 
-        protected ManagedLastWriteWinsDeltaRegistry(string id) : base(id)
+        protected ManagedLastWriteWinsDeltaRegistry(string id, ILogger? logger = null) : base(id, logger)
         {
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
         }
@@ -62,10 +63,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             var item = _items.AddOrUpdate(key,
                 _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
-                (_, v) =>
+                (__, v) =>
                 {
                     if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
 
+                    _ = RemoveFromIndexes(key, v.Value, cancellationToken);
                     v.Value = value;
                     v.Deleted = false;
                     v.TimeStamp = timeStamp;
@@ -78,41 +80,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             _nextDto.Add(key);
             await StateChangedAsync(propagationCounter: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
             return item;
-        }
-
-        /// <summary>
-        /// Adds item into the registry. "out item" param always contains an item. If return value is true,
-        /// item will contain item which was set. If false, it will contain item with the same key and later timestamp
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="value"></param>
-        /// <param name="timeStamp"></param>
-        /// <param name="item"></param>
-        /// <param name="waitForPropagationToNumNodes"></param>
-        /// <returns></returns>
-        public bool TrySet(TKey key,
-            TValue value,
-            TTimeStamp timeStamp,
-            out TimeStampedItem<TValue, TTimeStamp> item,
-            int waitForPropagationToNumNodes = 3)
-        {
-            item = _items.AddOrUpdate(key,
-                _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
-                (__, v) =>
-                {
-                    if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
-
-                    _ = RemoveFromIndexes(key, v.Value);
-                    v.Deleted = false;
-                    v.TimeStamp = timeStamp;
-                    return v;
-                });
-
-            if (item.TimeStamp.CompareTo(timeStamp) != 0) return false;
-
-            _nextDto.Add(key);
-            _ = StateChangedAsync();
-            return true;
         }
 
         public bool TryRemove(TKey key, TTimeStamp timeStamp, out TimeStampedItem<TValue, TTimeStamp> item)

@@ -53,7 +53,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             IReactToOtherCrdtChange,
             INodesWithReplicaProvider
         where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
-        where TCollection : ManagedCrdtRegistry<TCollectionKey, TCollectionValue, TCollectionDto>,
+        where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
             IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
         where TCollectionOperationBase : Operation
         where TCollectionOperationResponseBase : OperationResponse

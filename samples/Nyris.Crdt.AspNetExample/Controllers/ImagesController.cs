@@ -45,12 +45,11 @@ namespace Nyris.Crdt.AspNetExample.Controllers
             var indexId = CollectionId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
                 () => (_thisNodeId, new ImageInfoLwwCollection(data.IndexId.ToString("N"))));
-            if (!index.TrySet(ImageGuid.FromGuid(data.ImageUuid), new ImageInfo(data.DownloadUri, data.ImageId), DateTime.UtcNow,
-                out var img))
-            {
-                return Conflict(img);
-            }
-            return Ok(img);
+
+            var datetime = DateTime.UtcNow;
+            var img = await index.SetAsync(ImageGuid.FromGuid(data.ImageUuid),
+                new ImageInfo(data.DownloadUri, data.ImageId), datetime);
+            return img.TimeStamp == datetime ? Ok(img) : Conflict(img);
         }
 
         [HttpDelete]

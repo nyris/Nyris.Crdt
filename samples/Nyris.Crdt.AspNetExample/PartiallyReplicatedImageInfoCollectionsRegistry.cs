@@ -18,7 +18,7 @@ namespace Nyris.Crdt.AspNetExample
             ImageInfoLwwCollectionWithSerializableOperations,
             ImageGuid,
             ImageInfo,
-            ImageInfoLwwCollectionWithSerializableOperations.LWWDto,
+            ImageInfoLwwCollectionWithSerializableOperations.LastWriteWinsDto,
             RegistryOperation,
             RegistryOperationResponse,
             ImageInfoLwwCollectionWithSerializableOperations.ImageInfoLwwCollectionWithSerializableOperationsFactory>

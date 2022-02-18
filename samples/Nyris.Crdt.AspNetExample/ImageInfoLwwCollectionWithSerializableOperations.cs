@@ -39,8 +39,7 @@ namespace Nyris.Crdt.AspNetExample
         }
 
         public sealed class ImageInfoLwwCollectionWithSerializableOperationsFactory
-            : IManagedCRDTFactory<ImageInfoLwwCollectionWithSerializableOperations,
-                LWWDto>
+            : IManagedCRDTFactory<ImageInfoLwwCollectionWithSerializableOperations, LastWriteWinsDto>
         {
             private readonly ILogger? _logger;
 
