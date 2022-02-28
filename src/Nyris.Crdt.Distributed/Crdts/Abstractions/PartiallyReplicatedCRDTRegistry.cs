@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
@@ -17,11 +20,23 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Strategies.PartialReplication;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Sets;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
+    public class ShardingConfig
+    {
+        public ushort NumShards { get; init; }
+    }
+
+    public sealed class CollectionConfig
+    {
+        public string Name { get; init; } = "";
+        public IPartialReplicationStrategy? PartialReplicationStrategy { get; init; }
+        public IEnumerable<string>? IndexNames { get; init; }
+        public ShardingConfig? ShardingConfig { get; init; }
+    }
+
     /// <summary>
     /// The registry is a key -> collection mapping, where each collection is replicated to a subset of other nodes.
     /// </summary>
@@ -55,24 +70,28 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
         where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
             IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
-        where TCollectionOperationBase : Operation
+        where TCollectionOperationBase : Operation, ISelectShards
         where TCollectionOperationResponseBase : OperationResponse
         where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()
     {
         // ReSharper disable once StaticMemberInGenericType
         private static readonly Random Random = new();
         private readonly TCollectionFactory _factory;
+        private readonly IResponseCombinator _responseCombinator;
 
         private readonly ILogger? _logger;
+        private readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions());
 
         private readonly NodeInfo _thisNode;
         private readonly IPartialReplicationStrategy _partialReplicationStrategy;
-        private readonly SemaphoreSlim _semaphore = new(1);
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
         private ManagedCrdtContext? _context;
 
-        private IDictionary<TKey, IList<NodeInfo>> _desiredDistribution;
-        private readonly ConcurrentDictionary<TKey, TCollection> _collections;
+        private IDictionary<ShardId, IList<NodeInfo>> _desiredDistribution;
 
+        private readonly ConcurrentDictionary<ShardId, TCollection> _collections;
+
+        // CollectionInfo += sharding config
         /// <summary>
         /// Keys of all collections, regardless if they are stored locally or not
         /// </summary>
@@ -82,13 +101,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             CollectionInfo.CollectionInfoDto,
             CollectionInfo.CollectionInfoFactory> _collectionInfos;
 
-        private readonly HashableLastWriteWinsRegistry<string, TKey, DateTime> _instanceIdToKeys;
-
         /// <summary>
-        /// Mapping: key -> HashSet{NodeId}: shows which node contains which collections. Used for routing requests
+        /// Mapping: ShardId -> HashSet{NodeId}: shows which node contains which collections. Used for routing requests
         /// </summary>
         private readonly HashableCrdtRegistry<NodeId,
-            TKey,
+            ShardId,
             HashableOptimizedObservedRemoveSet<NodeId, NodeId>,
             HashableOptimizedObservedRemoveSet<NodeId, NodeId>.OptimizedObservedRemoveSetDto,
             HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory> _currentState;
@@ -97,17 +114,18 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         protected PartiallyReplicatedCRDTRegistry(string instanceId,
             ILogger? logger = null,
             IPartialReplicationStrategy? partialReplicationStrategy = null,
+            IResponseCombinator? responseCombinator = null,
             INodeInfoProvider? nodeInfoProvider = null,
             TCollectionFactory? factory = default) : base(instanceId, logger: logger)
         {
             _logger = logger;
+            _responseCombinator = responseCombinator ?? DefaultConfiguration.ResponseCombinator;
             _thisNode = (nodeInfoProvider ?? DefaultConfiguration.NodeInfoProvider).GetMyNodeInfo();
             _partialReplicationStrategy = partialReplicationStrategy ?? DefaultConfiguration.PartialReplicationStrategy;
             _collectionInfos = new HashableCrdtRegistry<NodeId, TKey, CollectionInfo, CollectionInfo.CollectionInfoDto, CollectionInfo.CollectionInfoFactory>();
-            _currentState = new HashableCrdtRegistry<NodeId, TKey, HashableOptimizedObservedRemoveSet<NodeId, NodeId>, OptimizedObservedRemoveSet<NodeId, NodeId>.OptimizedObservedRemoveSetDto, HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory>();
-            _collections = new ConcurrentDictionary<TKey, TCollection>();
-            _instanceIdToKeys = new HashableLastWriteWinsRegistry<string, TKey, DateTime>();
-            _desiredDistribution = new Dictionary<TKey, IList<NodeInfo>>();
+            _currentState = new();
+            _collections = new();
+            _desiredDistribution = new Dictionary<ShardId, IList<NodeInfo>>();
             _factory = factory ?? new TCollectionFactory();
         }
 
@@ -119,8 +137,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             set => _context = value;
         }
 
-        public async Task<bool> TryAddCollectionAsync(TKey key, string instanceId,
-            IEnumerable<string>? indexNames = null,
+        public async Task<bool> TryAddCollectionAsync(TKey key, CollectionConfig config,
             int waitForPropagationToNumNodes = 0,
             string traceId = "",
             CancellationToken cancellationToken = default)
@@ -128,9 +145,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             await _semaphore.WaitAsync(cancellationToken);
             try
             {
-                // TODO: can one of those fail? What happens in that case?
-                return _collectionInfos.TryAdd(_thisNode.Id, key, new CollectionInfo(indexes: indexNames)) &
-                       _instanceIdToKeys.TrySet(instanceId, key, DateTime.UtcNow, out _);
+                var shardIds = Enumerable
+                    .Range(0, config.ShardingConfig?.NumShards ?? 1)
+                    .Select(_ => ShardId.New());
+
+                return _collectionInfos.TryAdd(_thisNode.Id, key,
+                           new CollectionInfo(name: config.Name,
+                               shardIds: shardIds,
+                               indexes: config.IndexNames));
             }
             finally
             {
@@ -152,12 +174,15 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             await _semaphore.WaitAsync(cancellationToken);
             try
             {
-                _currentState.Remove(key);
+                if (!_collectionInfos.TryGetValue(key, out var info)) return true;
                 _collectionInfos.Remove(key);
-                if (_collections.TryRemove(key, out var collection))
+                foreach (var shardId in info.Shards.Keys)
                 {
-                    _instanceIdToKeys.TryRemove(collection.InstanceId, DateTime.UtcNow, out _);
-                    ManagedCrdtContext.Remove<TCollection, TCollectionDto>(collection);
+                    _currentState.Remove(shardId);
+                    if (_collections.TryRemove(shardId, out var collection))
+                    {
+                        ManagedCrdtContext.Remove<TCollection, TCollectionDto>(collection);
+                    }
                 }
                 return true;
             }
@@ -171,10 +196,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        public bool CollectionExists(TKey key) =>
-            _collectionInfos.TryGetValue(key, out _)
-            && _currentState.TryGetValue(key, out _)
-            && _instanceIdToKeys.Values.Contains(key);
+        public bool CollectionExists(TKey key) => _collectionInfos.ContainsKey(key);
 
         public bool TryGetCollectionSize(TKey key, out ulong size)
         {
@@ -196,37 +218,75 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             _logger?.LogDebug("TraceId {TraceId}, registry received an operation for collection " +
                               "{CollectionKey} of type {OperationType}", traceId, key, typeof(TOperation));
-            if (!_currentState.TryGetValue(key, out var nodesWithCollection))
+            if (!_collectionInfos.TryGetValue(key, out var info))
             {
                 // TODO: specify a NotFound response?
-                throw new KeyNotFoundException($"{key} was not found in the current state");
+                throw new KeyNotFoundException($"{key} was not found in the collectionInfos");
             }
 
-            if (nodesWithCollection.Contains(_thisNode.Id) && _collections.TryGetValue(key, out var collection))
+            var routeToShards = operation.GetShards(info.Shards.Keys).ToList();
+
+            switch (routeToShards.Count)
+            {
+                case 0:
+                    throw new NyrisException($"Operation {operation.GetType()} returned empty list of shards");
+                case 1:
+                    return await ApplyToSingleShardAsync<TOperation, TResponse>(routeToShards[0],
+                        operation,
+                        traceId: traceId,
+                        cancellationToken: cancellationToken);
+            }
+
+            var tasks = new Task<TResponse>[routeToShards.Count];
+            for (var i = 0; i < routeToShards.Count; ++i)
+            {
+                tasks[i] = ApplyToSingleShardAsync<TOperation, TResponse>(routeToShards[i],
+                    operation,
+                    traceId: traceId,
+                    cancellationToken: cancellationToken);
+            }
+
+            await Task.WhenAll(tasks);
+
+            return _responseCombinator.Combine(tasks.Select(t => t.Result));
+        }
+
+        internal async Task<TResponse> ApplyToSingleShardAsync<TOperation, TResponse>(ShardId shardId,
+            TOperation operation,
+            string traceId = "",
+            CancellationToken cancellationToken = default)
+            where TOperation : TCollectionOperationBase
+            where TResponse : TCollectionOperationResponseBase
+        {
+            if (!_currentState.TryGetValue(shardId, out var nodesWithShard))
+            {
+                throw new KeyNotFoundException($"{shardId} was not found in the current state");
+            }
+
+            if (nodesWithShard.Contains(_thisNode.Id) && _collections.TryGetValue(shardId, out var collection))
             {
                 // _logger?.LogDebug("TraceId {TraceId}, collection {CollectionKey} found locally", traceId, key);
                 var response = await collection.ApplyAsync(operation, cancellationToken);
-                await SetCollectionSizeAsync(key, collection.Size, traceId, cancellationToken);
-                _logger?.LogDebug("TraceId {TraceId}, collection {CollectionKey} found locally, new size is {Size}",
-                    traceId, key, _collectionInfos[key].Size);
+                await SetShardSizeAsync(shardId, collection.Size, traceId, cancellationToken);
+                _logger?.LogDebug("TraceId {TraceId}, shard {ShardId} found locally", traceId, shardId);
                 return (TResponse)response;
             }
 
-            var nodes = nodesWithCollection.Value.ToList();
+            var nodes = nodesWithShard.Value.ToList();
             var routeTo = nodes[Random.Next(0, nodes.Count)];
             var channelManager = ChannelManagerAccessor.Manager ?? throw new InitializationException(
                 "Operation can not be routed to a different node - Channel manager was not instantiated yet");
 
-            if (!channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse, TKey>>(
+            if (!channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse>>(
                     routeTo, out var client))
             {
                 throw new GeneratedCodeExpectationsViolatedException(
-                    $"Could not get {typeof(IOperationPassingGrpcService<TOperation, TResponse, TKey>)}");
+                    $"Could not get {typeof(IOperationPassingGrpcService<TOperation, TResponse>)}");
             }
 
             _logger?.LogDebug("TraceId {TraceId}, operation was re-routed to node {NodeId}", traceId, routeTo);
             return await client.ApplyAsync(
-                new CrdtOperation<TOperation, TKey>(TypeName, InstanceId, traceId, key, operation),
+                new CrdtOperation<TOperation>(TypeName, InstanceId, traceId, shardId, operation),
                 cancellationToken);
         }
 
@@ -240,10 +300,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 keysMerge = _collectionInfos.MaybeMerge(other.CollectionInfos);
                 var stateMerge = _currentState.MaybeMerge(other.CurrentState);
-                var mappingMerge = _instanceIdToKeys.MaybeMerge(other.InstanceIdToKeys);
                 conflict = keysMerge == MergeResult.ConflictSolved
-                           || stateMerge == MergeResult.ConflictSolved
-                           || mappingMerge == MergeResult.ConflictSolved;
+                           || stateMerge == MergeResult.ConflictSolved;
             }
             finally
             {
@@ -264,8 +322,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 return new PartiallyReplicatedCrdtRegistryDto
                 {
                     CollectionInfos = _collectionInfos.ToDto(),
-                    CurrentState = _currentState.ToDto(),
-                    InstanceIdToKeys = _instanceIdToKeys.ToDto()
+                    CurrentState = _currentState.ToDto()
                 };
             }
             finally
@@ -281,38 +338,35 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_collectionInfos, _currentState, _instanceIdToKeys);
+        public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_collectionInfos, _currentState);
 
         /// <inheritdoc />
         Task IReactToOtherCrdtChange.HandleChangeInAnotherCrdtAsync(string instanceId, CancellationToken cancellationToken)
-        {
-            // if (_instanceIdToKeys.TryGetValue(instanceId, out var key)
-            //     && _collectionInfos.TryGetValue(key, out var collectionInfo)
-            //     && _collections.TryGetValue(key, out var collection)
-            //     && _currentState.TryGetValue(key, out var nodes))
-            // {
-            //     collectionInfo.Size = collection.Size;
-            // }
-            return RebalanceAsync(cancellationToken: cancellationToken);
-        }
+            => RebalanceAsync(cancellationToken: cancellationToken);
 
         private async Task RebalanceAsync(string traceId = "", CancellationToken cancellationToken = default)
         {
             await _semaphore.WaitAsync(cancellationToken);
             try
             {
+                var allShards = new Dictionary<ShardId, ulong>();
+                foreach (var (shardId, size) in _collectionInfos.Values.SelectMany(info => info.Shards.Dict))
+                {
+                    allShards.Add(shardId, size);
+                }
+
                 var desiredDistribution = _partialReplicationStrategy
-                    .GetDistribution(_collectionInfos.Value(info => info.Size), ManagedCrdtContext.Nodes.Value);
+                    .GetDistribution(allShards, ManagedCrdtContext.Nodes.Value);
                 _logger?.LogDebug("TraceId {TraceId}: new desired distribution {DesiredDistribution}",
                     traceId, JsonConvert.SerializeObject(desiredDistribution));
 
                 // If some node(s) went down, remove it/them from current state.
-                foreach (var collectionKey in _currentState.Keys)
+                foreach (var shardId in _currentState.Keys)
                 {
-                    if (!_currentState.TryGetValue(collectionKey, out var collection)) continue;
+                    if (!_currentState.TryGetValue(shardId, out var collection)) continue;
 
-                    foreach (var removedNode in collection.Value.Except(
-                                 ManagedCrdtContext.Nodes.Value.Select(ni => ni.Id)))
+                    foreach (var removedNode in collection.Value.Except(ManagedCrdtContext
+                                 .Nodes.Value.Select(ni => ni.Id)))
                     {
                         collection.Remove(removedNode);
                     }
@@ -321,31 +375,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 // If collection is required to be on this node, create it. It will be populated by Consistency service
                 // Notice that if collection is no longer required to be on this node, we do NOT delete it here.
                 // Instead it will be synced and deleted by consistency service
-                foreach (var (key, nodeInfos) in desiredDistribution)
+                foreach (var (shardId, nodeInfos) in desiredDistribution)
                 {
-                    if (!nodeInfos.Contains(_thisNode) || _collections.ContainsKey(key)) continue;
-
-                    var instanceId = _instanceIdToKeys.Value.First(pair => pair.Value.Equals(key)).Key;
-                    var managedCrdt = _factory.Create(instanceId);
-
-                    foreach (var indexName in _collectionInfos[key].IndexNames.Value)
-                    {
-                        if (IndexFactory.TryGetIndex<IIndex<TCollectionKey, TCollectionValue>>(indexName,
-                                out var index))
-                        {
-                            await managedCrdt.AddIndexAsync(index, cancellationToken);
-                            _logger.LogInformation("Index {IndexName} added to collection {CollectionKey}",
-                                indexName, key);
-                        }
-                        else
-                        {
-                            _logger.LogError("TraceId {TraceId}: collection {CollectionKey} should contain index " +
-                                             "{IndexName}, but index was not registered in IndexFactory",
-                                traceId, key, indexName);
-                        }
-                    }
-                    _collections.TryAdd(key, managedCrdt);
-                    ManagedCrdtContext.Add(managedCrdt, _factory, this, this);
+                    if (!nodeInfos.Contains(_thisNode) || _collections.ContainsKey(shardId)) continue;
+                    await CreateLocalShardAsync(shardId, traceId, cancellationToken);
                 }
 
                 _desiredDistribution = desiredDistribution;
@@ -356,26 +389,62 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
+        private async Task CreateLocalShardAsync(ShardId shardId, string traceId, CancellationToken cancellationToken)
+        {
+            if (!TryGetCollectionKey(shardId, out var key)) throw new KeyNotFoundException(
+                $"TraceId {traceId}: ShardId {shardId} does not belong to any known collection");
+
+            var managedCrdt = _factory.Create(shardId.ToString());
+            foreach (var indexName in _collectionInfos[key].IndexNames.Value)
+            {
+                if (IndexFactory.TryGetIndex<IIndex<TCollectionKey, TCollectionValue>>(indexName, out var index))
+                {
+                    await managedCrdt.AddIndexAsync(index, cancellationToken);
+                    _logger.LogInformation("TraceId {TraceId}: Index {IndexName} added to collection {CollectionKey}",
+                        traceId, indexName, key);
+                }
+                else
+                {
+                    _logger.LogError("TraceId {TraceId}: collection {CollectionKey} should contain index " +
+                                     "{IndexName}, but index was not registered in IndexFactory",
+                        traceId, key, indexName);
+                }
+            }
+            _collections.TryAdd(shardId, managedCrdt);
+            ManagedCrdtContext.Add(managedCrdt, _factory, this, this);
+        }
+
+        private bool TryGetCollectionKey(ShardId shardId, [NotNullWhen(true)] out TKey? collectionKey)
+        {
+            collectionKey = _cache.GetOrCreate(shardId, entry =>
+            {
+                foreach (var key in _collectionInfos.Keys)
+                {
+                    if (!_collectionInfos.TryGetValue(key, out var info)) continue;
+                    if (info.Shards.ContainsKey(shardId))
+                    {
+                        entry.SlidingExpiration = TimeSpan.FromHours(1);
+                        return key;
+                    }
+                }
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10);
+                return default;
+            });
+            return collectionKey != null;
+        }
+
         private void MaybeUpdateCurrentState()
         {
-            // For each collection stored locally, we can add this node to a _currentState if that collection is up to date
-            // A couple of words of explanation:
-            // 1. _currentState holds a mapping from collectionIds to lists of nodes that store respective collections
-            // 2. After new collection is created or NodeSet is changed, collections may need to rebalance - i.e. some
-            // collections will be transferred between nodes. This is not an instantaneous process. So we may have
-            // a situation where node A contain a freshly created local collection, that is in a process of syncing with
-            // large collection on node B. In this case we want _currentState to contain mapping to node B, but node A.
-            // To make this happen, we only add local collection to _currentState iff it's size is the same as the
-            // one stored in _collectionInfos
-            foreach (var (key, collection) in _collections)
+            foreach (var (shardId, collection) in _collections)
             {
-                if (!_collectionInfos.TryGetValue(key, out var collectionInfo)
-                    || collection.Size != collectionInfo.Size) continue;
+                if (!TryGetCollectionKey(shardId, out var key)
+                    || !_collectionInfos.TryGetValue(key, out var collectionInfo)
+                    || collection.Size != collectionInfo.Shards[shardId]) continue;
 
-                if (!_currentState.TryGetValue(key, out var nodes))
+                if (!_currentState.TryGetValue(shardId, out var nodes))
                 {
                     nodes = new HashableOptimizedObservedRemoveSet<NodeId, NodeId>();
-                    _currentState.TryAdd(_thisNode.Id, key, nodes);
+                    _currentState.TryAdd(_thisNode.Id, shardId, nodes);
                 }
 
                 if(!nodes.Contains(_thisNode.Id)) nodes.Add(_thisNode.Id, _thisNode.Id);
@@ -385,13 +454,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         async Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(string instanceId, CancellationToken cancellationToken)
         {
-            if (!_instanceIdToKeys.TryGetValue(instanceId, out var key)) return;
+            var shardId = ShardId.Parse(instanceId);
             await _semaphore.WaitAsync(cancellationToken);
             try
             {
-                _logger?.LogDebug("Collection with instance id {InstanceId} is being removed locally", instanceId);
-                _collections.TryRemove(key, out _);
-                if (_currentState.TryGetValue(key, out var set))
+                _logger?.LogDebug("Shard with instance id {ShardId} is being removed locally", shardId);
+                _collections.TryRemove(shardId, out _);
+                if (_currentState.TryGetValue(shardId, out var set))
                 {
                     set.Remove(_thisNode.Id);
                 }
@@ -404,24 +473,28 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         IList<NodeInfo> INodesWithReplicaProvider.GetNodesThatShouldHaveReplicaOfCollection(string instanceId)
         {
-            if(!_instanceIdToKeys.TryGetValue(instanceId, out var key) ||
-               !_desiredDistribution.TryGetValue(key, out var nodes))
+            if(!ShardId.TryParse(instanceId, out var shardId)
+               || !_desiredDistribution.TryGetValue(shardId, out var nodes))
             {
+                _logger?.LogDebug("");
                 return ArraySegment<NodeInfo>.Empty;
             }
 
             return nodes;
         }
 
-        private async Task SetCollectionSizeAsync(TKey key, ulong size, string traceId,
+        private async Task SetShardSizeAsync(ShardId shardId, ulong size, string traceId,
             CancellationToken cancellationToken)
         {
-            if (_collectionInfos.TryGetValue(key, out var info) && info.Size != size)
+            if (TryGetCollectionKey(shardId, out var key)
+                && _collectionInfos.TryGetValue(key, out var info)
+                && info.Shards.TryGetValue(shardId, out var shardSize)
+                && shardSize != size)
             {
                 await _semaphore.WaitAsync(cancellationToken);
                 try
                 {
-                    info.Size = size;
+                    info.Shards[shardId] = size;
                 }
                 finally
                 {
@@ -443,15 +516,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             [ProtoMember(2)]
             public HashableCrdtRegistry<NodeId,
-                TKey,
+                ShardId,
                 HashableOptimizedObservedRemoveSet<NodeId, NodeId>,
                 HashableOptimizedObservedRemoveSet<NodeId, NodeId>.OptimizedObservedRemoveSetDto,
                 HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory>.HashableCrdtRegistryDto? CurrentState { get; set; }
-
-            [ProtoMember(3)]
-            public HashableLastWriteWinsRegistry<string,
-                TKey,
-                DateTime>.LastWriteWinsRegistryDto? InstanceIdToKeys { get; set; }
         }
     }
 

@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.Local
+    environment:
+      - NODE_NAME=node-0
     ports:
       - "5000:80"
       - "5001:8080"
@@ -11,6 +13,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.Local
+    environment:
+      - NODE_NAME=node-1
     ports:
       - "5010:80"
       - "5011:8080"
@@ -18,6 +22,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.Local
+    environment:
+      - NODE_NAME=node-2
     ports:
       - "5020:80"
       - "5021:8080"

@@ -6,9 +6,9 @@ using Nyris.Crdt.Distributed.Model;
 namespace Nyris.Crdt.Distributed.Grpc
 {
     [ServiceContract]
-    public interface IOperationPassingGrpcService<TOperation, TOperationResult, TKey>
+    public interface IOperationPassingGrpcService<TOperation, TOperationResult>
     {
         [OperationContract]
-        Task<TOperationResult> ApplyAsync(CrdtOperation<TOperation, TKey> operation, CancellationToken cancellationToken = default);
+        Task<TOperationResult> ApplyAsync(CrdtOperation<TOperation> operation, CancellationToken cancellationToken = default);
     }
 }

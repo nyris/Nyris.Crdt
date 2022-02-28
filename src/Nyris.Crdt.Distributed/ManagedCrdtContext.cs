@@ -190,7 +190,7 @@ namespace Nyris.Crdt.Distributed
             where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
                 IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
             where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()
-            where TCollectionOperationBase : Operation
+            where TCollectionOperationBase : Operation, ISelectShards
             where TCollectionOperationResponseBase : OperationResponse
             where TCollectionOperation : TCollectionOperationBase
             where TCollectionOperationResponse : TCollectionOperationResponseBase
@@ -212,6 +212,62 @@ namespace Nyris.Crdt.Distributed
             }
 
             return await crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key,
+                operation,
+                traceId: traceId,
+                cancellationToken: cancellationToken);
+        }
+
+        public async Task<TCollectionOperationResponse> ApplyAsync<TCrdt,
+            TKey,
+            TCollection,
+            TCollectionKey,
+            TCollectionValue,
+            TCollectionDto,
+            TCollectionOperationBase,
+            TCollectionOperationResponseBase,
+            TCollectionFactory,
+            TCollectionOperation,
+            TCollectionOperationResponse
+        >(
+            ShardId shardId,
+            TCollectionOperation operation,
+            string instanceId,
+            string traceId = "",
+            CancellationToken cancellationToken = default)
+            where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
+                TCollection,
+                TCollectionKey,
+                TCollectionValue,
+                TCollectionDto,
+                TCollectionOperationBase,
+                TCollectionOperationResponseBase,
+                TCollectionFactory>
+            where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
+            where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
+                IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
+            where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()
+            where TCollectionOperationBase : Operation, ISelectShards
+            where TCollectionOperationResponseBase : OperationResponse
+            where TCollectionOperation : TCollectionOperationBase
+            where TCollectionOperationResponse : TCollectionOperationResponseBase
+        {
+            if (!TryGetCrdt<TCrdt,
+                    PartiallyReplicatedCRDTRegistry<TKey,
+                        TCollection,
+                        TCollectionKey,
+                        TCollectionValue,
+                        TCollectionDto,
+                        TCollectionOperationBase,
+                        TCollectionOperationResponseBase,
+                        TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>(instanceId, out var crdt))
+            {
+                throw new ManagedCrdtContextSetupException($"Applying operation of type {typeof(TCollectionOperationBase)} " +
+                                                           $"to crdt {typeof(TCrdt)} with id {instanceId} failed. " +
+                                                           "Check that you Add-ed appropriate partially replicated crdt type and " +
+                                                           "that instanceId of that type is coordinated across servers");
+            }
+
+            return await crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
                 operation,
                 traceId: traceId,
                 cancellationToken: cancellationToken);

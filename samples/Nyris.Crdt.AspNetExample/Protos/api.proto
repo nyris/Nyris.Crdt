@@ -14,7 +14,7 @@ service Api {
   rpc GetImage (ImageUuids) returns (Image);
   rpc DeleteCollection (CollectionIdMessage) returns (BoolResponse);
 
-  rpc CreateImagesCollectionPR (Collection) returns (CollectionIdMessage);
+  rpc CreateImagesCollectionPR (ShardedCollection) returns (CollectionIdMessage);
   rpc GetCollectionInfoPR (CollectionIdMessage) returns (Collection);
   rpc ImagesCollectionExistsPR(CollectionIdMessage) returns (BoolResponse);
   rpc CreateImagePR (Image) returns (Image);
@@ -41,6 +41,14 @@ message Collection {
   string name = 2;
   uint64 size = 3;
   string traceId = 4;
+}
+
+message ShardedCollection {
+  string id = 1;
+  string name = 2;
+  uint32 numShards = 3;
+  uint64 size = 4;
+  string traceId = 5;
 }
 
 message BoolResponse {

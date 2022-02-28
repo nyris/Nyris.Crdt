@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Model;
@@ -48,12 +49,17 @@ namespace Nyris.Crdt.AspNetExample.Services
         }
 
         /// <inheritdoc />
-        public override async Task<CollectionIdMessage> CreateImagesCollectionPR(Collection request, ServerCallContext context)
+        public override async Task<CollectionIdMessage> CreateImagesCollectionPR(ShardedCollection request, ServerCallContext context)
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(CreateImagesCollectionPR));
             var id = string.IsNullOrEmpty(request.Id) ? CollectionId.New() : CollectionId.Parse(request.Id);
-            var added = await _context.PartiallyReplicatedImageCollectionsRegistry.TryAddCollectionAsync(id, id.ToString(),
-                new [] { ImageIdIndex.IndexName },
+            var added = await _context.PartiallyReplicatedImageCollectionsRegistry.TryAddCollectionAsync(id,
+                new CollectionConfig
+                {
+                    Name = id.ToString(),
+                    IndexNames = new [] { ImageIdIndex.IndexName },
+                    ShardingConfig = request.NumShards > 0 ? new ShardingConfig{ NumShards = (ushort) request.NumShards } : null
+                },
                 waitForPropagationToNumNodes: 2,
                 traceId: request.TraceId,
                 cancellationToken: context.CancellationToken);

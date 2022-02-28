@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Google.Protobuf;
@@ -185,14 +184,14 @@ public class Tests : IDisposable
     {
         var traceId = ShortGuid.NewGuid().ToString();
         _testOutputHelper.WriteLine("TraceId: " + traceId);
-        var collection = await _clientA.CreateImagesCollectionPRAsync(new Collection
+        var collection = await _clientA.CreateImagesCollectionPRAsync(new ShardedCollection
         {
             TraceId = traceId
         });
 
-        await AddRandomImagesPRAsync(_clientB, collection.Id, 10, traceId);
-        await AddRandomImagesPRAsync(_clientC, collection.Id, 10, traceId);
-        await AddRandomImagesPRAsync(_clientA, collection.Id, 10, traceId);
+        await AddRandomImagesPartiallyReplicatedAsync(_clientB, collection.Id, 10, traceId);
+        await AddRandomImagesPartiallyReplicatedAsync(_clientC, collection.Id, 10, traceId);
+        await AddRandomImagesPartiallyReplicatedAsync(_clientA, collection.Id, 10, traceId);
 
         var collectionInfo = await _clientA.GetCollectionInfoPRAsync(collection);
         collectionInfo.Id.Should().Be(collection.Id);
@@ -208,14 +207,18 @@ public class Tests : IDisposable
         await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = collection.Id, TraceId = traceId });
     }
 
-    [Fact]
-    public async Task CreateCollectionPRWorks()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task CreateCollectionPartiallyReplicatedWorks(uint numShards)
     {
         var traceId = ShortGuid.NewGuid().ToString();
         _testOutputHelper.WriteLine("TraceId: " + traceId);
-        var response = await _clientA.CreateImagesCollectionPRAsync(new Collection
+        var response = await _clientA.CreateImagesCollectionPRAsync(new ShardedCollection
         {
-            TraceId = traceId
+            TraceId = traceId,
+            NumShards = numShards
         });
         response.Id.Should().NotBeEmpty();
         var exists = await _clientA.ImagesCollectionExistsPRAsync(response);
@@ -223,14 +226,18 @@ public class Tests : IDisposable
         await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = response.Id, TraceId = traceId });
     }
 
-    [Fact]
-    public async Task CreateCollectionPRPropagationWorks()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task CreateCollectionPartiallyReplicatedPropagationWorks(uint numShards)
     {
         var traceId = ShortGuid.NewGuid().ToString();
         _testOutputHelper.WriteLine("TraceId: " + traceId);
-        var response = await _clientA.CreateImagesCollectionPRAsync(new Collection
+        var response = await _clientA.CreateImagesCollectionPRAsync(new ShardedCollection
         {
-            TraceId = traceId
+            TraceId = traceId,
+            NumShards = numShards
         });
         response.Id.Should().NotBeEmpty();
 
@@ -242,15 +249,19 @@ public class Tests : IDisposable
         await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = response.Id, TraceId = traceId });
     }
 
-    [Fact]
-    public async Task CreateImagePRWorks()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task CreateImagePartiallyReplicatedWorks(uint numShards)
     {
         var traceId = ShortGuid.NewGuid().ToString();
         _testOutputHelper.WriteLine("TraceId: " + traceId);
         var imageId = new byte[] { 1, 2, 3, 4 };
-        var collection = await _clientA.CreateImagesCollectionPRAsync(new Collection
+        var collection = await _clientA.CreateImagesCollectionPRAsync(new ShardedCollection
         {
-            TraceId = traceId
+            TraceId = traceId,
+            NumShards = numShards
         });
         var image = await _clientA.CreateImagePRAsync(new Image
         {
@@ -274,15 +285,19 @@ public class Tests : IDisposable
         await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = collection.Id, TraceId = traceId });
     }
 
-    [Fact]
-    public async Task CreateImagePRPropagationWorks()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task CreateImagePartiallyReplicatedPropagationWorks(uint numShards)
     {
         var traceId = ShortGuid.NewGuid().ToString();
         _testOutputHelper.WriteLine("TraceId: " + traceId);
         var imageId = new byte[] { 1, 2, 3, 4 };
-        var collection = await _clientA.CreateImagesCollectionPRAsync(new Collection
+        var collection = await _clientA.CreateImagesCollectionPRAsync(new ShardedCollection
         {
-            TraceId = traceId
+            TraceId = traceId,
+            NumShards = numShards
         });
         // await Task.Delay(TimeSpan.FromSeconds(1));
 
@@ -313,12 +328,13 @@ public class Tests : IDisposable
     {
         var traceId = ShortGuid.NewGuid().ToString();
         _testOutputHelper.WriteLine("TraceId: " + traceId);
-        var collection = await _clientA.CreateImagesCollectionPRAsync(new Collection
+        var collection = await _clientA.CreateImagesCollectionPRAsync(new ShardedCollection
         {
-            TraceId = traceId
+            TraceId = traceId,
+            NumShards = 3
         });
 
-        var images = await AddRandomImagesPRAsync(_clientB, collection.Id, 2, traceId);
+        var images = await AddRandomImagesPartiallyReplicatedAsync(_clientB, collection.Id, 2, traceId);
         // create a copy of first image, so that we can find more than one image later
         var duplicateImage = await _clientC.CreateImagePRAsync(new Image
         {
@@ -379,7 +395,7 @@ public class Tests : IDisposable
         return ids;
     }
 
-    private static async Task<IList<Image>> AddRandomImagesPRAsync(Api.ApiClient client, string collectionId, int n, string traceId)
+    private static async Task<IList<Image>> AddRandomImagesPartiallyReplicatedAsync(Api.ApiClient client, string collectionId, int n, string traceId)
     {
         var ids = new List<Image>(n);
         var imageIdBuffer = new byte[32];

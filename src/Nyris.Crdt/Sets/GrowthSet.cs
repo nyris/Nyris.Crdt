@@ -8,13 +8,34 @@ namespace Nyris.Crdt.Sets
     /// <summary>
     /// Simple CRDT, defining a Growth-only set
     /// </summary>
-    public class GrowthSet<TItem> where TItem : IEquatable<TItem>
+    public class GrowthSet<TItem> : ICRDT<HashSet<TItem>>
+        where TItem : IEquatable<TItem>
     {
-        public HashSet<TItem> Set { get; } = new();
+        public HashSet<TItem> Set { get; }
 
-        public void Merge(GrowthSet<TItem> other) => Set.UnionWith(other.Set);
+        public GrowthSet()
+        {
+            Set = new HashSet<TItem>();
+        }
+
+        public GrowthSet(IEnumerable<TItem> items)
+        {
+            Set = new HashSet<TItem>(items);
+        }
 
         public void Add(TItem item) => Set.Add(item);
+
+        /// <inheritdoc />
+        public MergeResult Merge(HashSet<TItem> other)
+        {
+            var newElements = other.Except(Set).ToHashSet();
+            if (newElements.Count == 0) return MergeResult.NotUpdated;
+            Set.IntersectWith(newElements);
+            return MergeResult.ConflictSolved;
+        }
+
+        /// <inheritdoc />
+        public HashSet<TItem> ToDto() => Set;
     }
 
 

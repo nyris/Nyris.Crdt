@@ -6,7 +6,7 @@ namespace Nyris.Crdt.Distributed.Model.Converters
 {
     public class InternalIdTypeConverter<TInternalId, TFactory> : TypeConverter
         where TFactory : IFactory<TInternalId>, new()
-        where TInternalId : struct, IFormattable
+        where TInternalId : IFormattable
     {
         private static readonly TFactory Factory = new();
 

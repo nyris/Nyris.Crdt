@@ -11,11 +11,47 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
-    public sealed class HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
+    public sealed class HashableCrdtRegistry<TActorId, TItemKey, TItemValue>
+        : HashableCrdtRegistry<TActorId,
+            TItemKey,
+            SingleValue<TItemValue>,
+            SingleValue<TItemValue>.SingleValueDto,
+            SingleValue<TItemValue>.SingleValueFactory>
+        where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>
+        where TActorId : IEquatable<TActorId>, IComparable<TActorId>
+        where TItemValue : IEquatable<TItemValue>
+    {
+        public bool TryAdd(TActorId actorId, TItemKey key, TItemValue value)
+            => TryAdd(actorId, key, new SingleValue<TItemValue>(value));
+
+        public bool TryGetValue(in TItemKey key, [NotNullWhen(true)] out TItemValue? value)
+        {
+            if (!base.TryGetValue(key, out var v))
+            {
+                value = default;
+                return false;
+            };
+            value = v.Value;
+            return true;
+        }
+
+        // ReSharper disable once InconsistentlySynchronizedField
+        public new TItemValue this[TItemKey key]
+        {
+            get => base[key].Value;
+            set => base[key].Value = value;
+        }
+
+        public IReadOnlyDictionary<TItemKey, TItemValue> Dict => base.Value(v => v.Value);
+
+        public new IEnumerable<TItemValue> Values => base.Values.Select(v => v.Value);
+    }
+
+    public class HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
         : ICRDT<HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.HashableCrdtRegistryDto>,
             IHashable
-        where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>, IHashable
-        where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
+        where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>
+        where TActorId : IEquatable<TActorId>, IComparable<TActorId>
         where TItemValue : class, ICRDT<TItemValueDto>, IHashable
         where TItemValueFactory : ICRDTFactory<TItemValue, TItemValueDto>, new()
     {
@@ -42,11 +78,16 @@ namespace Nyris.Crdt.Distributed.Crdts
         public HashSet<TItemKey> Keys => _keys.Value;
 
         // ReSharper disable once InconsistentlySynchronizedField
+        public IEnumerable<TItemValue> Values => _dictionary.Values;
+
+        // ReSharper disable once InconsistentlySynchronizedField
         public TItemValue this[TItemKey key] => _dictionary[key];
 
         public bool TryGetValue(in TItemKey key, [NotNullWhen(true)] out TItemValue? value)
             // ReSharper disable once InconsistentlySynchronizedField
             => _dictionary.TryGetValue(key, out value);
+
+        public bool ContainsKey(in TItemKey key) => _keys.Contains(key);
 
         /// <inheritdoc />
         public ReadOnlySpan<byte> CalculateHash()

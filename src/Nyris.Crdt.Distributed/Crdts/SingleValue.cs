@@ -62,5 +62,11 @@ namespace Nyris.Crdt.Distributed.Crdts
             [ProtoMember(2)]
             public DateTime DateTime { get; set; }
         }
+
+        public sealed class SingleValueFactory : ICRDTFactory<SingleValue<T>, SingleValueDto>
+        {
+            /// <inheritdoc />
+            public SingleValue<T> Create(SingleValueDto dto) => new SingleValue<T>(dto);
+        }
     }
 }

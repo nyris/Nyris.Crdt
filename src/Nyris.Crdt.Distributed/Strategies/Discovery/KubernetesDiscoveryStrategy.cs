@@ -49,7 +49,7 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
             {
                 var podList = await _client.ListNamespacedPodAsync(@namespace, cancellationToken: cancellationToken);
                 _logger.LogDebug("Info about {PodNumber} pods retrieved from {Namespace} namespace: {PodNames}",
-                    podList.Items.Count, @namespace, string.Join("; ", podList.Items.Select(pod => ModelExtensions.Name(pod))));
+                    podList.Items.Count, @namespace, string.Join("; ", podList.Items.Select(pod => pod.Name())));
                 pods.AddRange(podList.Items);
             }
 

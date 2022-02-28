@@ -1,10 +1,13 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.ObjectPool;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
+using Nyris.Crdt.Distributed.Exceptions;
 
 namespace Nyris.Crdt.Distributed.Utils
 {
@@ -78,7 +81,7 @@ namespace Nyris.Crdt.Distributed.Utils
         }
 
         public static ReadOnlySpan<byte> Combine<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> items)
-            where TKey : IHashable
+            where TKey : IEquatable<TKey>
             where TValue : IHashable
         {
             var sha1 = Pool.Get();
@@ -86,7 +89,7 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 foreach (var (key, item) in items)
                 {
-                    sha1.AppendData(key.CalculateHash());
+                    sha1.AppendData(CalculateHash(key));
                     sha1.AppendData(item.CalculateHash());
                 }
 
@@ -108,6 +111,25 @@ namespace Nyris.Crdt.Distributed.Utils
                 {
                     sha1.AppendData(CalculateHash(key));
                     sha1.AppendData(BitConverter.GetBytes(item));
+                }
+
+                return sha1.GetHashAndReset();
+            }
+            finally
+            {
+                Pool.Return(sha1);
+            }
+        }
+
+        public static ReadOnlySpan<byte> Combine(IEnumerable items)
+        {
+            var sha1 = Pool.Get();
+            try
+            {
+                foreach (var item in items)
+                {
+                    if (ReferenceEquals(null, item)) continue;
+                    sha1.AppendData(CalculateHash(item));
                 }
 
                 return sha1.GetHashAndReset();
@@ -247,8 +269,12 @@ namespace Nyris.Crdt.Distributed.Utils
                 char charValue => BitConverter.GetBytes(charValue),
                 string stringValue => Encoding.Default.GetBytes(stringValue),
                 DateTime dateTime => BitConverter.GetBytes(dateTime.ToBinary()),
+                Guid guid => guid.ToByteArray(),
                 IHashable hashable => hashable.CalculateHash(),
-                _ => BitConverter.GetBytes(value.GetHashCode())
+                IEnumerable enumerable => Combine(enumerable),
+                _ => throw new HashCalculationException(
+                    $"CalculateHash method was called on an unknown type {value.GetType()}. " +
+                    "If it is a custom type, consider implementing IHashable interface")
             };
         }
 

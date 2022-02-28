@@ -3,7 +3,7 @@ using System;
 namespace Nyris.Crdt.Distributed.Model.Converters
 {
     public interface IFactory<out TInternalId>
-        where TInternalId : struct, IFormattable
+        where TInternalId : IFormattable
     {
         TInternalId Empty { get; }
 

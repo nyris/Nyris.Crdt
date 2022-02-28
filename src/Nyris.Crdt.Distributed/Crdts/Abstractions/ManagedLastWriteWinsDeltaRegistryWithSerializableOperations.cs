@@ -14,7 +14,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         : ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>,
             IAcceptOperations<RegistryOperation, RegistryOperationResponse>
         where TValue : IHashable
-        where TKey : IEquatable<TKey>
+        where TKey : IEquatable<TKey>, IHashable
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         /// <inheritdoc />

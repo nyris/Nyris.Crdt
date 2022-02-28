@@ -67,6 +67,8 @@ namespace Nyris.Crdt.Distributed.Services
                 var nameAndInstanceId = new TypeNameAndInstanceId(typeName, instanceId);
                 var nodesThatShouldHaveReplica = _context.GetNodesThatHaveReplica(nameAndInstanceId).ToList();
 
+                _logger.LogDebug("Crdt {CrdtName} with instanceId {InstanceId} is expected to be at {NodeList}",
+                    typeName, instanceId, string.Join(";", nodesThatShouldHaveReplica));
                 var markForDeletion = nodesThatShouldHaveReplica.Count == 0
                                       || nodesThatShouldHaveReplica.All(ni => ni.Id != _thisNodeId);
 
