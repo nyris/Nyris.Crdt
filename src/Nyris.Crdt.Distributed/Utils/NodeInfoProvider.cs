@@ -12,7 +12,9 @@ namespace Nyris.Crdt.Distributed.Utils
         private NodeInfo? _info;
 
         /// <inheritdoc />
-        public NodeId ThisNodeId { get; } = NodeId.FromString(Environment.GetEnvironmentVariable("NODE_NAME") ?? "");
+        public NodeId ThisNodeId { get; } = Environment.GetEnvironmentVariable("NODE_NAME") != null
+            ? NodeId.FromString(Environment.GetEnvironmentVariable("NODE_NAME") ?? "")
+            : NodeId.New();
 
         public NodeInfo GetMyNodeInfo()
         {
