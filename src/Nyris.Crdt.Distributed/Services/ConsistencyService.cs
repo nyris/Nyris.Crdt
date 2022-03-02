@@ -67,11 +67,17 @@ namespace Nyris.Crdt.Distributed.Services
                 var nameAndInstanceId = new TypeNameAndInstanceId(typeName, instanceId);
                 var nodesThatShouldHaveReplica = _context.GetNodesThatHaveReplica(nameAndInstanceId).ToList();
 
-                _logger.LogDebug("Crdt {CrdtName} with instanceId {InstanceId} is expected to be at {NodeList}",
-                    typeName, instanceId, string.Join(";", nodesThatShouldHaveReplica));
+                _logger.LogDebug("Crdt {CrdtName} ({InstanceId}) is expected to be at {NodeList}",
+                    typeName, instanceId, string.Join(";", nodesThatShouldHaveReplica.Select(ni => ni.Id)));
+                
+                // if this instance was removed globally (i.e. no nodes should have a replica)
+                // or if this particular node should not have a replica
+                // then local replica may be deleted 
                 var markForDeletion = nodesThatShouldHaveReplica.Count == 0
                                       || nodesThatShouldHaveReplica.All(ni => ni.Id != _thisNodeId);
 
+                // however, local replica should be deleted only if it transferred all it's content
+                // to nodes that should have it. That is - if synchronization was successful
                 foreach (var nodeId in _strategy.GetTargetNodes(nodesThatShouldHaveReplica, _thisNodeId))
                 {
                     markForDeletion &= await TryHandleConsistencyCheckAsync(nameAndInstanceId, nodeId, cancellationToken);
@@ -79,6 +85,8 @@ namespace Nyris.Crdt.Distributed.Services
 
                 if (markForDeletion)
                 {
+                    _logger.LogDebug("Crdt {CrdtName} ({InstanceId}) will be removed locally",
+                        typeName, instanceId);
                     await _context.RemoveLocallyAsync<TCrdt, TDto>(nameAndInstanceId, cancellationToken);
                 }
             }

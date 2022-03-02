@@ -295,18 +295,18 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             await _semaphore.WaitAsync(cancellationToken);
             var conflict = false;
-            var keysMerge = MergeResult.Identical;
+            var infosMerge = MergeResult.Identical;
             try
             {
-                keysMerge = _collectionInfos.MaybeMerge(other.CollectionInfos);
+                infosMerge = _collectionInfos.MaybeMerge(other.CollectionInfos);
                 var stateMerge = _currentState.MaybeMerge(other.CurrentState);
-                conflict = keysMerge == MergeResult.ConflictSolved
+                conflict = infosMerge == MergeResult.ConflictSolved
                            || stateMerge == MergeResult.ConflictSolved;
             }
             finally
             {
                 _semaphore.Release();
-                if(keysMerge == MergeResult.ConflictSolved) await RebalanceAsync(cancellationToken: cancellationToken);
+                if(infosMerge == MergeResult.ConflictSolved) await RebalanceAsync(cancellationToken: cancellationToken);
                 MaybeUpdateCurrentState();
             }
 
@@ -400,14 +400,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 if (IndexFactory.TryGetIndex<IIndex<TCollectionKey, TCollectionValue>>(indexName, out var index))
                 {
                     await managedCrdt.AddIndexAsync(index, cancellationToken);
-                    _logger.LogInformation("TraceId {TraceId}: Index {IndexName} added to collection {CollectionKey}",
-                        traceId, indexName, key);
+                    _logger.LogInformation("TraceId {TraceId}: Index {IndexName} added to shard {ShardId}",
+                        traceId, indexName, shardId);
                 }
                 else
                 {
-                    _logger.LogError("TraceId {TraceId}: collection {CollectionKey} should contain index " +
+                    _logger.LogError("TraceId {TraceId}: shard {ShardId} should contain index " +
                                      "{IndexName}, but index was not registered in IndexFactory",
-                        traceId, key, indexName);
+                        traceId, shardId, indexName);
                 }
             }
             _collections.TryAdd(shardId, managedCrdt);
