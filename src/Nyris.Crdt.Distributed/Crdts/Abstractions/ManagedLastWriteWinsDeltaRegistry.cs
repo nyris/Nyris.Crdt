@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Utils;
@@ -58,7 +59,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             TValue value,
             TTimeStamp timeStamp,
             int propagateToNodes = 0,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
         {
             var item = _items.AddOrUpdate(key,
@@ -108,7 +109,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             if (ReferenceEquals(other.Items, null) || other.Items.Count == 0) return MergeResult.NotUpdated;
 
             var conflictSolved = false;
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 foreach (var key in other.Items.Keys)

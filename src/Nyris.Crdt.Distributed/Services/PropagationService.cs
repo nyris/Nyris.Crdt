@@ -66,7 +66,14 @@ namespace Nyris.Crdt.Distributed.Services
 
                         _logger.LogDebug("TraceId: {TraceId}, Received back dto {Dto}",
                             dto.TraceId, JsonConvert.SerializeObject(response));
-                        await _context.MergeAsync<TCrdt, TDto>(response, dto.InstanceId, cancellationToken: stoppingToken);
+                        
+                        // we should NOT await merge here, because on conflict it will try to
+                        // publish dto to the queue, which might be full. And since this loop
+                        // is the only way to free the queue, we have a deadlock
+                        _ = _context.MergeAsync<TCrdt, TDto>(response, 
+                            dto.InstanceId,
+                            traceId: dto.TraceId,
+                            cancellationToken: stoppingToken);
                     }
                 }
                 catch (Exception e)

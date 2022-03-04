@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
@@ -49,7 +50,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override ReadOnlySpan<byte> CalculateHash()
         {
-            _semaphore.Wait();
+            if (!_semaphore.Wait(TimeSpan.FromSeconds(15)))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 return HashingHelper.Combine(
@@ -68,7 +72,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             if (ReferenceEquals(other.ObservedState, null) || other.ObservedState.Count == 0) return MergeResult.NotUpdated;
             other.Items ??= new HashSet<VersionedSignedItem<TActorId, TItem>>();
 
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 // variables names a taken from the paper, they do not have obvious meaning by themselves
@@ -120,7 +127,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public override async Task<OrSetDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 return new OrSetDto
@@ -148,7 +158,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             get
             {
-                _semaphore.Wait();
+                if (!_semaphore.Wait(TimeSpan.FromSeconds(15)))
+                {
+                    throw new NyrisException("Deadlock");
+                }
                 try { return _items.Select(i => i.Item).ToHashSet(); }
                 finally { _semaphore.Release(); }
             }
@@ -156,7 +169,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public virtual async Task AddAsync(TItem item, TActorId actorPerformingAddition)
         {
-            await _semaphore.WaitAsync();
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15)))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 // default value for int is 0, so if key is not preset, lastObservedVersion will be assigned 0, which is intended
@@ -182,7 +198,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public virtual async Task RemoveAsync(Func<TItem, bool> condition)
         {
-            await _semaphore.WaitAsync();
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15)))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 _items.RemoveWhere(i => condition(i.Item));

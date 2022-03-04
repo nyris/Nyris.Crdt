@@ -9,6 +9,7 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Extensions.Guids;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
@@ -69,14 +70,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
 
         protected internal async Task StateChangedAsync(int propagationCounter = 0,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
         {
             var dtoMessage = new DtoMessage<TDto>(TypeName,
                 InstanceId,
                 await ToDtoAsync(cancellationToken),
-                propagationCounter,
-                traceId);
+                traceId ?? ShortGuid.Encode(Guid.NewGuid()),
+                propagationCounter);
 
             _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
             await _queue.EnqueueAsync(dtoMessage, cancellationToken);

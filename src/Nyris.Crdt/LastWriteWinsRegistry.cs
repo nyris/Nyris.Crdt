@@ -26,17 +26,6 @@ namespace Nyris.Crdt
             Items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(dto.Items);
         }
 
-        public IReadOnlyDictionary<TKey, TValue> Value {
-            get
-            {
-                lock (_mergeLock)
-                {
-                    return Items.Where(pair => !pair.Value.Deleted)
-                        .ToDictionary(pair => pair.Key, pair => pair.Value.Value);
-                }
-            }
-        }
-
         /// <summary>
         /// NOTE that this property, by design, does not account for removed items (it will return both deleted and present items)
         /// </summary>
@@ -96,45 +85,6 @@ namespace Nyris.Crdt
                     });
 
                 return item.TimeStamp.CompareTo(timeStamp) == 0;
-            }
-        }
-
-        public MergeResult Merge(LastWriteWinsRegistry<TKey, TValue, TTimeStamp> other)
-        {
-            lock (_mergeLock)
-            {
-                var conflictSolved = false;
-                foreach (var key in Items.Keys.Union(other.Items.Keys))
-                {
-                    var iHave = Items.TryGetValue(key, out var myItem);
-                    var otherHas = other.Items.TryGetValue(key, out var otherItem);
-
-                    conflictSolved = conflictSolved  // if conflict was in the previous key, keep the true value immediately
-                                     || iHave != otherHas // or if current key is missing from one of the registries
-                                     || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) != 0;
-                    // notes on last condition: notice that iHave and otherHas can have only 3 possibilities:
-                    // true-false, false-true and true-true. false-false is not possible, since in that case we would not
-                    // have this key to begin with. And true-false, false-true both satisfy iHave != otherHas
-                    // and execution would have stopped there. Only when both items were retrieved successfully, will
-                    // we evaluate the last condition.
-
-                    // case when 'this' registry have newer version of item or other does not have an item at all
-                    // no need to update anything
-                    if (!otherHas || iHave && myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) >= 0)
-                    {
-                        continue;
-                    }
-
-                    // at this point we ruled out true-false, so other item will always be not null
-                    if(!iHave || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) < 0)
-                    {
-                        Items.AddOrUpdate(key,
-                            _ => otherItem,
-                            (_, __) => otherItem);
-                    }
-                }
-
-                return conflictSolved ? MergeResult.ConflictSolved : MergeResult.Identical;
             }
         }
 

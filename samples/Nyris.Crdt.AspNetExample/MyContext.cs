@@ -7,6 +7,9 @@ namespace Nyris.Crdt.AspNetExample
     {
         public MyContext(ILogger<MyContext> logger, ILoggerFactory loggerFactory) : base(logger)
         {
+            DefaultConfiguration.ResponseCombinator = new ResponseCombinator(
+                loggerFactory.CreateLogger<ResponseCombinator>());
+            
             var imageInfoCollectionFactory = new ImageInfoLwwCollectionWithSerializableOperations
                 .ImageInfoLwwCollectionWithSerializableOperationsFactory(
                     loggerFactory.CreateLogger<ImageInfoLwwCollectionWithSerializableOperations>());
@@ -17,10 +20,10 @@ namespace Nyris.Crdt.AspNetExample
                         loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
                         imageInfoCollectionFactory);
 
-            PartiallyReplicatedImageCollectionsRegistry = new("partially-replicated-collection-registry",
+            PartiallyReplicatedImageCollectionsRegistry = new("partially-replicated",
                 logger: loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
                 factory: imageInfoCollectionFactory);
-            ImageCollectionsRegistry = new("sample-items-collections-registry",
+            ImageCollectionsRegistry = new("sample-collections-registry",
                 loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>());
 
             Add(ImageCollectionsRegistry, ImageInfoCollectionsRegistry.DefaultFactory);

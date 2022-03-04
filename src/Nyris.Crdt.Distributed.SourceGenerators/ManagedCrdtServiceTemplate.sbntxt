@@ -67,7 +67,7 @@ namespace Nyris.Crdt.Distributed
 
         public async Task<{{ type.DtoTypeName }}> SendAsync(DtoMessage<{{ type.DtoTypeName }}> dto, CancellationToken cancellationToken = default)
         {
-            _logger.LogDebug("TraceId {TraceId}: Received dto for id='{Id}': {Dto}", dto.TraceId, dto.InstanceId, JsonConvert.SerializeObject(dto));
+            // _logger.LogDebug("TraceId {TraceId}: Received dto for id='{Id}': {Dto}", dto.TraceId, dto.InstanceId, JsonConvert.SerializeObject(dto));
             var result = await _context.MergeAsync<{{ type.CrdtInfos[0].TypeName }}, {{ type.CrdtInfos[0].AllArgumentsString }}>(dto.Value,
                 dto.InstanceId,
                 propagationCounter: dto.PropagationCounter > 0 ? dto.PropagationCounter - 1 : 0,
@@ -98,8 +98,8 @@ namespace Nyris.Crdt.Distributed
 
         public Task<{{ type.DtoTypeName }}> SendAsync(DtoMessage<{{ type.DtoTypeName }}> msg, CancellationToken cancellationToken = default)
         {
-            _logger.LogDebug("Received dto for type='{TypeName}' and id='{Id}': {Dto}",
-                msg.TypeName, msg.InstanceId, JsonConvert.SerializeObject(msg));
+            // _logger.LogDebug("Received dto for type='{TypeName}' and id='{Id}': {Dto}",
+            //    msg.TypeName, msg.InstanceId, JsonConvert.SerializeObject(msg));
 
     {{~ for crdtInfo in type.CrdtInfos ~}}
             if ({{ crdtInfo.SafeTypeName }}.Equals(msg.TypeName, StringComparison.OrdinalIgnoreCase))

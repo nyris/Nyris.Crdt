@@ -1,5 +1,7 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Contracts.Exceptions;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Model
@@ -8,8 +10,8 @@ namespace Nyris.Crdt.Distributed.Model
     public sealed record DtoMessage<TDto>([property: ProtoMember(1)] string TypeName,
         [property: ProtoMember(2)] string InstanceId,
         [property: ProtoMember(3)] TDto Value,
-        [property: ProtoMember(4)] int PropagationCounter = 0,
-        [property: ProtoMember(5)] string TraceId = "")
+        [property: ProtoMember(4)] string TraceId,
+        [property: ProtoMember(5)] int PropagationCounter = 0)
     {
         private SemaphoreSlim? _semaphore;
 
@@ -30,7 +32,13 @@ namespace Nyris.Crdt.Distributed.Model
 
         public void Complete() => Semaphore?.Release();
 
-        public Task MaybeWaitForCompletionAsync(CancellationToken cancellationToken = default)
-            => Semaphore?.WaitAsync(cancellationToken) ?? Task.CompletedTask;
+        public async Task MaybeWaitForCompletionAsync(CancellationToken cancellationToken = default)
+        {
+            if (!await (Semaphore?.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken) 
+                        ?? Task.FromResult(true)))
+            {
+                throw new NyrisException("Could not complete");
+            }
+        }
     }
 }

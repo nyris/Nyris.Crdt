@@ -14,6 +14,8 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Utils;
+using Nyris.Extensions.Guids;
 
 namespace Nyris.Crdt.Distributed
 {
@@ -137,11 +139,10 @@ namespace Nyris.Crdt.Distributed
             string instanceId,
             int propagationCounter = 0,
             bool allowPropagation = true,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
             where TCrdt : ManagedCRDT<TDto>
         {
-            Logger?.LogDebug("TraceId {TraceId}: context received a dto to merge", traceId);
             if (!TryGetCrdt<TCrdt, TDto>(instanceId, out var crdt))
             {
                 throw new ManagedCrdtContextSetupException($"TraceId {traceId}: Merging dto of type {typeof(TDto)} with id {instanceId} " +
@@ -149,9 +150,9 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            // var other = factory.Create(dto, instanceId);
             var mergeResult = await crdt.MergeAsync(dto, cancellationToken);
-            Logger?.LogDebug("TraceId {TraceId}: merging result {MergeResult}", traceId, mergeResult);
+            Logger?.LogDebug("TraceId {TraceId}: merging result {MergeResult} for {CrdtName} ({InstanceId})",
+                traceId, mergeResult, TypeNameCompressor.GetName<TCrdt>(), instanceId);
             if (allowPropagation && mergeResult == MergeResult.ConflictSolved)
             {
                 await crdt.StateChangedAsync(propagationCounter: propagationCounter,
@@ -176,7 +177,7 @@ namespace Nyris.Crdt.Distributed
             TKey key,
             TCollectionOperation operation,
             string instanceId,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
             where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
                 TCollection,
@@ -232,7 +233,7 @@ namespace Nyris.Crdt.Distributed
             ShardId shardId,
             TCollectionOperation operation,
             string instanceId,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
             where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
                 TCollection,
@@ -269,7 +270,7 @@ namespace Nyris.Crdt.Distributed
 
             return await crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
                 operation,
-                traceId: traceId,
+                traceId: traceId ?? ShortGuid.Encode(Guid.NewGuid()),
                 cancellationToken: cancellationToken);
         }
 

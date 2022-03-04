@@ -24,7 +24,6 @@ namespace Nyris.Crdt.AspNetExample
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-            DefaultConfiguration.ResponseCombinator = new ResponseCombinator();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.

@@ -5,7 +5,6 @@ using System.Text;
 using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model.Converters;
-using Nyris.Crdt.Distributed.Utils;
 using Nyris.Extensions.Guids;
 using ProtoBuf;
 

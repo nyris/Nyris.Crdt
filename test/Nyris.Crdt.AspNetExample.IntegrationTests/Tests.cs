@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Google.Protobuf;
 using Grpc.Net.Client;
@@ -8,6 +5,7 @@ using Nyris.Crdt.AspNetExample;
 using Nyris.Extensions.Guids;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace Nyris.Crdt.GrpcServiceSample.IntegrationTests;
 
@@ -189,22 +187,38 @@ public class Tests : IDisposable
             TraceId = traceId
         });
 
+        await AddRandomImagesPartiallyReplicatedAsync(_clientA, collection.Id, 10, traceId);
         await AddRandomImagesPartiallyReplicatedAsync(_clientB, collection.Id, 10, traceId);
         await AddRandomImagesPartiallyReplicatedAsync(_clientC, collection.Id, 10, traceId);
-        await AddRandomImagesPartiallyReplicatedAsync(_clientA, collection.Id, 10, traceId);
 
-        var collectionInfo = await _clientA.GetCollectionInfoPRAsync(collection);
-        collectionInfo.Id.Should().Be(collection.Id);
-        collectionInfo.Size.Should().Be(30);
-
-        collectionInfo = await _clientB.GetCollectionInfoPRAsync(collection);
-        collectionInfo.Id.Should().Be(collection.Id);
-        collectionInfo.Size.Should().Be(30);
-
-        collectionInfo = await _clientC.GetCollectionInfoPRAsync(collection);
-        collectionInfo.Id.Should().Be(collection.Id);
-        collectionInfo.Size.Should().Be(30);
+        var tasks = new[]
+        {
+            CollectionGrownToSizeWithinTimeAsync(_clientA, collection, 30, TimeSpan.FromSeconds(120)),
+            CollectionGrownToSizeWithinTimeAsync(_clientB, collection, 30, TimeSpan.FromSeconds(120)),
+            CollectionGrownToSizeWithinTimeAsync(_clientC, collection, 30, TimeSpan.FromSeconds(120))
+        };
+        await Task.WhenAll(tasks);
+        tasks.Select(t => t.Result).Should().OnlyContain(result => result == true);
+        
         await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = collection.Id, TraceId = traceId });
+
+        async Task<bool> CollectionGrownToSizeWithinTimeAsync(Api.ApiClient client, 
+            CollectionIdMessage collectionIdMsg, 
+            ulong expectedSize, 
+            TimeSpan allowedDelay)
+        {
+            var start = DateTime.Now;
+            var delay = allowedDelay / 20;
+            while (start.Add(allowedDelay) > DateTime.Now)
+            {
+                var collectionInfo = await client.GetCollectionInfoPRAsync(collectionIdMsg);
+                collectionInfo.Id.Should().Be(collectionIdMsg.Id);
+                if (collectionInfo.Size == expectedSize) return true;
+                await Task.Delay(delay);
+            }
+
+            return false;
+        }
     }
 
     [Theory]
@@ -344,25 +358,52 @@ public class Tests : IDisposable
             TraceId = traceId
         });
 
-        var ids = await _clientA.FindImagePRAsync(new FindImageById
+        var tasks = new[]
         {
-            CollectionId = collection.Id,
-            Id = duplicateImage.Id,
-            TraceId = traceId
-        });
+            ShouldEventuallyFindAsync(_clientA,
+                new FindImageById
+                {
+                    CollectionId = collection.Id,
+                    Id = duplicateImage.Id,
+                    TraceId = traceId
+                }, new[] { duplicateImage.Guid, images[0].Guid },
+                TimeSpan.FromSeconds(15)),
+            ShouldEventuallyFindAsync(_clientA,
+                new FindImageById
+                {
+                    CollectionId = collection.Id,
+                    Id = images[1].Id,
+                    TraceId = traceId
+                }, new[] { images[1].Guid },
+                TimeSpan.FromSeconds(15))
+        };
 
-        ids.ImageUuid.Should().HaveCount(2);
-        ids.ImageUuid.Should().Contain(duplicateImage.Guid).And.Contain(images[0].Guid);
+        await Task.WhenAll(tasks);
+        tasks.Select(t => t.Result).Should().OnlyContain(result => result == true);
 
-        ids = await _clientA.FindImagePRAsync(new FindImageById
+        async Task<bool> ShouldEventuallyFindAsync(Api.ApiClient client,
+            FindImageById request,
+            string[] expectedGuids,
+            TimeSpan maxDelay)
         {
-            CollectionId = collection.Id,
-            Id = images[1].Id,
-            TraceId = traceId
-        });
+            var start = DateTime.Now;
+            while (start.Add(maxDelay) > DateTime.Now)
+            {
+                try
+                {
+                    var ids = await client.FindImagePRAsync(request);
+                    ids.ImageUuid.Should().BeEquivalentTo(expectedGuids,
+                        options => options.WithoutStrictOrdering());
+                    return true;
+                }
+                catch (XunitException)
+                {
+                    await Task.Delay(maxDelay / 10);
+                }
+            }
 
-        ids.ImageUuid.Should().HaveCount(1);
-        ids.ImageUuid.Should().ContainSingle(images[1].Guid);
+            return false;
+        } 
     }
 
     public void Dispose()

@@ -36,7 +36,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     return new ValueResponse<TValue>(value);
                 case AddValueOperation<TKey, TValue, TTimeStamp>(var key, var newValue, var timeStamp):
                     var added = await SetAsync(key, newValue, timeStamp,
-                        propagateToNodes: 1,
+                        propagateToNodes: 2,
                         cancellationToken: cancellationToken);
                     return new ValueResponse<TValue>(added.Value);
                 default:

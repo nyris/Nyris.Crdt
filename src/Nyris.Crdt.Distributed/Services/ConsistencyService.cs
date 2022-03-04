@@ -67,8 +67,8 @@ namespace Nyris.Crdt.Distributed.Services
                 var nameAndInstanceId = new TypeNameAndInstanceId(typeName, instanceId);
                 var nodesThatShouldHaveReplica = _context.GetNodesThatHaveReplica(nameAndInstanceId).ToList();
 
-                _logger.LogDebug("Crdt {CrdtName} ({InstanceId}) is expected to be at {NodeList}",
-                    typeName, instanceId, string.Join(";", nodesThatShouldHaveReplica.Select(ni => ni.Id)));
+                // _logger.LogDebug("Crdt {CrdtName} ({InstanceId}) is expected to be at {NodeList}",
+                //     typeName, instanceId, string.Join(";", nodesThatShouldHaveReplica.Select(ni => ni.Id)));
                 
                 // if this instance was removed globally (i.e. no nodes should have a replica)
                 // or if this particular node should not have a replica

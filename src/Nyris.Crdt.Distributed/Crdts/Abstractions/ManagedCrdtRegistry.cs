@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Extensions;
@@ -84,10 +85,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             TActorId actorId,
             TItemValue value,
             int waitForPropagationToNumNodes = 0,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 if (_keys.Contains(key)) return false;
@@ -119,7 +123,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             int waitForPropagationToNumNodes = 0,
             CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             TItemValue value;
             try
             {
@@ -145,7 +152,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             int waitForPropagationToNumNodes = 0,
             CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 _keys.Remove(key);
@@ -164,7 +174,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override async Task<MergeResult> MergeAsync(RegistryDto other, CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 var keyResult = _keys.MaybeMerge(other.Keys);
@@ -201,7 +214,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public override async Task<RegistryDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 return new RegistryDto

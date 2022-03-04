@@ -20,23 +20,11 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Strategies.PartialReplication;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Extensions.Guids;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
-    public class ShardingConfig
-    {
-        public ushort NumShards { get; init; }
-    }
-
-    public sealed class CollectionConfig
-    {
-        public string Name { get; init; } = "";
-        public IPartialReplicationStrategy? PartialReplicationStrategy { get; init; }
-        public IEnumerable<string>? IndexNames { get; init; }
-        public ShardingConfig? ShardingConfig { get; init; }
-    }
-
     /// <summary>
     /// The registry is a key -> collection mapping, where each collection is replicated to a subset of other nodes.
     /// </summary>
@@ -66,7 +54,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>,
             ICreateAndDeleteManagedCrdtsInside,
             IReactToOtherCrdtChange,
-            INodesWithReplicaProvider
+            INodesWithReplicaProvider,
+            IDisposable
         where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
         where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
             IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
@@ -78,6 +67,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private static readonly Random Random = new();
         private readonly TCollectionFactory _factory;
         private readonly IResponseCombinator _responseCombinator;
+        private readonly Task _refreshShardSizesTask;
+        private readonly CancellationTokenSource _cts = new();
 
         private readonly ILogger? _logger;
         private readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions());
@@ -127,6 +118,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             _collections = new();
             _desiredDistribution = new Dictionary<ShardId, IList<NodeInfo>>();
             _factory = factory ?? new TCollectionFactory();
+            _refreshShardSizesTask = RefreshShardSizesAsync(_cts.Token);
         }
 
         /// <inheritdoc />
@@ -139,10 +131,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public async Task<bool> TryAddCollectionAsync(TKey key, CollectionConfig config,
             int waitForPropagationToNumNodes = 0,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            traceId ??= ShortGuid.Encode(Guid.NewGuid());
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 var shardIds = Enumerable
@@ -157,7 +153,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             finally
             {
                 _semaphore.Release();
-                await RebalanceAsync(traceId: traceId, cancellationToken: cancellationToken);
+                await RebalanceAsync(traceId: traceId,
+                    cancellationToken: cancellationToken);
                 await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes,
                     traceId: traceId,
                     cancellationToken: cancellationToken);
@@ -168,10 +165,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public async Task<bool> TryRemoveCollectionAsync(TKey key,
             int waitForPropagationToNumNodes = 0,
-            string traceId = "",
+            string? traceId = null,
             CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            traceId ??= ShortGuid.Encode(Guid.NewGuid());
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 if (!_collectionInfos.TryGetValue(key, out var info)) return true;
@@ -189,7 +190,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             finally
             {
                 _semaphore.Release();
-                await RebalanceAsync(traceId: traceId, cancellationToken: cancellationToken);
+                await RebalanceAsync(traceId: traceId,
+                    cancellationToken: cancellationToken);
                 await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes,
                     traceId: traceId,
                     cancellationToken: cancellationToken);
@@ -211,7 +213,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public async Task<TResponse> ApplyAsync<TOperation, TResponse>(TKey key,
             TOperation operation,
-            string traceId = "",
+            string traceId,
             CancellationToken cancellationToken = default)
             where TOperation : TCollectionOperationBase
             where TResponse : TCollectionOperationResponseBase
@@ -253,7 +255,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         internal async Task<TResponse> ApplyToSingleShardAsync<TOperation, TResponse>(ShardId shardId,
             TOperation operation,
-            string traceId = "",
+            string traceId,
             CancellationToken cancellationToken = default)
             where TOperation : TCollectionOperationBase
             where TResponse : TCollectionOperationResponseBase
@@ -293,7 +295,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override async Task<MergeResult> MergeAsync(PartiallyReplicatedCrdtRegistryDto other, CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             var conflict = false;
             var infosMerge = MergeResult.Identical;
             try
@@ -316,7 +321,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override async Task<PartiallyReplicatedCrdtRegistryDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 return new PartiallyReplicatedCrdtRegistryDto
@@ -346,7 +354,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         private async Task RebalanceAsync(string traceId = "", CancellationToken cancellationToken = default)
         {
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException($"TraceId {traceId}: Deadlock");
+            }
             try
             {
                 var allShards = new Dictionary<ShardId, ulong>();
@@ -455,7 +466,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         async Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(string instanceId, CancellationToken cancellationToken)
         {
             var shardId = ShardId.Parse(instanceId);
-            await _semaphore.WaitAsync(cancellationToken);
+            if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+            {
+                throw new NyrisException("Deadlock");
+            }
             try
             {
                 _logger?.LogDebug("Shard with instance id {ShardId} is being removed locally", shardId);
@@ -491,7 +505,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 && info.Shards.TryGetValue(shardId, out var shardSize)
                 && shardSize != size)
             {
-                await _semaphore.WaitAsync(cancellationToken);
+                if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
+                {
+                    throw new NyrisException("Deadlock");
+                }
                 try
                 {
                     info.Shards[shardId] = size;
@@ -500,10 +517,55 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 {
                     _semaphore.Release();
                     await StateChangedAsync(2, traceId, cancellationToken);
+                    await RebalanceAsync(traceId, cancellationToken);
                 }
             }
         }
 
+        private async Task RefreshShardSizesAsync(CancellationToken cancellationToken)
+        {
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+                try
+                {
+                    TryRefreshShardSizesAsync(cancellationToken);
+                }
+                catch (Exception e)
+                {
+                    _logger?.LogError(e, "Unhandled exception during trying to refresh collection sizes");
+                }
+            }
+        }
+        
+        private async Task TryRefreshShardSizesAsync(CancellationToken cancellationToken)
+        {
+            foreach (var shardId in _collections.Keys)
+            {
+                if (_currentState.TryGetValue(shardId, out var nodes)
+                    && nodes.Contains(_thisNode.Id)
+                    && _collections.TryGetValue(shardId, out var collection))
+                {
+                    _logger?.LogDebug("Setting size of {ShardId} during refresh to {Size}", 
+                        shardId, collection.Size);
+                    await SetShardSizeAsync(shardId,
+                        collection.Size,
+                        "shard-size-refresh",
+                        cancellationToken);
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            _cts.Cancel();
+            _cts.Dispose();
+            _cache.Dispose();
+            _refreshShardSizesTask.Dispose();
+            _semaphore.Dispose();
+        }
+        
         [ProtoContract]
         public sealed class PartiallyReplicatedCrdtRegistryDto
         {
