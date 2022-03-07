@@ -22,4 +22,10 @@
     <ItemGroup>
         <ProjectReference Include="..\Nyris.Crdt\Nyris.Crdt.csproj" />
     </ItemGroup>
+
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>$(MSBuildProjectName).Test.Unit</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
 </Project>

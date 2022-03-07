@@ -1,19 +1,20 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30804.86
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3ABFBA00-F00A-42DD-9945-FFB165156740}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{6D56BBD2-9FB4-430E-9455-EBDA05333CD4}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		.gitignore = .gitignore
 		.gitlab-ci.yml = .gitlab-ci.yml
+		docker-compose.yml = docker-compose.yml
 		Dockerfile = Dockerfile
+		Dockerfile.Local = Dockerfile.Local
 		GitVersion.yml = GitVersion.yml
 		README.md = README.md
-		docker-compose.yml = docker-compose.yml
-		Dockerfile.Local = Dockerfile.Local
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nyris.Crdt.Distributed.SourceGenerators", "src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj", "{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}"
@@ -36,8 +37,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sample", "sample", "{C2126456-784C-4F41-8865-2730629526D9}"
 	ProjectSection(SolutionItems) = preProject
 		kubernetes\sample\deployment.yaml = kubernetes\sample\deployment.yaml
-		kubernetes\sample\README.md = kubernetes\sample\README.md
 		kubernetes\sample\RBAC.yaml = kubernetes\sample\RBAC.yaml
+		kubernetes\sample\README.md = kubernetes\sample\README.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ComposeConfig", "ComposeConfig", "{1F5E2623-3AE7-4157-8D94-6382B2AE6F53}"
@@ -47,9 +48,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ComposeConfig", "ComposeCon
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{C7E2C576-DDDE-4EDA-85EF-09424BC72847}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.AspNetExample.IntegrationTests", "test\Nyris.Crdt.AspNetExample.IntegrationTests\Nyris.Crdt.AspNetExample.IntegrationTests.csproj", "{023AB781-A918-4190-A940-8147B65C0D4F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nyris.Crdt.AspNetExample.IntegrationTests", "test\Nyris.Crdt.AspNetExample.IntegrationTests\Nyris.Crdt.AspNetExample.IntegrationTests.csproj", "{023AB781-A918-4190-A940-8147B65C0D4F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Tests", "test\Nyris.Crdt.Tests\Nyris.Crdt.Tests.csproj", "{12A68955-E9B5-4806-ABEF-96CD77DE1269}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nyris.Crdt.Tests", "test\Nyris.Crdt.Tests\Nyris.Crdt.Tests.csproj", "{12A68955-E9B5-4806-ABEF-96CD77DE1269}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nyris.Crdt.Distributed.Test.Unit", "test\Nyris.Crdt.Distributed.Test.Unit\Nyris.Crdt.Distributed.Test.Unit.csproj", "{9C377AB5-5153-476F-B1C3-58DB635AA744}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -85,6 +88,10 @@ Global
 		{12A68955-E9B5-4806-ABEF-96CD77DE1269}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{12A68955-E9B5-4806-ABEF-96CD77DE1269}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{12A68955-E9B5-4806-ABEF-96CD77DE1269}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C377AB5-5153-476F-B1C3-58DB635AA744}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C377AB5-5153-476F-B1C3-58DB635AA744}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C377AB5-5153-476F-B1C3-58DB635AA744}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C377AB5-5153-476F-B1C3-58DB635AA744}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -100,6 +107,7 @@ Global
 		{1F5E2623-3AE7-4157-8D94-6382B2AE6F53} = {6D56BBD2-9FB4-430E-9455-EBDA05333CD4}
 		{023AB781-A918-4190-A940-8147B65C0D4F} = {C7E2C576-DDDE-4EDA-85EF-09424BC72847}
 		{12A68955-E9B5-4806-ABEF-96CD77DE1269} = {C7E2C576-DDDE-4EDA-85EF-09424BC72847}
+		{9C377AB5-5153-476F-B1C3-58DB635AA744} = {C7E2C576-DDDE-4EDA-85EF-09424BC72847}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {91F8266A-0098-4288-8192-CCBDE65BC63B}

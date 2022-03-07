@@ -256,7 +256,7 @@ public class Tests : IDisposable
         {
             TraceId = traceId,
             NumShards = numShards
-        });
+        }, deadline:DateTime.UtcNow.AddSeconds(5));
         response.Id.Should().NotBeEmpty();
 
         var exists = await _clientB.ImagesCollectionExistsPRAsync(response);
