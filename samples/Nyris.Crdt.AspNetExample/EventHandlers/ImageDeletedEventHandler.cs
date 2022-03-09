@@ -30,7 +30,7 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
             var indexId = CollectionId.FromGuid(message.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
                 () => (_thisNodeId, new ImageInfoLwwCollection(message.IndexId.ToString("N"))));
-            index.TryRemove(ImageGuid.FromGuid(message.ImageUuid), createdEvent, out _);
+            await index.RemoveAsync(ImageGuid.FromGuid(message.ImageUuid), createdEvent);
         }
     }
 }

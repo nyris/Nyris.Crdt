@@ -31,11 +31,12 @@ namespace Nyris.Crdt.Distributed
 
         protected readonly ILogger<ManagedCrdtContext>? Logger;
 
-        internal NodeSet Nodes { get; } = new("nodes_internal");
+        internal NodeSet Nodes { get; }
 
-        protected ManagedCrdtContext(ILogger<ManagedCrdtContext>? logger = null)
+        protected ManagedCrdtContext(ILogger<ManagedCrdtContext>? logger = null, NodeSet? nodes = null)
         {
             Logger = logger;
+            Nodes = nodes ?? new("nodes_internal");
             Add(Nodes, NodeSet.DefaultFactory);
         }
 

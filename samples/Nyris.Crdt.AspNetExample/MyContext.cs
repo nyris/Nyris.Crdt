@@ -9,7 +9,7 @@ namespace Nyris.Crdt.AspNetExample
         {
             DefaultConfiguration.ResponseCombinator = new ResponseCombinator(
                 loggerFactory.CreateLogger<ResponseCombinator>());
-            
+
             var imageInfoCollectionFactory = new ImageInfoLwwCollectionWithSerializableOperations
                 .ImageInfoLwwCollectionWithSerializableOperationsFactory(
                     loggerFactory.CreateLogger<ImageInfoLwwCollectionWithSerializableOperations>());
@@ -24,7 +24,7 @@ namespace Nyris.Crdt.AspNetExample
                 logger: loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
                 factory: imageInfoCollectionFactory);
             ImageCollectionsRegistry = new("sample-collections-registry",
-                loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>());
+                logger: loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>());
 
             Add(ImageCollectionsRegistry, ImageInfoCollectionsRegistry.DefaultFactory);
             Add(PartiallyReplicatedImageCollectionsRegistry, partiallyReplRegistryFactory);

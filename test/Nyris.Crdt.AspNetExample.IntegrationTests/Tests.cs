@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Google.Protobuf;
 using Grpc.Net.Client;
@@ -199,12 +203,12 @@ public class Tests : IDisposable
         };
         await Task.WhenAll(tasks);
         tasks.Select(t => t.Result).Should().OnlyContain(result => result == true);
-        
+
         await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = collection.Id, TraceId = traceId });
 
-        async Task<bool> CollectionGrownToSizeWithinTimeAsync(Api.ApiClient client, 
-            CollectionIdMessage collectionIdMsg, 
-            ulong expectedSize, 
+        async Task<bool> CollectionGrownToSizeWithinTimeAsync(Api.ApiClient client,
+            CollectionIdMessage collectionIdMsg,
+            ulong expectedSize,
             TimeSpan allowedDelay)
         {
             var start = DateTime.Now;
@@ -367,7 +371,7 @@ public class Tests : IDisposable
                     Id = duplicateImage.Id,
                     TraceId = traceId
                 }, new[] { duplicateImage.Guid, images[0].Guid },
-                TimeSpan.FromSeconds(15)),
+                TimeSpan.FromSeconds(30)),
             ShouldEventuallyFindAsync(_clientA,
                 new FindImageById
                 {
@@ -375,7 +379,7 @@ public class Tests : IDisposable
                     Id = images[1].Id,
                     TraceId = traceId
                 }, new[] { images[1].Guid },
-                TimeSpan.FromSeconds(15))
+                TimeSpan.FromSeconds(30))
         };
 
         await Task.WhenAll(tasks);
@@ -403,7 +407,7 @@ public class Tests : IDisposable
             }
 
             return false;
-        } 
+        }
     }
 
     public void Dispose()

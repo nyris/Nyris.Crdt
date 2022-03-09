@@ -7,6 +7,7 @@ using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
+using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -16,8 +17,10 @@ namespace Nyris.Crdt.AspNetExample
             DateTime>
     {
         /// <inheritdoc />
-        public ImageInfoLwwCollectionWithSerializableOperations(string instanceId, ILogger? logger = null)
-            : base(instanceId, logger)
+        public ImageInfoLwwCollectionWithSerializableOperations(string instanceId,
+            IAsyncQueueProvider? queueProvider = null,
+            ILogger? logger = null)
+            : base(instanceId, queueProvider: queueProvider, logger: logger)
         {
         }
 
@@ -56,7 +59,7 @@ namespace Nyris.Crdt.AspNetExample
 
             /// <inheritdoc />
             public ImageInfoLwwCollectionWithSerializableOperations Create(string instanceId)
-                => new (instanceId, _logger);
+                => new (instanceId, logger: _logger);
         }
     }
 }

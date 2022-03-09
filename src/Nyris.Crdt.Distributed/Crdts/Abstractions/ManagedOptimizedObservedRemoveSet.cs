@@ -13,18 +13,6 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
-    public abstract class ManagedCrdtSet<TItem, TDto> : ManagedCRDT<TDto>
-    {
-        /// <inheritdoc />
-        protected ManagedCrdtSet(string instanceId, ILogger? logger = null) : base(instanceId, logger)
-        {
-        }
-
-        public abstract Task<bool> AddAsync(TItem item, CancellationToken cancellationToken = default);
-        public abstract Task<bool> RemoveAsync(TItem item, CancellationToken cancellationToken = default);
-    }
-
-
     /// <summary>
     /// Optimized Observed-Remove Set is a CRDT proposed by Annette Bieniusa & Co: https://softech.cs.uni-kl.de/homepage/staff/AnnetteBieniusa/paper/techrep2012-semantics.pdf
     /// It allows set of actors to add and remove elements unlimited number of times.
@@ -41,7 +29,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly Dictionary<TActorId, uint> _observedState;
         private readonly SemaphoreSlim _semaphore = new(1);
 
-        protected ManagedOptimizedObservedRemoveSet(string id) : base(id)
+        protected ManagedOptimizedObservedRemoveSet(string id,
+            IAsyncQueueProvider? queueProvider = null,
+            ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {
             _items = new HashSet<VersionedSignedItem<TActorId, TItem>>();
             _observedState = new Dictionary<TActorId, uint>();

@@ -9,6 +9,7 @@ using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Propagation;
+using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Services
 {
@@ -18,30 +19,33 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly ManagedCrdtContext _context;
         private readonly IPropagationStrategy _propagationStrategy;
         private readonly IChannelManager _channelManager;
-        private readonly ILogger<PropagationService<TCrdt, TDto>> _logger;
+        private readonly IAsyncQueueProvider _queueProvider;
         private readonly NodeId _thisNodeId;
+        private readonly ILogger<PropagationService<TCrdt, TDto>> _logger;
 
         /// <inheritdoc />
         public PropagationService(ManagedCrdtContext context,
-            ILogger<PropagationService<TCrdt, TDto>> logger,
-            NodeInfo thisNode,
             IPropagationStrategy propagationStrategy,
-            IChannelManager channelManager)
+            IChannelManager channelManager,
+            IAsyncQueueProvider queueProvider,
+            NodeInfo thisNode,
+            ILogger<PropagationService<TCrdt, TDto>> logger)
         {
             _context = context;
-            _logger = logger;
-            _thisNodeId = thisNode.Id;
             _propagationStrategy = propagationStrategy;
             _channelManager = channelManager;
+            _queueProvider = queueProvider;
+            _thisNodeId = thisNode.Id;
+            _logger = logger;
         }
 
         /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var queue = Queues.GetQueue<TDto>(typeof(TCrdt));
+            var queue = _queueProvider.GetQueue<TDto>(typeof(TCrdt));
             _logger.LogInformation("Consuming dto queue for crdt '{CrdtType}' with dto type '{DtoType}'",
                 typeof(TCrdt), typeof(TDto));
-            await foreach (var dto in queue)
+            await foreach (var dto in queue.WithCancellation(stoppingToken))
             {
                 _logger.LogDebug("TraceId: {TraceId}, Preparing to send dto {Dto}. \nQueue size: {QueueSize}",
                     dto.TraceId, JsonConvert.SerializeObject(dto), queue.QueueLength);
@@ -66,11 +70,11 @@ namespace Nyris.Crdt.Distributed.Services
 
                         _logger.LogDebug("TraceId: {TraceId}, Received back dto {Dto}",
                             dto.TraceId, JsonConvert.SerializeObject(response));
-                        
+
                         // we should NOT await merge here, because on conflict it will try to
                         // publish dto to the queue, which might be full. And since this loop
                         // is the only way to free the queue, we have a deadlock
-                        _ = _context.MergeAsync<TCrdt, TDto>(response, 
+                        _ = _context.MergeAsync<TCrdt, TDto>(response,
                             dto.InstanceId,
                             traceId: dto.TraceId,
                             cancellationToken: stoppingToken);

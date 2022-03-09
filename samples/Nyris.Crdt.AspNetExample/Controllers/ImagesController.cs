@@ -58,11 +58,8 @@ namespace Nyris.Crdt.AspNetExample.Controllers
             var indexId = CollectionId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
                 () => (_thisNodeId, new ImageInfoLwwCollection(data.IndexId.ToString("N"))));
-            if (!index.TryRemove(ImageGuid.FromGuid(data.ImageUuid), DateTime.UtcNow, out var image))
-            {
-                return NotFound();
-            }
-            return Ok(image);
+            var item = await index.RemoveAsync(ImageGuid.FromGuid(data.ImageUuid), DateTime.UtcNow);
+            return item.Value == default ? NotFound() : Ok(item.Value);
         }
     }
 }

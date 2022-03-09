@@ -7,12 +7,6 @@ using Nyris.Contracts.Exceptions;
 
 namespace Nyris.Crdt.Distributed.Utils
 {
-    internal interface IAsyncQueue<T> : IAsyncEnumerable<T>
-    {
-        long QueueLength { get; }
-        Task EnqueueAsync(T item, CancellationToken cancellationToken);
-    }
-
     /// <summary>
     /// Taken almost as-is from https://stackoverflow.com/questions/7863573/awaitable-task-based-queue
     /// </summary>
@@ -22,11 +16,16 @@ namespace Nyris.Crdt.Distributed.Utils
         private long _queueLength = 0L;
 
         private readonly SemaphoreSlim _enumerationSemaphore = new(1);
-        private readonly BufferBlock<T> _bufferBlock = new(new DataflowBlockOptions
+        private readonly BufferBlock<T> _bufferBlock;
+
+        public AsyncQueue(int queueCapacity)
         {
-            BoundedCapacity = 10,
-            EnsureOrdered = true
-        });
+            _bufferBlock = new(new DataflowBlockOptions
+            {
+                BoundedCapacity = queueCapacity,
+                EnsureOrdered = true
+            });
+        }
 
         public long QueueLength => _queueLength;
 
@@ -34,12 +33,12 @@ namespace Nyris.Crdt.Distributed.Utils
         {
             var attempts = 0;
             Interlocked.Increment(ref _queueLength);
-            while(attempts < 5)
+            while(attempts < 3)
             {
                 var cts = new CancellationTokenSource();
                 var t = _bufferBlock.SendAsync(item, cts.Token);
                 await Task.WhenAny(t, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
-                
+
                 if(t.IsCompletedSuccessfully && t.Result) return;
                 cts.Cancel();
 

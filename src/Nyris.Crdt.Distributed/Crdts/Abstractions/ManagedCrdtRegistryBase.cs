@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
@@ -14,7 +15,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly ILogger? _logger;
 
         /// <inheritdoc />
-        protected ManagedCrdtRegistryBase(string instanceId, ILogger? logger = null) : base(instanceId, logger)
+        protected ManagedCrdtRegistryBase(string instanceId,
+            IAsyncQueueProvider? queueProvider = null,
+            ILogger? logger = null) : base(instanceId, queueProvider: queueProvider, logger: logger)
         {
             _logger = logger;
         }
@@ -39,7 +42,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             _indexes.TryAdd(index.UniqueName, index);
         }
 
-        protected Task RemoveFromIndexes(TKey key, TItem item, CancellationToken cancellationToken = default)
+        protected Task RemoveItemFromIndexes(TKey key, TItem item, CancellationToken cancellationToken = default)
             => Task.WhenAll(_indexes.Values.Select(i =>
             {
                 _logger?.LogDebug("Removing {ItemKey} from {IndexName}", key, i.UniqueName);

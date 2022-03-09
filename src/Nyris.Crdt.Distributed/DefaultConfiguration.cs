@@ -9,5 +9,6 @@ namespace Nyris.Crdt.Distributed
         public static IPartialReplicationStrategy PartialReplicationStrategy = new SimplePartialReplicationStrategy();
         public static INodeInfoProvider NodeInfoProvider = new NodeInfoProvider();
         public static IResponseCombinator ResponseCombinator = new DefaultResponseCombinator();
+        public static IAsyncQueueProvider QueueProvider = new QueueProvider();
     }
 }

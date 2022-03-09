@@ -35,25 +35,31 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         where TItemValueFactory : IManagedCRDTFactory<TItemValue, TItemValueDto>, new()
     {
         private readonly ILogger? _logger;
-        private static readonly TItemValueFactory Factory = new();
+        private readonly TItemValueFactory _factory;
 
         private readonly HashableOptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
         private readonly ConcurrentDictionary<TItemKey, TItemValue> _dictionary;
         private readonly SemaphoreSlim _semaphore = new(1);
         private ManagedCrdtContext? _context;
 
-        protected ManagedCrdtRegistry(string id, ILogger? logger = null) : base(id, logger)
+        protected ManagedCrdtRegistry(string id,
+            IAsyncQueueProvider? queueProvider = null,
+            TItemValueFactory? factory = default,
+            ILogger? logger = null)
+            : base(id, queueProvider: queueProvider, logger: logger)
         {
             _logger = logger;
             _keys = new HashableOptimizedObservedRemoveSet<TActorId, TItemKey>();
             _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
+            _factory = factory ?? new();
         }
 
         /// <inheritdoc />
         public override ulong Size => (ulong)_dictionary.Count;
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<KeyValuePair<TItemKey, TItemValue>> EnumerateItems(CancellationToken cancellationToken = default)
+        public override async IAsyncEnumerable<KeyValuePair<TItemKey, TItemValue>> EnumerateItems(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             foreach (var key in _keys.Value)
             {
@@ -98,7 +104,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
                 _keys.Add(key, actorId);
                 _dictionary.TryAdd(key, value);
-                ManagedCrdtContext.Add(value, Factory);
+                ManagedCrdtContext.Add(value, _factory);
             }
             finally
             {
@@ -136,7 +142,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
                 _keys.Add(key, actorId);
                 _dictionary.TryAdd(key, newValue);
-                ManagedCrdtContext.Add(newValue, Factory);
+                ManagedCrdtContext.Add(newValue, _factory);
                 value = newValue;
             }
             finally
@@ -198,9 +204,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 {
                     if (other.InstanceIds != null &&
                         other.InstanceIds.TryGetValue(keyToAdd, out var v) &&
-                        _dictionary.TryAdd(keyToAdd, Factory.Create(v)))
+                        _dictionary.TryAdd(keyToAdd, _factory.Create(v)))
                     {
-                        ManagedCrdtContext.Add(_dictionary[keyToAdd], Factory);
+                        ManagedCrdtContext.Add(_dictionary[keyToAdd], _factory);
                     }
                 }
 

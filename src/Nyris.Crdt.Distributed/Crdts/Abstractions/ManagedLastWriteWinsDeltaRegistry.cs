@@ -25,7 +25,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly SemaphoreSlim _semaphore = new(1, 1);
         private List<TKey> _nextDto = new();
 
-        protected ManagedLastWriteWinsDeltaRegistry(string id, ILogger? logger = null) : base(id, logger)
+        protected ManagedLastWriteWinsDeltaRegistry(string id,
+            IAsyncQueueProvider? queueProvider = null,
+            ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
         }
@@ -68,7 +70,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 {
                     if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
 
-                    _ = RemoveFromIndexes(key, v.Value, cancellationToken);
+                    _ = RemoveItemFromIndexes(key, v.Value, cancellationToken);
                     v.Value = value;
                     v.Deleted = false;
                     v.TimeStamp = timeStamp;
@@ -83,11 +85,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return item;
         }
 
-        public bool TryRemove(TKey key, TTimeStamp timeStamp, out TimeStampedItem<TValue, TTimeStamp> item)
+        public async Task<TimeStampedItem<TValue, TTimeStamp>> RemoveAsync(TKey key, TTimeStamp timeStamp,
+            int propagateToNodes = 0,
+            string? traceId = null,
+            CancellationToken cancellationToken = default)
         {
             // Due to nature of the set, we have to record delete attempts even if such item was not found.
             // Just imagine if item was created and then deleted, but updates were reordered.
-            item = _items.AddOrUpdate(key,
+            var item = _items.AddOrUpdate(key,
                 _ => new TimeStampedItem<TValue, TTimeStamp>(default!, timeStamp, true),
                 (_, v) =>
                 {
@@ -98,9 +103,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     return v;
                 });
 
+            if (item.Deleted && item.TimeStamp.CompareTo(timeStamp) == 0)
+            {
+                await RemoveItemFromIndexes(key, item.Value, cancellationToken);
+            }
+
             _nextDto.Add(key);
-            _ = StateChangedAsync();
-            return item.TimeStamp.CompareTo(timeStamp) == 0;
+            await StateChangedAsync(propagationCounter: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
+            return item;
         }
 
         /// <inheritdoc />
@@ -208,7 +218,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             // reverse - update 'this' registry
             if (iHave && myItem!.TimeStamp!.CompareTo(otherItem!.TimeStamp) < 0 || !iHave)
             {
-                if(iHave) await RemoveFromIndexes(key, myItem!.Value);
+                if(iHave) await RemoveItemFromIndexes(key, myItem!.Value);
 
                 _nextDto.Add(key);
                 _items.AddOrUpdate(key,

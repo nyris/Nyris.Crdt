@@ -27,7 +27,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         : IAsyncCRDT<TDto>, IAsyncDtoBatchProvider<TDto>, IHashable
     {
         public readonly string InstanceId;
-        private readonly AsyncQueue<DtoMessage<TDto>> _queue;
+        private readonly IAsyncQueue<DtoMessage<TDto>> _queue;
         private string? _typeName;
         private readonly ConcurrentBag<IReactToOtherCrdtChange> _dependentCrdts = new();
         private readonly ILogger? _logger;
@@ -39,10 +39,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// For example, if there nodes (servers) A and B and they try to share two instanced of CRDT type T.
         /// When node A updates first instance and sends that update to B, B needs to somehow
         /// distinguish which instance was updated. </param>
+        /// <param name="queueProvider"></param>
         /// <param name="logger"></param>
-        protected ManagedCRDT(string instanceId, ILogger? logger = null)
+        protected ManagedCRDT(string instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null)
         {
-            _queue = Queues.GetQueue<TDto>(GetType());
+            _queue = (queueProvider ?? DefaultConfiguration.QueueProvider).GetQueue<TDto>(GetType());
             InstanceId = instanceId;
             _logger = logger;
         }

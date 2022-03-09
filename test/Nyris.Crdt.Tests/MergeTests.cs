@@ -1,4 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
@@ -8,12 +14,12 @@ using Xunit;
 
 namespace Nyris.Crdt.Tests;
 
-public class UnitTests
+public class MergeTests
 {
     [Fact]
     public async Task PartialReplicationRegistryWorks()
     {
-        var nodes = await PrepareNodeMocksAsync(3);
+        var nodes = await NodeMock.PrepareNodeMocksAsync(3);
 
         var registries = Enumerable.Range(0, 3)
             .Select(i => new PartiallyReplicatedImageInfoCollectionsRegistry("test-pr-reg")
@@ -38,7 +44,7 @@ public class UnitTests
     [Fact]
     public async Task CrdtRegistryWorks()
     {
-        var nodes = await PrepareNodeMocksAsync(3);
+        var nodes = await NodeMock.PrepareNodeMocksAsync(3);
 
         var registries = Enumerable.Range(0, 3)
             .Select(i => new ImageInfoCollectionsRegistry("test-pr-reg")
@@ -98,32 +104,6 @@ public class UnitTests
         registry1.TryGetValue(collectionId2, out _).Should().BeFalse();
         registry1[collectionId1].Name.Should().Be("1");
         registry1[collectionId1].Size.Should().Be(2);
-    }
-
-    private async Task<IList<NodeMock>> PrepareNodeMocksAsync(int n)
-    {
-        var result = new List<NodeMock>(n);
-        for (var i = 0; i < n; ++i)
-        {
-            var id = NodeId.New();
-            var infoProvider = new ManualNodeInfoProvider(id, new NodeInfo(new Uri($"https://{id}.node"), id));
-            var context = new TestContext();
-            await context.Nodes.AddAsync(infoProvider.GetMyNodeInfo(), id);
-            result.Add(new NodeMock(id, context, infoProvider));
-        }
-
-        for (var i = 0; i < n; ++i)
-        {
-            for (var j = i + 1; j < n; ++j)
-            {
-                var dtoI = await result[i].Context.Nodes.ToDtoAsync();
-                var dtoJ = await result[j].Context.Nodes.ToDtoAsync();
-                await result[i].Context.Nodes.MergeAsync(dtoJ);
-                await result[j].Context.Nodes.MergeAsync(dtoI);
-            }
-        }
-
-        return result;
     }
 
     private async Task SyncCrdtsAsync<TCrdt, TDto>(IList<TCrdt> crdts)

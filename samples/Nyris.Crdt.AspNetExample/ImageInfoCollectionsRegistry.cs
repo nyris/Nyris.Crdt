@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Utils;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -12,7 +13,10 @@ namespace Nyris.Crdt.AspNetExample
         ImageInfoLwwCollection.ImageInfoLwwCollectionFactory>
     {
         /// <inheritdoc />
-        public ImageInfoCollectionsRegistry(string id, ILogger? logger = null) : base(id, logger: logger)
+        public ImageInfoCollectionsRegistry(string id,
+            IAsyncQueueProvider? queueProvider = null,
+            ImageInfoLwwCollection.ImageInfoLwwCollectionFactory? factory = null,
+            ILogger? logger = null) : base(id, queueProvider: queueProvider, factory: factory, logger: logger)
         {
         }
 
