@@ -37,7 +37,7 @@ namespace Nyris.Crdt.AspNetExample.Services
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(CreateImagesCollection));
             var id = string.IsNullOrEmpty(request.Id) ? CollectionId.New() : CollectionId.Parse(request.Id);
-            var collection = new ImageInfoLwwCollection(id.ToString());
+            var collection = new ImageInfoLwwCollection(new InstanceId(id.ToString()));
 
             var added = await _context.ImageCollectionsRegistry.TryAddAsync(id, _thisNodeId, collection,
                 waitForPropagationToNumNodes: 3,

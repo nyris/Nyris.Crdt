@@ -120,11 +120,13 @@ namespace Nyris.Crdt.Distributed
         private async IAsyncEnumerable<TDto> EnumerateCrdtAsync<TCrdt, TDto>(IAsyncEnumerable<TDto> dtos, CallContext context = default)
             where TCrdt : ManagedCRDT<TDto>
         {
-            var instanceId = context.RequestHeaders.GetValue("instance-id");
-            if (string.IsNullOrEmpty(instanceId))
+            var instanceIdStr = context.RequestHeaders.GetValue("instance-id");
+            if (string.IsNullOrEmpty(instanceIdStr))
             {
                 throw new GeneratedCodeExpectationsViolatedException($"Method {nameof(EnumerateCrdtAsync)} expected an InstanceId header to be present, but found none");
             }
+
+            var instanceId = new InstanceId(instanceIdStr);
 
             await foreach(var dto in dtos)
             {

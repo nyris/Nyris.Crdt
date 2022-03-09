@@ -24,7 +24,7 @@ public class TestDtoPassingGrpcService<TCRDT, TDto> : IDtoPassingGrpcService<TDt
     public Task<TDto> SendAsync(DtoMessage<TDto> msg, CancellationToken cancellationToken = default) =>
         _context.MergeAsync<TCRDT, TDto>(msg.Value, msg.InstanceId,
             propagationCounter: msg.PropagationCounter > 0 ? msg.PropagationCounter - 1 : 0,
-            traceId: _context.Nodes.InstanceId,
+            traceId: _context.Nodes.InstanceId.Value,
             cancellationToken: cancellationToken);
 
     /// <inheritdoc />

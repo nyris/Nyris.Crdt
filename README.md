@@ -88,7 +88,7 @@ Calling Add will ensure that CRDT can receive updates coming from other nodes.
 
 ###### 6. Mind the `instanceId`s 
 
-Note that ManagedCRDTs are created with string InstanceId as constructor argument.
+Note that ManagedCRDTs are created with InstanceId as constructor argument.
 This id is used to distinguish between CRDT instances of the same type when 
 exchanging dtos with other nodes. So instanceId have to be unique within Crdt 
 instances if the same type. Otherwise, it is an opaque string.

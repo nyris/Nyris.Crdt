@@ -25,7 +25,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     public abstract class ManagedCRDT<TDto>
         : IAsyncCRDT<TDto>, IAsyncDtoBatchProvider<TDto>, IHashable
     {
-        public readonly string InstanceId;
+        public readonly InstanceId InstanceId;
         private readonly IAsyncQueue<DtoMessage<TDto>> _queue;
         private string? _typeName;
         private readonly ConcurrentBag<IReactToOtherCrdtChange> _dependentCrdts = new();
@@ -40,7 +40,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// distinguish which instance was updated. </param>
         /// <param name="queueProvider"></param>
         /// <param name="logger"></param>
-        protected ManagedCRDT(string instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null)
+        protected ManagedCRDT(InstanceId instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null)
         {
             _queue = (queueProvider ?? DefaultConfiguration.QueueProvider).GetQueue<TDto>(GetType());
             InstanceId = instanceId;

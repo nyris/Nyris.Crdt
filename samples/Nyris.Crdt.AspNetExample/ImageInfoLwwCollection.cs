@@ -3,13 +3,14 @@ using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
 {
     public sealed class ImageInfoLwwCollection : ManagedLastWriteWinsDeltaRegistry<ImageGuid, ImageInfo, DateTime>
     {
         /// <inheritdoc />
-        public ImageInfoLwwCollection(string id,
+        public ImageInfoLwwCollection(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {
@@ -32,7 +33,7 @@ namespace Nyris.Crdt.AspNetExample
             }
 
             /// <inheritdoc />
-            public ImageInfoLwwCollection Create(string instanceId) => new ImageInfoLwwCollection(instanceId,
+            public ImageInfoLwwCollection Create(InstanceId instanceId) => new ImageInfoLwwCollection(instanceId,
                 queueProvider: _queueProvider,
                 logger: _logger);
         }

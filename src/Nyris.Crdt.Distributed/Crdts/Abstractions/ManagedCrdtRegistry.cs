@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
+using Nyris.Crdt.Distributed.Extensions;
+using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
@@ -41,7 +43,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly SemaphoreSlim _semaphore = new(1);
         private ManagedCrdtContext? _context;
 
-        protected ManagedCrdtRegistry(string id,
+        protected ManagedCrdtRegistry(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             TItemValueFactory? factory = default,
             ILogger? logger = null)
@@ -80,7 +82,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(string instanceId,
+        Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(InstanceId instanceId,
             CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
@@ -254,7 +256,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             public OptimizedObservedRemoveSet<TActorId, TItemKey>.OptimizedObservedRemoveSetDto? Keys { get; set; }
 
             [ProtoMember(2)]
-            public Dictionary<TItemKey, string>? InstanceIds { get; set; }
+            public Dictionary<TItemKey, InstanceId>? InstanceIds { get; set; }
         }
     }
 }

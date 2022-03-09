@@ -13,7 +13,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         private readonly NodeInfo _thisNodeInfo;
 
         /// <inheritdoc />
-        public NodeSet(string id,
+        public NodeSet(InstanceId id,
             INodeInfoProvider? nodeInfoProvider = null,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
@@ -39,7 +39,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         private sealed class Factory : IManagedCRDTFactory<NodeSet, OrSetDto>
         {
             /// <inheritdoc />
-            public NodeSet Create(string instanceId) => new(instanceId);
+            public NodeSet Create(InstanceId instanceId) => new(instanceId);
         }
     }
 }

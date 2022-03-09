@@ -24,7 +24,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         public async Task<IActionResult> GetIndexAsync(Guid indexId)
         {
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(CollectionId.FromGuid(indexId),
-                () => (_thisNodeId, new ImageInfoLwwCollection(indexId.ToString("N"))));
+                () => (_thisNodeId, new ImageInfoLwwCollection(new InstanceId(indexId.ToString("N")))));
             return Ok(new { data = index.Values });
         }
 
@@ -32,7 +32,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         public async Task<IActionResult> CreateIndexAsync(Guid indexId)
         {
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(CollectionId.FromGuid(indexId),
-                () => (_thisNodeId, new ImageInfoLwwCollection(indexId.ToString("N"))));
+                () => (_thisNodeId, new ImageInfoLwwCollection(new InstanceId(indexId.ToString("N")))));
             return Ok(new { data = index.Values });
         }
 
@@ -44,7 +44,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         {
             var indexId = CollectionId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwCollection(data.IndexId.ToString("N"))));
+                () => (_thisNodeId, new ImageInfoLwwCollection(new  InstanceId(data.IndexId.ToString("N")))));
 
             var datetime = DateTime.UtcNow;
             var img = await index.SetAsync(ImageGuid.FromGuid(data.ImageUuid),
@@ -57,7 +57,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         {
             var indexId = CollectionId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwCollection(data.IndexId.ToString("N"))));
+                () => (_thisNodeId, new ImageInfoLwwCollection(new InstanceId(data.IndexId.ToString("N")))));
             var item = await index.RemoveAsync(ImageGuid.FromGuid(data.ImageUuid), DateTime.UtcNow);
             return item.Value == default ? NotFound() : Ok(item.Value);
         }

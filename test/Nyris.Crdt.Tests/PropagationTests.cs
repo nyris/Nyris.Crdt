@@ -44,7 +44,7 @@ public class PropagationTests : IAsyncLifetime
         var crdts = new List<ImageInfoCollectionsRegistry>(nNodes);
         foreach (var node in nodes)
         {
-            var crdt = new ImageInfoCollectionsRegistry("1",
+            var crdt = new ImageInfoCollectionsRegistry(new InstanceId("1"),
                 queueProvider: node.QueueProvider,
                 factory: new ImageInfoLwwCollection.ImageInfoLwwCollectionFactory(node.QueueProvider,
                     _output.BuildLogger()),
@@ -55,7 +55,7 @@ public class PropagationTests : IAsyncLifetime
 
         // add collection
         var collectionId = CollectionId.New();
-        var collection = new ImageInfoLwwCollection(collectionId.ToString(),
+        var collection = new ImageInfoLwwCollection(new InstanceId(collectionId.ToString()),
             queueProvider: nodes[0].QueueProvider,
             logger: _output.BuildLogger());
         await crdts[0].TryAddAsync(collectionId, nodes[0].Id, collection, nNodes - 1);
@@ -116,7 +116,7 @@ public class PropagationTests : IAsyncLifetime
 					ValueResponse<ImageInfo>>(nodes)
 				.SetupOperationPassingForRegistry<GetValueOperation<ImageGuid>, ValueResponse<ImageInfo>>(nodes);
 
-            var crdt = new PartiallyReplicatedImageInfoCollectionsRegistry("1",
+            var crdt = new PartiallyReplicatedImageInfoCollectionsRegistry(new InstanceId("1"),
 																		   logger: _output.BuildLogger(),
 																		   nodeInfoProvider: node.InfoProvider,
 																		   queueProvider: node.QueueProvider,

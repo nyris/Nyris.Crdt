@@ -125,14 +125,14 @@ namespace Nyris.Crdt.Distributed.Services
             return await SyncCrdtsAsync(client, nameAndInstanceId.TypeName, nameAndInstanceId.InstanceId, cancellationToken);
         }
 
-        private async Task<bool> SyncCrdtsAsync(IDtoPassingGrpcService<TDto> dtoPassingGrpcService, string typeName, string instanceId, CancellationToken cancellationToken)
+        private async Task<bool> SyncCrdtsAsync(IDtoPassingGrpcService<TDto> dtoPassingGrpcService, string typeName, InstanceId instanceId, CancellationToken cancellationToken)
         {
             // _logger.LogDebug("Syncing CRDT of type {CrdtType} with instanceId {InstanceId}", typeof(TCrdt), instanceId);
 
             var enumerable = _context.EnumerateDtoBatchesAsync<TCrdt, TDto>(instanceId, cancellationToken);
             var callOptions = new CallOptions(new Metadata
             {
-                new("instance-id", instanceId),
+                new("instance-id", instanceId.Value),
                 new("crdt-type-name", typeName)
             }, cancellationToken: cancellationToken);
             await foreach (var dto in dtoPassingGrpcService.EnumerateCrdtAsync(enumerable, callOptions).WithCancellation(cancellationToken))

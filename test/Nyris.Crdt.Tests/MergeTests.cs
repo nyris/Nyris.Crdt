@@ -19,7 +19,7 @@ public class MergeTests
         var nodes = await NodeMock.PrepareNodeMocksAsync(3);
 
         var registries = Enumerable.Range(0, 3)
-            .Select(i => new PartiallyReplicatedImageInfoCollectionsRegistry("test-pr-reg")
+            .Select(i => new PartiallyReplicatedImageInfoCollectionsRegistry(new InstanceId("test-pr-reg"))
             {
                 ManagedCrdtContext = nodes[i].Context
             })
@@ -44,14 +44,14 @@ public class MergeTests
         var nodes = await NodeMock.PrepareNodeMocksAsync(3);
 
         var registries = Enumerable.Range(0, 3)
-            .Select(i => new ImageInfoCollectionsRegistry("test-pr-reg")
+            .Select(i => new ImageInfoCollectionsRegistry(new InstanceId("test-pr-reg"))
             {
                 ManagedCrdtContext = nodes[i].Context
             })
             .ToList();
 
         var collectionId = CollectionId.Parse("0bcacccc-77d8-45f3-a823-10b705b34692");
-        var collection = new ImageInfoLwwCollection("0");
+        var collection = new ImageInfoLwwCollection(new InstanceId("0"));
         await registries[0].TryAddAsync(collectionId, nodes[0].Id, collection);
         registries[0].CalculateHash().SequenceEqual(registries[1].CalculateHash()).Should().BeFalse();
 

@@ -5,6 +5,7 @@ using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Services;
+using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.PartialReplication;
 using Nyris.Crdt.Distributed.Utils;
 
@@ -25,7 +26,7 @@ namespace Nyris.Crdt.AspNetExample
             ImageInfoLwwCollectionWithSerializableOperations.ImageInfoLwwCollectionWithSerializableOperationsFactory>
     {
         /// <inheritdoc />
-        public PartiallyReplicatedImageInfoCollectionsRegistry(string instanceId,
+        public PartiallyReplicatedImageInfoCollectionsRegistry(InstanceId instanceId,
             ILogger? logger = null,
             IPartialReplicationStrategy? partialReplicationStrategy = null,
             INodeInfoProvider? nodeInfoProvider = null,

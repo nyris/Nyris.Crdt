@@ -8,6 +8,7 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
@@ -19,7 +20,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         /// <inheritdoc />
-        protected ManagedLastWriteWinsDeltaRegistryWithSerializableOperations(string id,
+        protected ManagedLastWriteWinsDeltaRegistryWithSerializableOperations(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {

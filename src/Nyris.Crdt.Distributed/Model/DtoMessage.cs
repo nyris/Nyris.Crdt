@@ -8,7 +8,7 @@ namespace Nyris.Crdt.Distributed.Model
 {
     [ProtoContract(SkipConstructor = true)]
     public sealed record DtoMessage<TDto>([property: ProtoMember(1)] string TypeName,
-        [property: ProtoMember(2)] string InstanceId,
+        [property: ProtoMember(2)] InstanceId InstanceId,
         [property: ProtoMember(3)] TDto Value,
         [property: ProtoMember(4)] string TraceId,
         [property: ProtoMember(5)] int PropagationCounter = 0)
