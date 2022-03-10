@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Nyris.Crdt.Distributed.Crdts.Abstractions
+namespace Nyris.Crdt.Distributed.Crdts.Interfaces
 {
     public interface IIndex<in TInput, TKey, in TItem> : IIndex<TKey, TItem>
     {

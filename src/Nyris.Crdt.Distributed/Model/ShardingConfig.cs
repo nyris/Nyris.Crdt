@@ -1,4 +1,4 @@
-﻿namespace Nyris.Crdt.Distributed.Crdts.Abstractions
+﻿namespace Nyris.Crdt.Distributed.Model
 {
     public class ShardingConfig
     {

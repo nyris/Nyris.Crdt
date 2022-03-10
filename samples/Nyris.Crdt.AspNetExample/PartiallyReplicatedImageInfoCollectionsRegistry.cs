@@ -5,6 +5,7 @@ using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
+using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Strategies.PartialReplication;
 using Nyris.Crdt.Distributed.Utils;
 
@@ -28,11 +29,15 @@ namespace Nyris.Crdt.AspNetExample
             ILogger? logger = null,
             IPartialReplicationStrategy? partialReplicationStrategy = null,
             INodeInfoProvider? nodeInfoProvider = null,
+			IAsyncQueueProvider? queueProvider = null,
+			IChannelManager? channelManager = null,
             ImageInfoLwwCollectionWithSerializableOperations.ImageInfoLwwCollectionWithSerializableOperationsFactory? factory = null)
             : base(instanceId,
                 logger: logger,
                 partialReplicationStrategy: partialReplicationStrategy,
                 nodeInfoProvider: nodeInfoProvider,
+				queueProvider: queueProvider,
+				channelManager: channelManager,
                 factory: factory)
         {
         }

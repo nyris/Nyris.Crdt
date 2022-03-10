@@ -12,7 +12,7 @@ namespace Nyris.Crdt.AspNetExample
 
             var imageInfoCollectionFactory = new ImageInfoLwwCollectionWithSerializableOperations
                 .ImageInfoLwwCollectionWithSerializableOperationsFactory(
-                    loggerFactory.CreateLogger<ImageInfoLwwCollectionWithSerializableOperations>());
+                    logger: loggerFactory.CreateLogger<ImageInfoLwwCollectionWithSerializableOperations>());
 
             var partiallyReplRegistryFactory =
                 new PartiallyReplicatedImageInfoCollectionsRegistry.

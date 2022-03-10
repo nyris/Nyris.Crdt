@@ -76,7 +76,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly NodeInfo _thisNode;
         private readonly IPartialReplicationStrategy _partialReplicationStrategy;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
-        private ManagedCrdtContext? _context;
+
+		private ManagedCrdtContext? _context;
+		private readonly IChannelManager _channelManager;
 
         private IDictionary<ShardId, IList<NodeInfo>> _desiredDistribution;
 
@@ -107,7 +109,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             IPartialReplicationStrategy? partialReplicationStrategy = null,
             IResponseCombinator? responseCombinator = null,
             INodeInfoProvider? nodeInfoProvider = null,
-            TCollectionFactory? factory = default) : base(instanceId, logger: logger)
+			IAsyncQueueProvider? queueProvider = null,
+			IChannelManager? channelManager = null,
+            TCollectionFactory? factory = default) : base(instanceId, queueProvider: queueProvider, logger: logger)
         {
             _logger = logger;
             _responseCombinator = responseCombinator ?? DefaultConfiguration.ResponseCombinator;
@@ -118,6 +122,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             _collections = new();
             _desiredDistribution = new Dictionary<ShardId, IList<NodeInfo>>();
             _factory = factory ?? new TCollectionFactory();
+			_channelManager = channelManager
+							  ?? ChannelManagerAccessor.Manager
+							  ?? throw new InitializationException("Channel manager was not passed and " +
+																   "not set in ChannelManagerAccessor");
             _refreshShardSizesTask = RefreshShardSizesAsync(_cts.Token);
         }
 
@@ -213,11 +221,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public async Task<TResponse> ApplyAsync<TOperation, TResponse>(TKey key,
             TOperation operation,
-            string traceId,
+            string? traceId = null,
+			int propagateToNodes = 0,
             CancellationToken cancellationToken = default)
             where TOperation : TCollectionOperationBase
             where TResponse : TCollectionOperationResponseBase
-        {
+		{
+			traceId ??= ShortGuid.Encode(Guid.NewGuid());
             _logger?.LogDebug("TraceId {TraceId}, registry received an operation for collection " +
                               "{CollectionKey} of type {OperationType}", traceId, key, typeof(TOperation));
             if (!_collectionInfos.TryGetValue(key, out var info))
@@ -235,8 +245,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 case 1:
                     return await ApplyToSingleShardAsync<TOperation, TResponse>(routeToShards[0],
                         operation,
-                        traceId: traceId,
-                        cancellationToken: cancellationToken);
+                        traceId,
+						propagateToNodes,
+                        cancellationToken);
             }
 
             var tasks = new Task<TResponse>[routeToShards.Count];
@@ -244,8 +255,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 tasks[i] = ApplyToSingleShardAsync<TOperation, TResponse>(routeToShards[i],
                     operation,
-                    traceId: traceId,
-                    cancellationToken: cancellationToken);
+                    traceId,
+					propagateToNodes,
+                    cancellationToken);
             }
 
             await Task.WhenAll(tasks);
@@ -256,6 +268,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         internal async Task<TResponse> ApplyToSingleShardAsync<TOperation, TResponse>(ShardId shardId,
             TOperation operation,
             string traceId,
+			int propagateToNodes,
             CancellationToken cancellationToken = default)
             where TOperation : TCollectionOperationBase
             where TResponse : TCollectionOperationResponseBase
@@ -269,18 +282,15 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 // _logger?.LogDebug("TraceId {TraceId}, collection {CollectionKey} found locally", traceId, key);
                 var response = await collection.ApplyAsync(operation, cancellationToken);
-                await SetShardSizeAsync(shardId, collection.Size, traceId, cancellationToken);
+                await SetShardSizeAsync(shardId, collection.Size, traceId, propagateToNodes, cancellationToken);
                 _logger?.LogDebug("TraceId {TraceId}, shard {ShardId} found locally", traceId, shardId);
                 return (TResponse)response;
             }
 
             var nodes = nodesWithShard.Value.ToList();
             var routeTo = nodes[Random.Next(0, nodes.Count)];
-            var channelManager = ChannelManagerAccessor.Manager ?? throw new InitializationException(
-                "Operation can not be routed to a different node - Channel manager was not instantiated yet");
 
-            if (!channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse>>(
-                    routeTo, out var client))
+            if (!_channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse>>(routeTo, out var client))
             {
                 throw new GeneratedCodeExpectationsViolatedException(
                     $"Could not get {typeof(IOperationPassingGrpcService<TOperation, TResponse>)}");
@@ -288,7 +298,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             _logger?.LogDebug("TraceId {TraceId}, operation was re-routed to node {NodeId}", traceId, routeTo);
             return await client.ApplyAsync(
-                new CrdtOperation<TOperation>(TypeName, InstanceId, traceId, shardId, operation),
+                new CrdtOperation<TOperation>(TypeName, InstanceId, traceId, propagateToNodes, shardId, operation),
                 cancellationToken);
         }
 
@@ -498,7 +508,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         private async Task SetShardSizeAsync(ShardId shardId, ulong size, string traceId,
-            CancellationToken cancellationToken)
+											 int propagateToNodes,
+											 CancellationToken cancellationToken)
         {
             if (TryGetCollectionKey(shardId, out var key)
                 && _collectionInfos.TryGetValue(key, out var info)
@@ -516,7 +527,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 finally
                 {
                     _semaphore.Release();
-                    await StateChangedAsync(2, traceId, cancellationToken);
+                    await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
                     await RebalanceAsync(traceId, cancellationToken);
                 }
             }
@@ -538,7 +549,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 }
             }
         }
-        
+
         private async Task TryRefreshShardSizesAsync(CancellationToken cancellationToken)
         {
             foreach (var shardId in _collections.Keys)
@@ -547,11 +558,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     && nodes.Contains(_thisNode.Id)
                     && _collections.TryGetValue(shardId, out var collection))
                 {
-                    _logger?.LogDebug("Setting size of {ShardId} during refresh to {Size}", 
+                    _logger?.LogDebug("Setting size of {ShardId} during refresh to {Size}",
                         shardId, collection.Size);
                     await SetShardSizeAsync(shardId,
                         collection.Size,
                         "shard-size-refresh",
+						0,
                         cancellationToken);
                 }
             }
@@ -565,7 +577,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             _refreshShardSizesTask.Dispose();
             _semaphore.Dispose();
         }
-        
+
         [ProtoContract]
         public sealed class PartiallyReplicatedCrdtRegistryDto
         {

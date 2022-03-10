@@ -8,7 +8,11 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
+using Nyris.Crdt.Distributed.Crdts.Operations;
+using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Grpc;
+using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Strategies.Propagation;
 using Xunit;
@@ -59,7 +63,9 @@ public class PropagationTests : IAsyncLifetime
 
         // add item to collection
         var imageUuid = ImageGuid.New();
-        await collection.SetAsync(imageUuid, new ImageInfo(new Uri("http://test.url"), "1234"),
+		var downloadUrl = new Uri("http://test.url");
+		const string imageId = "1234";
+        await collection.SetAsync(imageUuid, new ImageInfo(downloadUrl, imageId),
             DateTime.UtcNow, nNodes - 1);
         foreach (var crdt in crdts)
         {
@@ -67,6 +73,8 @@ public class PropagationTests : IAsyncLifetime
             crdt.TryGetValue(collectionId, out var extractedCollection).Should().BeTrue();
             extractedCollection!.Size.Should().Be(1);
             extractedCollection.Value.Should().ContainKey(imageUuid);
+			extractedCollection.Value[imageUuid].ImageId.Should().Be(imageId);
+			extractedCollection.Value[imageUuid].DownloadUrl.Should().Be(downloadUrl);
         }
 
         // remove item from collection
@@ -79,7 +87,82 @@ public class PropagationTests : IAsyncLifetime
         }
     }
 
-    private async Task StartPropagationServicesAsync<TCrdt, TDto>(IList<NodeMock> nodes) where TCrdt : ManagedCRDT<TDto>
+    [Theory]
+    [InlineData(2, 1)]
+    [InlineData(3, 1)]
+    [InlineData(7, 1)]
+	[InlineData(2, 3)]
+	[InlineData(3, 3)]
+	[InlineData(7, 3)]
+	[InlineData(2, 15)]
+	[InlineData(3, 15)]
+	[InlineData(7, 15)]
+    public async Task UpdateToPartiallyReplicatedImageInfoLwwCollectionPropagated(int nNodes, ushort nShards)
+    {
+        var nodes = await NodeMock.PrepareNodeMocksAsync(nNodes);
+        await StartPropagationServicesAsync<PartiallyReplicatedImageInfoCollectionsRegistry,
+			PartiallyReplicatedImageInfoCollectionsRegistry.PartiallyReplicatedCrdtRegistryDto>(nodes);
+        await StartPropagationServicesAsync<ImageInfoLwwCollectionWithSerializableOperations,
+			ImageInfoLwwCollectionWithSerializableOperations.LastWriteWinsDto>(nodes);
+
+        // create collection registry on all nodes
+        var crdts = new List<PartiallyReplicatedImageInfoCollectionsRegistry>(nNodes);
+        foreach (var node in nodes)
+		{
+			var factory = new ImageInfoLwwCollectionWithSerializableOperations.
+				ImageInfoLwwCollectionWithSerializableOperationsFactory(node.QueueProvider,
+																		_output.BuildLogger());
+			var channelManagerMock = new Mock<IChannelManager>()
+				.SetupOperationPassingForRegistry<AddValueOperation<ImageGuid, ImageInfo, DateTime>,
+					ValueResponse<ImageInfo>>(nodes)
+				.SetupOperationPassingForRegistry<GetValueOperation<ImageGuid>, ValueResponse<ImageInfo>>(nodes);
+
+            var crdt = new PartiallyReplicatedImageInfoCollectionsRegistry("1",
+																		   logger: _output.BuildLogger(),
+																		   nodeInfoProvider: node.InfoProvider,
+																		   queueProvider: node.QueueProvider,
+																		   channelManager: channelManagerMock.Object,
+																		   factory: factory);
+            crdts.Add(crdt);
+            node.Context.Add(crdt, PartiallyReplicatedImageInfoCollectionsRegistry.DefaultFactory);
+        }
+
+        // add collection
+        var collectionId = CollectionId.New();
+		await crdts[0].TryAddCollectionAsync(collectionId,
+											 new CollectionConfig
+											 {
+												 Name = "test-collection",
+												 ShardingConfig = new ShardingConfig { NumShards = nShards }
+											 }, nNodes - 1);
+
+        // add item to collection
+        var imageUuid = ImageGuid.New();
+		var downloadUrl = new Uri("http://test.url");
+		const string imageId = "1234";
+		var imageInfo = new ImageInfo(downloadUrl, imageId);
+		var addValue = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(imageUuid, imageInfo, DateTime.UtcNow);
+
+		await crdts[0].ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(collectionId,
+																											   addValue,
+																											   propagateToNodes: nNodes - 1);
+
+        foreach (var crdt in crdts)
+		{
+			crdt.CollectionExists(collectionId).Should().BeTrue();
+			crdt.TryGetCollectionSize(collectionId, out var size).Should().BeTrue();
+			size.Should().Be(1);
+			var response = await crdt.ApplyAsync<GetValueOperation<ImageGuid>,
+				ValueResponse<ImageInfo>>(collectionId,
+										  new GetValueOperation<ImageGuid>(imageUuid),
+										  propagateToNodes: nNodes - 1);
+			response.Value.Should().NotBeNull();
+			response.Value.DownloadUrl.Should().Be(downloadUrl);
+			response.Value.ImageId.Should().Be(imageId);
+		}
+    }
+
+	private async Task StartPropagationServicesAsync<TCrdt, TDto>(IList<NodeMock> nodes) where TCrdt : ManagedCRDT<TDto>
     {
         var clients = new List<IDtoPassingGrpcService<TDto>>(nodes.Count);
         clients.AddRange(nodes.Select(node => new TestDtoPassingGrpcService<TCrdt, TDto>(node.Context)));

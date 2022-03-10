@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
+using Nyris.Crdt.Distributed.Crdts.Interfaces;
 
 namespace Nyris.Crdt.AspNetExample
 {

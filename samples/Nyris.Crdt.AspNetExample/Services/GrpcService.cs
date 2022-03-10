@@ -168,8 +168,9 @@ namespace Nyris.Crdt.AspNetExample.Services
             var result = await _context.PartiallyReplicatedImageCollectionsRegistry
                 .ApplyAsync<GetValueOperation<ImageGuid>, ValueResponse<ImageInfo>>(
                     CollectionId.Parse(request.CollectionId),
-                    new GetValueOperation<ImageGuid>(ImageGuid.Parse(request.ImageUuid)), traceId:
-                    request.TraceId);
+                    new GetValueOperation<ImageGuid>(ImageGuid.Parse(request.ImageUuid)),
+					propagateToNodes: 2,
+					traceId: request.TraceId);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(GetImagePR));
             return new Image
@@ -191,6 +192,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                     CollectionId.Parse(request.CollectionId),
                     new FindIdsOperation(Convert.ToHexString(request.Id.Span)),
                     request.TraceId,
+					2,
                     context.CancellationToken);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(FindImagePR));

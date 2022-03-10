@@ -54,7 +54,7 @@ namespace Nyris.Crdt.Distributed
         public Task<{{ op.OperationResponseType }}> ApplyAsync(CrdtOperation<{{ op.OperationType }}> operation, CancellationToken cancellationToken = default)
         {
             _logger.LogDebug("Received operation: {Dto}", JsonConvert.SerializeObject(operation));
-            return _context.ApplyAsync<{{ op.CrdtTypeParams }}, {{ op.OperationType }}, {{ op.OperationResponseType }}>(operation.ShardId, operation.Operation, operation.InstanceId, operation.TraceId, cancellationToken);
+            return _context.ApplyAsync<{{ op.CrdtTypeParams }}, {{ op.OperationType }}, {{ op.OperationResponseType }}>(operation.ShardId, operation.Operation, operation.InstanceId, operation.TraceId, operation.PropagateToNodes, cancellationToken);
         }
 {{~ end ~}}
 

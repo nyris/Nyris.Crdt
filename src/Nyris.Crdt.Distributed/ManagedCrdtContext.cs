@@ -235,6 +235,7 @@ namespace Nyris.Crdt.Distributed
             TCollectionOperation operation,
             string instanceId,
             string? traceId = null,
+			int propagateToNodes = 0,
             CancellationToken cancellationToken = default)
             where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
                 TCollection,
@@ -272,6 +273,7 @@ namespace Nyris.Crdt.Distributed
             return await crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
                 operation,
                 traceId: traceId ?? ShortGuid.Encode(Guid.NewGuid()),
+				propagateToNodes,
                 cancellationToken: cancellationToken);
         }
 

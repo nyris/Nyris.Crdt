@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Strategies.PartialReplication;
 
-namespace Nyris.Crdt.Distributed.Crdts.Abstractions
+namespace Nyris.Crdt.Distributed.Model
 {
     public sealed class CollectionConfig
     {

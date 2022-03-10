@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Nyris.Crdt.Distributed.Extensions
+namespace Nyris.Crdt
 {
     public static class CrdtExtensions
     {

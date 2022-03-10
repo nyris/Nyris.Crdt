@@ -45,13 +45,15 @@ namespace Nyris.Crdt.AspNetExample
             : IManagedCRDTFactory<ImageInfoLwwCollectionWithSerializableOperations, LastWriteWinsDto>
         {
             private readonly ILogger? _logger;
+			private readonly IAsyncQueueProvider? _queueProvider;
 
             public ImageInfoLwwCollectionWithSerializableOperationsFactory()
             {
             }
 
-            public ImageInfoLwwCollectionWithSerializableOperationsFactory(ILogger? logger)
-            {
+            public ImageInfoLwwCollectionWithSerializableOperationsFactory(IAsyncQueueProvider? queueProvider = null, ILogger? logger = null)
+			{
+				_queueProvider = queueProvider;
                 _logger = logger;
                 _logger?.LogDebug("{FactoryName} created with logger",
                     nameof(ImageInfoLwwCollectionWithSerializableOperationsFactory));
@@ -59,7 +61,7 @@ namespace Nyris.Crdt.AspNetExample
 
             /// <inheritdoc />
             public ImageInfoLwwCollectionWithSerializableOperations Create(string instanceId)
-                => new (instanceId, logger: _logger);
+                => new (instanceId, logger: _logger, queueProvider: _queueProvider);
         }
     }
 }

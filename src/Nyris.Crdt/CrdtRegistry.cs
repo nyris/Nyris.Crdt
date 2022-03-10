@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
