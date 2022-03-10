@@ -14,7 +14,6 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
-using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
@@ -78,7 +77,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly SemaphoreSlim _semaphore = new(1, 1);
 
 		private ManagedCrdtContext? _context;
-		private readonly IChannelManager _channelManager;
+		private readonly IChannelManager? _channelManager;
 
         private IDictionary<ShardId, IList<NodeInfo>> _desiredDistribution;
 
@@ -122,10 +121,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             _collections = new();
             _desiredDistribution = new Dictionary<ShardId, IList<NodeInfo>>();
             _factory = factory ?? new TCollectionFactory();
-			_channelManager = channelManager
-							  ?? ChannelManagerAccessor.Manager
-							  ?? throw new InitializationException("Channel manager was not passed and " +
-																   "not set in ChannelManagerAccessor");
+			_channelManager = channelManager;
             _refreshShardSizesTask = RefreshShardSizesAsync(_cts.Token);
         }
 
@@ -290,7 +286,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             var nodes = nodesWithShard.Value.ToList();
             var routeTo = nodes[Random.Next(0, nodes.Count)];
 
-            if (!_channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse>>(routeTo, out var client))
+			var channelManager = _channelManager
+				?? ChannelManagerAccessor.Manager
+				?? throw new InitializationException("Operation can not be routed, as channel manager was not " +
+													 "passed in constructor or set in ChannelManagerAccessor");
+
+            if (!channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse>>(routeTo, out var client))
             {
                 throw new GeneratedCodeExpectationsViolatedException(
                     $"Could not get {typeof(IOperationPassingGrpcService<TOperation, TResponse>)}");
@@ -432,7 +433,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 }
             }
             _collections.TryAdd(shardId, managedCrdt);
-            ManagedCrdtContext.Add(managedCrdt, _factory, this, this);
+            ManagedCrdtContext.Add<TCollection, TCollectionDto>(managedCrdt, this, this);
         }
 
         private bool TryGetCollectionKey(ShardId shardId, [NotNullWhen(true)] out TKey? collectionKey)

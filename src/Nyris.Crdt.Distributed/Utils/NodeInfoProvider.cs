@@ -32,8 +32,6 @@ namespace Nyris.Crdt.Distributed.Utils
                 }
             }
 
-            JsonConvert.SerializeObject(_info);
-
             throw new InitializationException("No network adapters with an IPv4 address in the system!");
         }
     }

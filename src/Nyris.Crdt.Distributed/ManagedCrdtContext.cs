@@ -22,7 +22,6 @@ namespace Nyris.Crdt.Distributed
     public abstract class ManagedCrdtContext
     {
         private readonly ConcurrentDictionary<TypeAndInstanceId, object> _managedCrdts = new();
-        private readonly ConcurrentDictionary<Type, object> _crdtFactories = new();
         private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashable> _sameManagedCrdts = new();
         private readonly ConcurrentDictionary<Type, HashSet<TypeNameAndInstanceId>> _typeToTypeNameMapping = new();
 
@@ -37,11 +36,10 @@ namespace Nyris.Crdt.Distributed
         {
             Logger = logger;
             Nodes = nodes ?? new("nodes_internal");
-            Add(Nodes, NodeSet.DefaultFactory);
+            Add<NodeSet, NodeSet.OrSetDto>(Nodes);
         }
 
-        protected internal void Add<TCrdt, TDto>(TCrdt crdt,
-            IManagedCRDTFactory<TCrdt, TDto> factory)
+        protected internal void Add<TCrdt, TDto>(TCrdt crdt)
             where TCrdt : ManagedCRDT<TDto>
         {
             if (typeof(TCrdt).IsGenericType)
@@ -65,8 +63,6 @@ namespace Nyris.Crdt.Distributed
                                                            "is unique withing crdts of the same type.");
             }
 
-            _crdtFactories.TryAdd(typeof(TCrdt), factory);
-
             _typeToTypeNameMapping.AddOrUpdate(typeof(TCrdt),
                 _ => new HashSet<TypeNameAndInstanceId> {typeNameAndInstanceId},
                 (_, nameAndId) =>
@@ -87,12 +83,11 @@ namespace Nyris.Crdt.Distributed
         }
 
         internal void Add<TCrdt, TDto>(TCrdt crdt,
-            IManagedCRDTFactory<TCrdt, TDto> factory,
             INodesWithReplicaProvider nodesWithReplicaProvider,
             ICreateAndDeleteManagedCrdtsInside holder)
             where TCrdt : ManagedCRDT<TDto>
         {
-            Add(crdt, factory);
+            Add<TCrdt, TDto>(crdt);
             var nameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
             _partiallyReplicated.TryAdd(nameAndInstanceId, nodesWithReplicaProvider);
             _holders.TryAdd(nameAndInstanceId, holder);
@@ -116,7 +111,6 @@ namespace Nyris.Crdt.Distributed
             // Remove factory and mapping only if it's a last instances
             if (_managedCrdts.Keys.Any(key => key.Type == typeof(TCrdt))) return;
 
-            _crdtFactories.TryRemove(typeof(TCrdt), out _);
             _typeToTypeNameMapping.TryRemove(typeof(TCrdt), out _);
         }
 

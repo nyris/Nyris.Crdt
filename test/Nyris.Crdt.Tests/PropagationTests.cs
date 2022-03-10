@@ -8,7 +8,6 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Grpc;
@@ -51,7 +50,7 @@ public class PropagationTests : IAsyncLifetime
                     _output.BuildLogger()),
                 logger: _output.BuildLogger());
             crdts.Add(crdt);
-            node.Context.Add(crdt, ImageInfoCollectionsRegistry.DefaultFactory);
+            node.Context.Add<ImageInfoCollectionsRegistry, ImageInfoCollectionsRegistry.RegistryDto>(crdt);
         }
 
         // add collection
@@ -124,7 +123,8 @@ public class PropagationTests : IAsyncLifetime
 																		   channelManager: channelManagerMock.Object,
 																		   factory: factory);
             crdts.Add(crdt);
-            node.Context.Add(crdt, PartiallyReplicatedImageInfoCollectionsRegistry.DefaultFactory);
+            node.Context.Add<PartiallyReplicatedImageInfoCollectionsRegistry,
+				PartiallyReplicatedImageInfoCollectionsRegistry.PartiallyReplicatedCrdtRegistryDto>(crdt);
         }
 
         // add collection

@@ -10,7 +10,6 @@ using Microsoft.Extensions.Logging;
 using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
-using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
@@ -104,7 +103,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
                 _keys.Add(key, actorId);
                 _dictionary.TryAdd(key, value);
-                ManagedCrdtContext.Add(value, _factory);
+                ManagedCrdtContext.Add<TItemValue, TItemValueDto>(value);
             }
             finally
             {
@@ -142,7 +141,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
                 _keys.Add(key, actorId);
                 _dictionary.TryAdd(key, newValue);
-                ManagedCrdtContext.Add(newValue, _factory);
+                ManagedCrdtContext.Add<TItemValue, TItemValueDto>(newValue);
                 value = newValue;
             }
             finally
@@ -206,7 +205,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                         other.InstanceIds.TryGetValue(keyToAdd, out var v) &&
                         _dictionary.TryAdd(keyToAdd, _factory.Create(v)))
                     {
-                        ManagedCrdtContext.Add(_dictionary[keyToAdd], _factory);
+                        ManagedCrdtContext.Add<TItemValue, TItemValueDto>(_dictionary[keyToAdd]);
                     }
                 }
 

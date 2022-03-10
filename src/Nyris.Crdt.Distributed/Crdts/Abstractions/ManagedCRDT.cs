@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Extensions.Guids;
 

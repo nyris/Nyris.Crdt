@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed;
+using Nyris.Crdt.Distributed.Services;
 
 namespace Nyris.Crdt.AspNetExample
 {
@@ -14,20 +15,15 @@ namespace Nyris.Crdt.AspNetExample
                 .ImageInfoLwwCollectionWithSerializableOperationsFactory(
                     logger: loggerFactory.CreateLogger<ImageInfoLwwCollectionWithSerializableOperations>());
 
-            var partiallyReplRegistryFactory =
-                new PartiallyReplicatedImageInfoCollectionsRegistry.
-                    PartiallyReplicatedImageInfoCollectionsRegistryFactory(
-                        loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
-                        imageInfoCollectionFactory);
-
             PartiallyReplicatedImageCollectionsRegistry = new("partially-replicated",
                 logger: loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
                 factory: imageInfoCollectionFactory);
             ImageCollectionsRegistry = new("sample-collections-registry",
                 logger: loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>());
 
-            Add(ImageCollectionsRegistry, ImageInfoCollectionsRegistry.DefaultFactory);
-            Add(PartiallyReplicatedImageCollectionsRegistry, partiallyReplRegistryFactory);
+            Add<ImageInfoCollectionsRegistry, ImageInfoCollectionsRegistry.RegistryDto>(ImageCollectionsRegistry);
+            Add<PartiallyReplicatedImageInfoCollectionsRegistry,
+				PartiallyReplicatedImageInfoCollectionsRegistry.PartiallyReplicatedCrdtRegistryDto>(PartiallyReplicatedImageCollectionsRegistry);
 
             IndexFactory.Register(ImageIdIndex.IndexName, () => new ImageIdIndex());
         }

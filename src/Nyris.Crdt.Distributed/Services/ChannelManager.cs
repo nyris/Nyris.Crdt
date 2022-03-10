@@ -120,6 +120,5 @@ namespace Nyris.Crdt.Distributed.Services
                 await (_channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask);
             }
         }
-    }
-
+	}
 }

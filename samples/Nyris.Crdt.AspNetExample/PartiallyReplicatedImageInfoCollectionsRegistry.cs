@@ -42,31 +42,5 @@ namespace Nyris.Crdt.AspNetExample
         {
         }
 
-        public static readonly PartiallyReplicatedImageInfoCollectionsRegistryFactory DefaultFactory = new();
-
-        public sealed class PartiallyReplicatedImageInfoCollectionsRegistryFactory : IManagedCRDTFactory<PartiallyReplicatedImageInfoCollectionsRegistry,
-            PartiallyReplicatedCrdtRegistryDto>
-        {
-            private readonly ILogger? _logger;
-
-            private readonly ImageInfoLwwCollectionWithSerializableOperations.
-                ImageInfoLwwCollectionWithSerializableOperationsFactory? _factory;
-
-            public PartiallyReplicatedImageInfoCollectionsRegistryFactory()
-            {
-            }
-
-            public PartiallyReplicatedImageInfoCollectionsRegistryFactory(ILogger? logger, ImageInfoLwwCollectionWithSerializableOperations.
-                ImageInfoLwwCollectionWithSerializableOperationsFactory? factory)
-            {
-                _logger = logger;
-                _factory = factory;
-                _logger?.LogDebug("{FactoryName} created with logger", nameof(PartiallyReplicatedImageInfoCollectionsRegistryFactory));
-            }
-
-            /// <inheritdoc />
-            public PartiallyReplicatedImageInfoCollectionsRegistry Create(string instanceId)
-                => new(instanceId, logger: _logger, factory: _factory);
-        }
     }
 }

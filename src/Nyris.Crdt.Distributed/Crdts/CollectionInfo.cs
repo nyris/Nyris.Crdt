@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
-using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
