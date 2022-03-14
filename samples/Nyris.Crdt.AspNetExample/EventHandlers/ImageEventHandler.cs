@@ -38,6 +38,6 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
             }
         }
 
-        protected abstract Task TryHandleAsync(TMessage message, DateTime createdEvent);
+        protected abstract Task TryHandleAsync(TMessage message, DateTime createdAt);
     }
 }

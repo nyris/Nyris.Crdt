@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.AspNetExample.Events;
 using Nyris.Crdt.AspNetExample.Mongo;
+using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.EventBus.Subscribers;
 
@@ -25,12 +26,16 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
         public override HandlerType HandlerType => HandlerType.Consumer;
 
         /// <inheritdoc />
-        protected override async Task TryHandleAsync(ImageDeletedEvent message, DateTime createdEvent)
+        protected override async Task TryHandleAsync(ImageDeletedEvent message, DateTime createdAt)
         {
-            var indexId = CollectionId.FromGuid(message.IndexId);
-            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwCollection(message.IndexId.ToString("N"))));
-            await index.RemoveAsync(ImageGuid.FromGuid(message.ImageUuid), createdEvent);
+            var collectionId = CollectionId.FromGuid(message.IndexId);
+            if (!_context.PartiallyReplicatedImageCollectionsRegistry.CollectionExists(collectionId))
+            {
+                return;
+            }
+            var operation = new DeleteImageOperation(ImageGuid.FromGuid(message.ImageUuid), createdAt);
+            await _context.PartiallyReplicatedImageCollectionsRegistry
+                .ApplyAsync<DeleteImageOperation, ValueResponse<ImageInfo>>(collectionId, operation);
         }
     }
 }

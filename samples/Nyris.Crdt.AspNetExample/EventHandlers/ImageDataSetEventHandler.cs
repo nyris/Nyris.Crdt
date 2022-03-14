@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.AspNetExample.Events;
 using Nyris.Crdt.AspNetExample.Mongo;
+using Nyris.Crdt.Distributed.Crdts.Operations;
+using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.EventBus.Subscribers;
 
@@ -24,12 +26,28 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
         public override HandlerType HandlerType => HandlerType.Consumer;
 
         /// <inheritdoc />
-        protected override async Task TryHandleAsync(ImageDataSetEvent message, DateTime createdEvent)
+        protected override async Task TryHandleAsync(ImageDataSetEvent message, DateTime createdAt)
         {
-            var indexId = CollectionId.FromGuid(message.IndexId);
-            var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwCollection(message.IndexId.ToString("N"))));
-            await index.SetAsync(ImageGuid.FromGuid(message.ImageUuid), new ImageInfo(message.DownloadUri, message.ImageId), createdEvent);
+            var collectionId = CollectionId.FromGuid(message.IndexId);
+
+            if (!_context.PartiallyReplicatedImageCollectionsRegistry.CollectionExists(collectionId))
+            {
+                await _context.PartiallyReplicatedImageCollectionsRegistry
+                    .TryAddCollectionAsync(collectionId, new CollectionConfig
+                    {
+                        Name = collectionId.ToString(),
+                        IndexNames = new[] { ImageIdIndex.IndexName },
+                        ShardingConfig = new ShardingConfig { NumShards = 2 }
+                    }, 2);
+            }
+
+            var imageInfo = new ImageInfo(message.DownloadUri, message.ImageId);
+            var operation = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(ImageGuid.FromGuid(message.ImageUuid),
+                imageInfo, DateTime.UtcNow);
+            await _context.PartiallyReplicatedImageCollectionsRegistry
+                .ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(
+                    collectionId,
+                    operation);
         }
     }
 }
