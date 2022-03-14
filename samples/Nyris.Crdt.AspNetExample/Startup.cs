@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using Nyris.Crdt.AspNetExample.Mongo;
 using Nyris.Crdt.AspNetExample.Services;
 using Nyris.Crdt.Distributed;
+using Nyris.EventBus.AspNetCore;
 using Serilog;
 
 namespace Nyris.Crdt.AspNetExample
@@ -40,8 +41,8 @@ namespace Nyris.Crdt.AspNetExample
                 })
                 .WithAddressListDiscovery(Configuration.GetSection("ManualDiscovery").Get<List<Uri>>());
 
-            // services.AddRabbitMqEasyNetQForAspNetCore(Configuration);
-            // services.AddMessageHandling(Configuration.GetSection("Messaging"));
+            services.AddRabbitMqEasyNetQForAspNetCore(Configuration);
+            services.AddMessageHandling(Configuration.GetSection("Messaging"));
 
             services.AddCors(o => o.AddPolicy("all", cb =>
             {
