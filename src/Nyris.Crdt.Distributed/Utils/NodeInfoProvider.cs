@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 

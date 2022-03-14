@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed;
-using Nyris.Crdt.Distributed.Services;
 
 namespace Nyris.Crdt.AspNetExample
 {

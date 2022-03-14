@@ -231,7 +231,7 @@ namespace Nyris.Crdt.AspNetExample.Services
         /// <inheritdoc />
         public override async Task<BoolResponse> ImagesCollectionExistsPR(CollectionIdMessage request, ServerCallContext context) =>
             new()
-            {
+			{
                 Value = _context.PartiallyReplicatedImageCollectionsRegistry
                     .CollectionExists(CollectionId.Parse(request.Id))
             };
