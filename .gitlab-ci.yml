@@ -7,12 +7,13 @@ variables:
 stages:
   - version
   - build
+  - test
   - docker:build
   - docker:push
   - deploy
 
 .base:
-  image: eu.gcr.io/everybag-1273/dotnet/sdk-ci:5.0
+  image: eu.gcr.io/everybag-1273/dotnet/sdk-ci:6.0
   allow_failure: false
   tags:
     - builder
@@ -49,6 +50,7 @@ Build:
   extends: .build
   script:
     - v2-autobuild
+    - v2-test test/Nyris.Crdt.Tests/Nyris.Crdt.Tests.csproj
     - v3-publish-app Release alpine-x64 samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
 
 .dockerize:
