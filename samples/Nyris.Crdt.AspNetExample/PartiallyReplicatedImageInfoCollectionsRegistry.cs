@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Services;
@@ -12,6 +11,7 @@ using Nyris.Crdt.Distributed.Utils;
 namespace Nyris.Crdt.AspNetExample
 {
     [RequireOperation(typeof(AddValueOperation<ImageGuid, ImageInfo, DateTime>), typeof(ValueResponse<ImageInfo>))]
+    [RequireOperation(typeof(DeleteImageOperation), typeof(ValueResponse<bool>))]
     [RequireOperation(typeof(GetValueOperation<ImageGuid>), typeof(ValueResponse<ImageInfo>))]
     [RequireOperation(typeof(FindIdsOperation), typeof(ValueResponse<IList<ImageGuid>>))]
     public sealed class PartiallyReplicatedImageInfoCollectionsRegistry
