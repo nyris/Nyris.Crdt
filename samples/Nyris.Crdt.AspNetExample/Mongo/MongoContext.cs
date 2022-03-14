@@ -9,7 +9,7 @@ namespace Nyris.Crdt.AspNetExample.Mongo
 
         public MongoContext(IMongoClient client, MongoConfiguration configuration)
         {
-            var database = client.GetDatabase(configuration.RequestsDatabase);
+            var database = client.GetDatabase(configuration.Database);
             Images = database.GetCollection<ImageDocument>(configuration.Collection, new MongoCollectionSettings
             {
                 GuidRepresentation = GuidRepresentation.Standard
