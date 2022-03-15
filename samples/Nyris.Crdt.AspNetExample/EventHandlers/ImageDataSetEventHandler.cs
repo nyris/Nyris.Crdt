@@ -14,6 +14,8 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
     {
         private readonly MyContext _context;
         private readonly NodeId _thisNodeId;
+        private static Uri EmptyUri = new Uri("about:blank");
+
         /// <inheritdoc />
         public ImageDataSetEventHandler(ILogger<ImageDataSetEventHandler> logger, MyContext context, NodeInfo thisNode, MongoContext mongoContext)
             : base(logger, mongoContext)
@@ -41,7 +43,7 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
                     }, 2);
             }
 
-            var imageInfo = new ImageInfo(message.DownloadUri, message.ImageId);
+            var imageInfo = new ImageInfo(message.DownloadUri ?? EmptyUri, message.ImageId);
             var operation = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(ImageGuid.FromGuid(message.ImageUuid),
                 imageInfo, DateTime.UtcNow);
             await _context.PartiallyReplicatedImageCollectionsRegistry

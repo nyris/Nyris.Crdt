@@ -21,6 +21,11 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
 
         public override async Task HandleAsync(TMessage message, MessageContext context)
         {
+            if (!message.IsValid())
+            {
+                context.MessageHandling = MessageHandling.Failed;
+                return;
+            }
             try
             {
                 await _context.Images.InsertOneAsync(message.ToBson(context.Timestamp));
