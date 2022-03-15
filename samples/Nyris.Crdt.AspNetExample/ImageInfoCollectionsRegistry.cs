@@ -13,7 +13,7 @@ namespace Nyris.Crdt.AspNetExample
         ImageInfoLwwCollection.ImageInfoLwwCollectionFactory>
     {
         /// <inheritdoc />
-        public ImageInfoCollectionsRegistry(string id,
+        public ImageInfoCollectionsRegistry(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             ImageInfoLwwCollection.ImageInfoLwwCollectionFactory? factory = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, factory: factory, logger: logger)
@@ -26,7 +26,7 @@ namespace Nyris.Crdt.AspNetExample
             RegistryDto>
         {
             /// <inheritdoc />
-            public ImageInfoCollectionsRegistry Create(string instanceId) => new(instanceId);
+            public ImageInfoCollectionsRegistry Create(InstanceId instanceId) => new(instanceId);
         }
     }
 }

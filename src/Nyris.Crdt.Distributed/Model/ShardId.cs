@@ -12,10 +12,9 @@ namespace Nyris.Crdt.Distributed.Model
     /// <summary>
     /// Encapsulates Guid
     /// </summary>
-    [JsonConverter(typeof(InternalIdJsonConverter<ShardId, Factory>))]
-    [TypeConverter(typeof(InternalIdTypeConverter<ShardId, Factory>))]
+    [StronglyTypedId(jsonConverter: StronglyTypedIdJsonConverter.SystemTextJson)]
     [ProtoContract]
-    public readonly struct ShardId : IEquatable<ShardId>, IFormattable, IComparable<ShardId>, IAs<Guid>, IHashable
+    public readonly partial struct ShardId : IHashable
     {
         /// <summary>
         /// Converts guid into NodeId.
@@ -26,22 +25,11 @@ namespace Nyris.Crdt.Distributed.Model
         public static ShardId FromGuid(Guid id) => new(id);
 
         /// <summary>
-        /// Generates new random Id.
-        /// </summary>
-        /// <returns></returns>
-        public static ShardId New() => new(Guid.NewGuid());
-
-        /// <summary>
         /// Converts the string representation of an NodeId to the equivalent NodeId structure.
         /// </summary>
         /// <param name="input">input – The string to convert.</param>
         /// <returns></returns>
         public static ShardId Parse(string input) => new(ShortGuid.Decode(input));
-
-        /// <summary>
-        /// A read-only instance of the NodeId structure, that can represent default or uninitialized value.
-        /// </summary>
-        public static readonly ShardId Empty = new(Guid.Empty);
 
         /// <summary>
         /// Converts the string representation of an NodeId to the equivalent NodeId structure.
@@ -63,45 +51,9 @@ namespace Nyris.Crdt.Distributed.Model
         }
 
         [ProtoMember(1)]
-        private readonly Guid _id;
-
-        private ShardId(Guid id)
-        {
-            _id = id;
-        }
-
-        /// <inheritdoc />
-        public Guid Value => _id;
-
-        /// <inheritdoc />
-        public bool Equals(ShardId other) => _id.Equals(other._id);
-
-        /// <inheritdoc />
-        public override bool Equals(object? obj) => obj is ShardId other && Equals(other);
-
-        /// <inheritdoc />
-        public override int GetHashCode() => _id.GetHashCode();
-
-        /// <inheritdoc />
-        public string ToString(string? format, IFormatProvider? formatProvider) => ToString();
-
-        /// <inheritdoc />
-        public override string ToString() => ShortGuid.Encode(_id);
+        private Guid _id => Value;
 
         /// <inheritdoc />
         public ReadOnlySpan<byte> CalculateHash() => _id.ToByteArray();
-
-        /// <inheritdoc />
-        public int CompareTo(ShardId other) => _id.CompareTo(other._id);
-
-        public static bool operator ==(ShardId left, ShardId right) => left.Equals(right);
-
-        public static bool operator !=(ShardId left, ShardId right) => !(left == right);
-
-        private class Factory : IFactory<ShardId>
-        {
-            ShardId IFactory<ShardId>.Empty => Empty;
-            ShardId IFactory<ShardId>.Parse(string value) => ShardId.Parse(value);
-        }
     }
 }

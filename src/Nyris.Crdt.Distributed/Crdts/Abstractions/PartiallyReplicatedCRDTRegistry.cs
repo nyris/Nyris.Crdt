@@ -103,7 +103,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory> _currentState;
 
         /// <inheritdoc />
-        protected PartiallyReplicatedCRDTRegistry(string instanceId,
+        protected PartiallyReplicatedCRDTRegistry(InstanceId instanceId,
             ILogger? logger = null,
             IPartialReplicationStrategy? partialReplicationStrategy = null,
             IResponseCombinator? responseCombinator = null,
@@ -360,7 +360,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_collectionInfos, _currentState);
 
         /// <inheritdoc />
-        Task IReactToOtherCrdtChange.HandleChangeInAnotherCrdtAsync(string instanceId, CancellationToken cancellationToken)
+        Task IReactToOtherCrdtChange.HandleChangeInAnotherCrdtAsync(InstanceId instanceId, CancellationToken cancellationToken)
             => RebalanceAsync(cancellationToken: cancellationToken);
 
         private async Task RebalanceAsync(string traceId = "", CancellationToken cancellationToken = default)
@@ -416,7 +416,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             if (!TryGetCollectionKey(shardId, out var key)) throw new KeyNotFoundException(
                 $"TraceId {traceId}: ShardId {shardId} does not belong to any known collection");
 
-            var managedCrdt = _factory.Create(shardId.ToString());
+            var managedCrdt = _factory.Create(new InstanceId(shardId.ToString()));
             foreach (var indexName in _collectionInfos[key].IndexNames.Value)
             {
                 if (IndexFactory.TryGetIndex<IIndex<TCollectionKey, TCollectionValue>>(indexName, out var index))
@@ -474,9 +474,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        async Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(string instanceId, CancellationToken cancellationToken)
+        async Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(InstanceId instanceId, CancellationToken cancellationToken)
         {
-            var shardId = ShardId.Parse(instanceId);
+            var shardId = ShardId.Parse(instanceId.Value);
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
                 throw new NyrisException("Deadlock");
@@ -496,9 +496,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        IList<NodeInfo> INodesWithReplicaProvider.GetNodesThatShouldHaveReplicaOfCollection(string instanceId)
+        IList<NodeInfo> INodesWithReplicaProvider.GetNodesThatShouldHaveReplicaOfCollection(InstanceId instanceId)
         {
-            if(!ShardId.TryParse(instanceId, out var shardId)
+            if(!ShardId.TryParse(instanceId.Value, out var shardId)
                || !_desiredDistribution.TryGetValue(shardId, out var nodes))
             {
                 _logger?.LogDebug("");

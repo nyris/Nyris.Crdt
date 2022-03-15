@@ -11,6 +11,7 @@
         <PackageReference Include="protobuf-net" Version="2.4.6" />
         <PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="1.0.152" />
         <PackageReference Include="KubernetesClient" Version="5.0.10" />
+        <PackageReference Include="StronglyTypedId" Version="0.2.1" />
     </ItemGroup>
 
     <ItemGroup>

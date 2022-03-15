@@ -5,6 +5,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Interfaces
 {
     internal interface INodesWithReplicaProvider
     {
-        IList<NodeInfo> GetNodesThatShouldHaveReplicaOfCollection(string instanceId);
+        IList<NodeInfo> GetNodesThatShouldHaveReplicaOfCollection(InstanceId instanceId);
     }
 }

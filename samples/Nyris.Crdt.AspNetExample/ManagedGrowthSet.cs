@@ -7,17 +7,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
 {
     public sealed class ManagedGrowthSet : ManagedCRDT<List<int>>
     {
         /// <inheritdoc />
-        public ManagedGrowthSet(string instanceId) : base(instanceId)
+        public ManagedGrowthSet(InstanceId instanceId) : base(instanceId)
         {
         }
 
-        private ManagedGrowthSet(List<int> values, string instanceId) : base(instanceId)
+        private ManagedGrowthSet(List<int> values, InstanceId instanceId) : base(instanceId)
         {
             Value = values?.ToHashSet() ?? new HashSet<int>();
         }
@@ -67,15 +68,15 @@ namespace Nyris.Crdt.AspNetExample
         public static readonly IManagedCRDTFactory<ManagedGrowthSet, List<int>>
             DefaultFactory = new GrowthSetFactory();
 
-        public static ManagedGrowthSet FromDto(List<int> dto, string instanceId) => new(dto, instanceId);
+        public static ManagedGrowthSet FromDto(List<int> dto, InstanceId instanceId) => new(dto, instanceId);
     }
 
     public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, List<int>>
     {
         /// <inheritdoc />
-        public ManagedGrowthSet Create(List<int> dto, string instanceId) => ManagedGrowthSet.FromDto(dto, instanceId);
+        public ManagedGrowthSet Create(List<int> dto, InstanceId instanceId) => ManagedGrowthSet.FromDto(dto, instanceId);
 
         /// <inheritdoc />
-        public ManagedGrowthSet Create(string instanceId) => new ManagedGrowthSet(instanceId);
+        public ManagedGrowthSet Create(InstanceId instanceId) => new ManagedGrowthSet(instanceId);
     }
 }

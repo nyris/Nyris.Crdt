@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed
 {
@@ -7,6 +8,6 @@ namespace Nyris.Crdt.Distributed
     {
         ManagedCrdtContext ManagedCrdtContext { set; }
 
-        Task MarkForDeletionLocallyAsync(string instanceId, CancellationToken cancellationToken = default);
+        Task MarkForDeletionLocallyAsync(InstanceId instanceId, CancellationToken cancellationToken = default);
     }
 }

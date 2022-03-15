@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
@@ -16,7 +17,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly ILogger? _logger;
 
         /// <inheritdoc />
-        protected ManagedCrdtRegistryBase(string instanceId,
+        protected ManagedCrdtRegistryBase(InstanceId instanceId,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(instanceId, queueProvider: queueProvider, logger: logger)
         {

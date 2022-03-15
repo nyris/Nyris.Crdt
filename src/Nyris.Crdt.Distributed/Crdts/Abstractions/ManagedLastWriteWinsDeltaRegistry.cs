@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Extensions;
+using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 
@@ -25,7 +26,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly SemaphoreSlim _semaphore = new(1, 1);
         private List<TKey> _nextDto = new();
 
-        protected ManagedLastWriteWinsDeltaRegistry(string id,
+        protected ManagedLastWriteWinsDeltaRegistry(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {

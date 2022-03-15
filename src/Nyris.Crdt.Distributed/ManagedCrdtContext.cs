@@ -35,7 +35,7 @@ namespace Nyris.Crdt.Distributed
         protected ManagedCrdtContext(ILogger<ManagedCrdtContext>? logger = null, NodeSet? nodes = null)
         {
             Logger = logger;
-            Nodes = nodes ?? new("nodes_internal");
+            Nodes = nodes ?? new(new InstanceId("nodes_internal"));
             Add<NodeSet, NodeSet.OrSetDto>(Nodes);
         }
 
@@ -131,7 +131,7 @@ namespace Nyris.Crdt.Distributed
         }
 
         public async Task<TDto> MergeAsync<TCrdt, TDto>(TDto dto,
-            string instanceId,
+            InstanceId instanceId,
             int propagationCounter = 0,
             bool allowPropagation = true,
             string? traceId = null,
@@ -171,7 +171,7 @@ namespace Nyris.Crdt.Distributed
         >(
             TKey key,
             TCollectionOperation operation,
-            string instanceId,
+            InstanceId instanceId,
             string? traceId = null,
             CancellationToken cancellationToken = default)
             where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
@@ -227,7 +227,7 @@ namespace Nyris.Crdt.Distributed
         >(
             ShardId shardId,
             TCollectionOperation operation,
-            string instanceId,
+            InstanceId instanceId,
             string? traceId = null,
 			int propagateToNodes = 0,
             CancellationToken cancellationToken = default)
@@ -276,7 +276,7 @@ namespace Nyris.Crdt.Distributed
                 ? crdt.CalculateHash()
                 : ArraySegment<byte>.Empty;
 
-        internal IEnumerable<string> GetInstanceIds<TCrdt>()
+        internal IEnumerable<InstanceId> GetInstanceIds<TCrdt>()
             => _managedCrdts.Keys.Where(tid => tid.Type == typeof(TCrdt)).Select(tid => tid.InstanceId);
 
         internal bool IsHashEqual(TypeNameAndInstanceId typeNameAndInstanceId, ReadOnlySpan<byte> hash)
@@ -293,7 +293,7 @@ namespace Nyris.Crdt.Distributed
             return crdt.CalculateHash().SequenceEqual(hash);
         }
 
-        public async IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync<TCrdt, TDto>(string instanceId,
+        public async IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync<TCrdt, TDto>(InstanceId instanceId,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
             where TCrdt : ManagedCRDT<TDto>
         {
@@ -326,7 +326,7 @@ namespace Nyris.Crdt.Distributed
             return Nodes.Value;
         }
 
-        private bool TryGetCrdt<TCrdt, TDto>(string instanceId,
+        private bool TryGetCrdt<TCrdt, TDto>(InstanceId instanceId,
             [NotNullWhen(true)] out TCrdt? crdt)
             where TCrdt : ManagedCRDT<TDto>
         {
