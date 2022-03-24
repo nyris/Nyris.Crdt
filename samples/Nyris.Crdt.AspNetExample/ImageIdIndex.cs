@@ -28,6 +28,7 @@ namespace Nyris.Crdt.AspNetExample
         /// <inheritdoc />
         public async Task RemoveAsync(ImageGuid key, ImageInfo item, CancellationToken cancellationToken = default)
         {
+            if (item?.ImageId is null) return;
             if (_dict.TryGetValue(item.ImageId, out var keys))
             {
                 keys.Remove(key);
