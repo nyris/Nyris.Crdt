@@ -20,6 +20,7 @@ service Api {
   rpc CreateImagePR (Image) returns (Image);
   rpc GetImagePR (ImageUuids) returns (Image);
   rpc FindImagePR (FindImageById) returns (ImageUuidList);
+  rpc DeleteImagePR (ImageUuids) returns (BoolResponse);
   rpc DeleteCollectionPR (CollectionIdMessage) returns (BoolResponse);
 }
 

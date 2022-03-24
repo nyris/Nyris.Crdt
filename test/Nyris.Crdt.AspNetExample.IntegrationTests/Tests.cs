@@ -341,6 +341,43 @@ public class Tests : IDisposable
         await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = collection.Id, TraceId = traceId });
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task DeleteImagePartiallyReplicatedPropagationWorks(uint numShards)
+    {
+        var traceId = ShortGuid.NewGuid().ToString();
+        _testOutputHelper.WriteLine("TraceId: " + traceId);
+        var imageId = new byte[] { 1, 2, 3, 4 };
+        var collection = await _clientA.CreateImagesCollectionPRAsync(new ShardedCollection
+        {
+            TraceId = traceId,
+            NumShards = numShards
+        });
+
+        var image = await _clientB.CreateImagePRAsync(new Image
+        {
+            DownloadUri = "https://url-looking.string/",
+            Id = ByteString.CopyFrom(imageId),
+            CollectionId = collection.Id,
+            TraceId = traceId
+        });
+
+        image.Guid.Should().NotBeEmpty();
+        image.CollectionId.Should().Be(collection.Id);
+
+        var response = await _clientC.DeleteImagePRAsync(new ImageUuids
+        {
+            ImageUuid = image.Guid,
+            CollectionId = collection.Id,
+            TraceId = traceId
+        });
+
+        response.Value.Should().BeTrue();
+        await _clientA.DeleteCollectionPRAsync(new CollectionIdMessage { Id = collection.Id, TraceId = traceId });
+    }
+
     [Fact]
     public async Task FindImagesByIdWorks()
     {

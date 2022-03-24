@@ -204,6 +204,21 @@ namespace Nyris.Crdt.AspNetExample.Services
         }
 
         /// <inheritdoc />
+        public override async Task<BoolResponse> DeleteImagePR(ImageUuids request, ServerCallContext context)
+        {
+            _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(DeleteImagePR));
+            var result = await _context.PartiallyReplicatedImageCollectionsRegistry
+                .ApplyAsync<DeleteImageOperation, ValueResponse<bool>>(
+                    CollectionId.Parse(request.CollectionId),
+                    new DeleteImageOperation(ImageGuid.Parse(request.ImageUuid), DateTime.UtcNow),
+                    propagateToNodes: 2,
+                    traceId: request.TraceId);
+
+            _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(DeleteImagePR));
+            return new BoolResponse{ Value = result.Value };
+        }
+
+        /// <inheritdoc />
         public override async Task<BoolResponse> DeleteCollection(CollectionIdMessage request, ServerCallContext context)
         {
             await _context.ImageCollectionsRegistry.RemoveAsync(CollectionId.Parse(request.Id),
