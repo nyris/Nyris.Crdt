@@ -43,7 +43,7 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
                     }, 2);
             }
 
-            var imageInfo = new ImageInfo(message.DownloadUri ?? EmptyUri, message.ImageId);
+            var imageInfo = new ImageInfo(message.DownloadUrl ?? EmptyUri, message.ImageId);
             var operation = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(ImageGuid.FromGuid(message.ImageUuid),
                 imageInfo, DateTime.UtcNow);
             await _context.PartiallyReplicatedImageCollectionsRegistry

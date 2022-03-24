@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.AspNetExample.Events;
@@ -24,6 +25,7 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
             if (!message.IsValid())
             {
                 context.MessageHandling = MessageHandling.Failed;
+                _logger.LogError("Message was not valid: {Message}", JsonSerializer.Serialize(message));
                 return;
             }
             try
