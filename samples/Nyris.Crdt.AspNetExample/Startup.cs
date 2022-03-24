@@ -41,8 +41,11 @@ namespace Nyris.Crdt.AspNetExample
                 })
                 .WithAddressListDiscovery(Configuration.GetSection("ManualDiscovery").Get<List<Uri>>());
 
-            services.AddRabbitMqEasyNetQForAspNetCore(Configuration);
-            services.AddMessageHandling(Configuration.GetSection("Messaging"));
+            if (Configuration.GetValue<bool>("EnableRabbitMq"))
+            {
+                services.AddRabbitMqEasyNetQForAspNetCore(Configuration);
+                services.AddMessageHandling(Configuration.GetSection("Messaging"));
+            }
 
             services.AddCors(o => o.AddPolicy("all", cb =>
             {
