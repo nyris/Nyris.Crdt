@@ -1,7 +1,10 @@
 using System;
 using Nyris.Crdt.Distributed.Crdts.Operations;
+using ProtoBuf;
 
 namespace Nyris.Crdt.AspNetExample
 {
-    public sealed record DeleteImageOperation(ImageGuid Key, DateTime DateTime) : GetValueOperation<ImageGuid>(Key);
+    [ProtoContract(SkipConstructor = true)]
+    public sealed record DeleteImageOperation([property: ProtoMember(1)] ImageGuid Key,
+        [property: ProtoMember(2)] DateTime DateTime) : OperationWithKey<ImageGuid>;
 }

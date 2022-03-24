@@ -7,10 +7,10 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Operations
 {
-    [ProtoContract(SkipConstructor = true)]
-    public record GetValueOperation<TKey>([property: ProtoMember(1)] TKey Key) : RegistryOperation
-        where TKey : IHashable
+    public abstract record OperationWithKey<TKey> : RegistryOperation where TKey : IHashable
     {
+        public abstract TKey Key { get; init; }
+
         /// <inheritdoc />
         public override IEnumerable<ShardId> GetShards(IEnumerable<ShardId> shardIds)
         {
@@ -20,4 +20,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Operations
             return new []{ shards[hashStart / step] };
         }
     }
+
+    [ProtoContract(SkipConstructor = true)]
+    public record GetValueOperation<TKey>([property: ProtoMember(1)] TKey Key) : OperationWithKey<TKey>
+        where TKey : IHashable;
 }
