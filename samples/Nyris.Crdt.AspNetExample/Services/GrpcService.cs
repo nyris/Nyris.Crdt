@@ -176,8 +176,8 @@ namespace Nyris.Crdt.AspNetExample.Services
             {
                 Guid = request.ImageUuid,
                 CollectionId = request.CollectionId,
-                Id = ByteString.CopyFrom(Convert.FromHexString(result.Value?.ImageId ?? "")),
-                DownloadUri = result.Value?.DownloadUrl.ToString(),
+                Id = ByteString.CopyFrom(Convert.FromHexString(result.Value?.Value?.ImageId ?? "")),
+                DownloadUri = result.Value?.Value?.DownloadUrl.ToString(),
                 TraceId = request.TraceId
             };
         }
@@ -199,7 +199,7 @@ namespace Nyris.Crdt.AspNetExample.Services
             {
                 CollectionId = request.CollectionId,
                 TraceId = request.TraceId,
-                ImageUuid = { result.Value.Select(i => i.ToString()) }
+                ImageUuid = { result.Value?.Value.Select(i => i.ToString()) }
             };
         }
 
@@ -215,7 +215,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                     traceId: request.TraceId);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(DeleteImagePR));
-            return new BoolResponse{ Value = result.Value };
+            return new BoolResponse{ Value = result.Success  };
         }
 
         /// <inheritdoc />

@@ -157,7 +157,7 @@ namespace Nyris.Crdt.Distributed
             return await crdt.ToDtoAsync(cancellationToken);
         }
 
-        public async Task<TCollectionOperationResponse> ApplyAsync<TCrdt,
+        public Task<Response<TCollectionOperationResponse>> ApplyAsync<TCrdt,
             TKey,
             TCollection,
             TCollectionKey,
@@ -207,13 +207,13 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            return await crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key,
+            return crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key,
                 operation,
                 traceId: traceId,
                 cancellationToken: cancellationToken);
         }
 
-        public async Task<TCollectionOperationResponse> ApplyAsync<TCrdt,
+        public Task<Response<TCollectionOperationResponse>> ApplyAsync<TCrdt,
             TKey,
             TCollection,
             TCollectionKey,
@@ -264,7 +264,7 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            return await crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
+            return crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
                 operation,
                 traceId: traceId ?? ShortGuid.Encode(Guid.NewGuid()),
 				propagateToNodes,

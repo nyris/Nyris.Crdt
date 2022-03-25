@@ -11,6 +11,7 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
+using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
@@ -51,7 +52,7 @@ namespace Nyris.Crdt.Distributed
         }
 
 {{~ for op in OperationInfos ~}}
-        public Task<{{ op.OperationResponseType }}> ApplyAsync(CrdtOperation<{{ op.OperationType }}> operation, CancellationToken cancellationToken = default)
+        public Task<Response<{{ op.OperationResponseType }}>> ApplyAsync(CrdtOperation<{{ op.OperationType }}> operation, CancellationToken cancellationToken = default)
         {
             _logger.LogDebug("Received operation: {Dto}", JsonConvert.SerializeObject(operation));
             return _context.ApplyAsync<{{ op.CrdtTypeParams }}, {{ op.OperationType }}, {{ op.OperationResponseType }}>(operation.ShardId, operation.Operation, operation.InstanceId, operation.TraceId, operation.PropagateToNodes, cancellationToken);

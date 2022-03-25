@@ -215,7 +215,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return true;
         }
 
-        public async Task<TResponse> ApplyAsync<TOperation, TResponse>(TKey key,
+        public async Task<Response<TResponse>> ApplyAsync<TOperation, TResponse>(TKey key,
             TOperation operation,
             string? traceId = null,
 			int propagateToNodes = 0,
@@ -228,8 +228,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                               "{CollectionKey} of type {OperationType}", traceId, key, typeof(TOperation));
             if (!_collectionInfos.TryGetValue(key, out var info))
             {
-                // TODO: specify a NotFound response?
-                throw new KeyNotFoundException($"{key} was not found in the collectionInfos");
+                return Response<TResponse>.Fail($"{key} was not found in the collectionInfos");
             }
 
             var routeToShards = operation.GetShards(info.Shards.Keys).ToList();
@@ -246,7 +245,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                         cancellationToken);
             }
 
-            var tasks = new Task<TResponse>[routeToShards.Count];
+            var tasks = new Task<Response<TResponse>>[routeToShards.Count];
             for (var i = 0; i < routeToShards.Count; ++i)
             {
                 tasks[i] = ApplyToSingleShardAsync<TOperation, TResponse>(routeToShards[i],
@@ -258,10 +257,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             await Task.WhenAll(tasks);
 
-            return _responseCombinator.Combine(tasks.Select(t => t.Result));
+            return _responseCombinator.Combine(tasks.Select(t => t.Result.Value!));
         }
 
-        internal async Task<TResponse> ApplyToSingleShardAsync<TOperation, TResponse>(ShardId shardId,
+        internal async Task<Response<TResponse>> ApplyToSingleShardAsync<TOperation, TResponse>(ShardId shardId,
             TOperation operation,
             string traceId,
 			int propagateToNodes,
@@ -271,7 +270,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             if (!_currentState.TryGetValue(shardId, out var nodesWithShard))
             {
-                throw new KeyNotFoundException($"{shardId} was not found in the current state");
+                return Response<TResponse>.Fail($"{shardId} was not found in the current state");
             }
 
             if (nodesWithShard.Contains(_thisNode.Id) && _collections.TryGetValue(shardId, out var collection))

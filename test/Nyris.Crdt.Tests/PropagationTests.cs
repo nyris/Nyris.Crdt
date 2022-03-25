@@ -157,8 +157,8 @@ public class PropagationTests : IAsyncLifetime
 										  new GetValueOperation<ImageGuid>(imageUuid),
 										  propagateToNodes: nNodes - 1);
 			response.Value.Should().NotBeNull();
-			response.Value.DownloadUrl.Should().Be(downloadUrl);
-			response.Value.ImageId.Should().Be(imageId);
+			response.Value!.Value.DownloadUrl.Should().Be(downloadUrl);
+			response.Value!.Value.ImageId.Should().Be(imageId);
 		}
     }
 

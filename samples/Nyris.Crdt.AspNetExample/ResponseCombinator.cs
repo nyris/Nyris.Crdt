@@ -15,11 +15,11 @@ namespace Nyris.Crdt.AspNetExample
             _logger = logger;
         }
 
-        public override TResponse Combine<TResponse>(IEnumerable<TResponse> responses) where TResponse : class
+        public override TResponse Combine<TResponse>(IEnumerable<TResponse> responses)
         {
-            if (typeof(TResponse) != typeof(ValueResponse<IList<ImageGuid>>)) 
+            if (typeof(TResponse) != typeof(ValueResponse<IList<ImageGuid>>))
                 return base.Combine(responses);
-            
+
             _logger.LogDebug("Responses are a list of ImageGuids and will be combined");
             var ids = new List<ImageGuid>();
             foreach (var response in responses)
