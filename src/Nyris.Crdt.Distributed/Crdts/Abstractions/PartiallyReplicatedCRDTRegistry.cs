@@ -283,6 +283,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
 
             var nodes = nodesWithShard.Value.ToList();
+            if (nodes.Count == 0) return Response<TResponse>.Fail("Operation routed to zero shards");
+
             var routeTo = nodes[Random.Next(0, nodes.Count)];
 
 			var channelManager = _channelManager
