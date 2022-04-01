@@ -77,8 +77,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly IPartialReplicationStrategy _partialReplicationStrategy;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
 
-		private ManagedCrdtContext? _context;
-		private readonly IChannelManager? _channelManager;
+        private ManagedCrdtContext? _context;
+        private readonly IChannelManager? _channelManager;
 
         private IDictionary<ShardId, IList<NodeInfo>> _desiredDistribution;
 
@@ -109,8 +109,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             IPartialReplicationStrategy? partialReplicationStrategy = null,
             IResponseCombinator? responseCombinator = null,
             INodeInfoProvider? nodeInfoProvider = null,
-			IAsyncQueueProvider? queueProvider = null,
-			IChannelManager? channelManager = null,
+            IAsyncQueueProvider? queueProvider = null,
+            IChannelManager? channelManager = null,
             TCollectionFactory? factory = default) : base(instanceId, queueProvider: queueProvider, logger: logger)
         {
             _logger = logger;
@@ -122,7 +122,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             _collections = new();
             _desiredDistribution = new Dictionary<ShardId, IList<NodeInfo>>();
             _factory = factory ?? new TCollectionFactory();
-			_channelManager = channelManager;
+            _channelManager = channelManager;
             _refreshShardSizesTask = RefreshShardSizesAsync(_cts.Token);
         }
 
@@ -184,7 +184,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     .Range(0, config.ShardingConfig?.NumShards ?? 1)
                     .Select(_ => ShardId.GenerateNew());
 
-                result = _collectionInfos.TryAdd(_thisNode.Id, key,new CollectionInfo(name: config.Name,
+                result = _collectionInfos.TryAdd(_thisNode.Id, key, new CollectionInfo(name: config.Name,
                     shardIds: shardIds,
                     indexes: config.IndexNames));
             }
@@ -260,8 +260,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             CancellationToken cancellationToken = default)
             where TOperation : TCollectionOperationBase
             where TResponse : TCollectionOperationResponseBase
-		{
-			traceId ??= ShortGuid.Encode(Guid.NewGuid());
+        {
+            traceId ??= ShortGuid.Encode(Guid.NewGuid());
             // _logger?.LogDebug("TraceId {TraceId}, registry received an operation for collection " +
             //                   "{CollectionKey} of type {OperationType}", traceId, key, typeof(TOperation));
             if (!_collectionInfos.TryGetValue(key, out var info))
@@ -322,10 +322,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             var routeTo = nodes[Random.Next(0, nodes.Count)];
 
-			var channelManager = _channelManager
-				?? ChannelManagerAccessor.Manager
-				?? throw new InitializationException("Operation can not be routed, as channel manager was not " +
-													 "passed in constructor or set in ChannelManagerAccessor");
+            var channelManager = _channelManager
+                ?? ChannelManagerAccessor.Manager
+                ?? throw new InitializationException("Operation can not be routed, as channel manager was not " +
+                                                     "passed in constructor or set in ChannelManagerAccessor");
 
             if (!channelManager.TryGet<IOperationPassingGrpcService<TOperation, TResponse>>(routeTo, out var client))
             {
@@ -359,7 +359,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 _semaphore.Release();
             }
-            if(infosMerge == MergeResult.ConflictSolved) await RebalanceAsync(cancellationToken: cancellationToken);
+            if (infosMerge == MergeResult.ConflictSolved) await RebalanceAsync(cancellationToken: cancellationToken);
             MaybeUpdateCurrentState();
 
             return conflict ? MergeResult.ConflictSolved : MergeResult.Identical;
@@ -510,7 +510,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     _currentState.TryAdd(_thisNode.Id, shardId, nodes);
                 }
 
-                if(!nodes.Contains(_thisNode.Id)) nodes.Add(_thisNode.Id, _thisNode.Id);
+                if (!nodes.Contains(_thisNode.Id)) nodes.Add(_thisNode.Id, _thisNode.Id);
             }
         }
 
@@ -540,18 +540,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         IList<NodeInfo> INodesWithReplicaProvider.GetNodesThatShouldHaveReplicaOfCollection(InstanceId instanceId)
         {
             var shardId = ShardId.FromInstanceId(instanceId);
+            if (_desiredDistribution.TryGetValue(shardId, out var nodes)) return nodes;
 
-            if(!_desiredDistribution.TryGetValue(shardId, out var nodes))
-            {
-                _logger?.LogWarning("Requested list of nodes for shard {ShardId}, but it is not found", shardId);
-                return ArraySegment<NodeInfo>.Empty;
-            }
-
-            return nodes;
+            _logger?.LogWarning("Requested list of nodes for shard {ShardId}, but it is not found", shardId);
+            return ArraySegment<NodeInfo>.Empty;
         }
 
         private async Task SetShardSizeAsync(ShardId shardId, ulong size, ulong storageSize, string traceId,
-											 uint propagateToNodes, CancellationToken cancellationToken)
+                                             uint propagateToNodes, CancellationToken cancellationToken)
         {
             if (TryGetCollectionKey(shardId, out var key)
                 && _collectionInfos.TryGetValue(key, out var info)
@@ -607,7 +603,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                         collection.Size,
                         collection.StorageSize,
                         "shard-size-refresh",
-						0,
+                        0,
                         cancellationToken);
                 }
             }
@@ -630,15 +626,18 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 TKey,
                 CollectionInfo,
                 CollectionInfo.CollectionInfoDto,
-                CollectionInfo.CollectionInfoFactory>.HashableCrdtRegistryDto? CollectionInfos { get; set; }
+                CollectionInfo.CollectionInfoFactory>.HashableCrdtRegistryDto? CollectionInfos
+            { get; set; }
 
             [ProtoMember(2)]
             public HashableCrdtRegistry<NodeId,
                 ShardId,
                 HashableOptimizedObservedRemoveSet<NodeId, NodeId>,
                 HashableOptimizedObservedRemoveSet<NodeId, NodeId>.OptimizedObservedRemoveSetDto,
-                HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory>.HashableCrdtRegistryDto? CurrentState { get; set; }
+                HashableOptimizedObservedRemoveSet<NodeId, NodeId>.Factory>.HashableCrdtRegistryDto? CurrentState
+            { get; set; }
         }
     }
+
 
 }
