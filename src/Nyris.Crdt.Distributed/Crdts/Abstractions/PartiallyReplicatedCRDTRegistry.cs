@@ -147,7 +147,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 var shardIds = Enumerable
                     .Range(0, config.ShardingConfig?.NumShards ?? 1)
-                    .Select(_ => ShardId.New());
+                    .Select(_ => ShardId.GenerateNew());
 
                 return _collectionInfos.TryAdd(_thisNode.Id, key,
                            new CollectionInfo(name: config.Name,
@@ -416,7 +416,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             if (!TryGetCollectionKey(shardId, out var key)) throw new KeyNotFoundException(
                 $"TraceId {traceId}: ShardId {shardId} does not belong to any known collection");
 
-            var managedCrdt = _factory.Create(new InstanceId(shardId.ToString()));
+            var managedCrdt = _factory.Create(InstanceId.FromShardId(shardId));
             foreach (var indexName in _collectionInfos[key].IndexNames.Value)
             {
                 if (IndexFactory.TryGetIndex<IIndex<TCollectionKey, TCollectionValue>>(indexName, out var index))
@@ -476,7 +476,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         async Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(InstanceId instanceId, CancellationToken cancellationToken)
         {
-            var shardId = ShardId.Parse(instanceId.Value);
+            var shardId = ShardId.FromInstanceId(instanceId);
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
                 throw new NyrisException("Deadlock");
@@ -498,8 +498,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         IList<NodeInfo> INodesWithReplicaProvider.GetNodesThatShouldHaveReplicaOfCollection(InstanceId instanceId)
         {
-            if(!ShardId.TryParse(instanceId.Value, out var shardId)
-               || !_desiredDistribution.TryGetValue(shardId, out var nodes))
+            if(!_desiredDistribution.TryGetValue(ShardId.FromInstanceId(instanceId), out var nodes))
             {
                 _logger?.LogDebug("");
                 return ArraySegment<NodeInfo>.Empty;

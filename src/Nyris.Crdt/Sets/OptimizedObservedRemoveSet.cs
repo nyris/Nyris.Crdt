@@ -72,11 +72,13 @@ namespace Nyris.Crdt.Sets
                     return MergeResult.Identical;
                 }
 
+                // NOTE: Items for merge in current Node/Actor which "other" Node/Actor doesn't know about or has older version
                 var m1 = Items
                     .Except(other.Items)
                     .Where(i => !other.ObservedState.TryGetValue(i.Actor, out var otherVersion)
                                 || i.Version > otherVersion);
 
+                // NOTE: Items for merge in other Node which "current" Node doesn't know about or has older version, i.e m2 == -m1
                 var m2 = other.Items
                     .Except(Items)
                     .Where(i => !ObservedState.TryGetValue(i.Actor, out var myVersion)
@@ -85,11 +87,13 @@ namespace Nyris.Crdt.Sets
                 var u = m.Union(m1).Union(m2);
 
                 // TODO: maybe make it faster then O(n^2)?
+                // NOTE: Getting older items which have latest version available and are from same Actor
+                // (not sure if same Actor is req, since they are the same item)
                 var o = Items
                     .Where(item => Items.Any(i => item.Item.Equals(i.Item)
                                                   && item.Actor.Equals(i.Actor)
                                                   && item.Version < i.Version));
-
+                // NOTE: Remove Old items from current Actor
                 Items = u.Except(o).ToHashSet();
 
                 // observed state is a element-wise max of two vectors.
@@ -97,7 +101,8 @@ namespace Nyris.Crdt.Sets
                 {
                     ObservedState.TryGetValue(actorId, out var thisVersion);
                     other.ObservedState.TryGetValue(actorId, out var otherVersion);
-                    ObservedState[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
+                    // ObservedState[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
+                    ObservedState[actorId] = Math.Max(thisVersion, otherVersion);
                 }
             }
 
@@ -111,6 +116,7 @@ namespace Nyris.Crdt.Sets
                 return new OptimizedObservedRemoveSetDto
                 {
                     Items = Items
+                            // (isn't it the same type? transform seem unnecessary), if cloning, wouldn't the ctor work i.e new(Items)
                         .Select(i => new VersionedSignedItem<TActorId, TItem>(i.Actor, i.Version, i.Item))
                         .ToHashSet(),
                     ObservedState = ObservedState
