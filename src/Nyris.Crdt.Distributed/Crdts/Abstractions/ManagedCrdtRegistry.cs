@@ -59,6 +59,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public override ulong Size => (ulong)_dictionary.Count;
 
         /// <inheritdoc />
+        public override ulong StorageSize => Size;
+
+        /// <inheritdoc />
         public override async IAsyncEnumerable<KeyValuePair<TItemKey, TItemValue>> EnumerateItems(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {

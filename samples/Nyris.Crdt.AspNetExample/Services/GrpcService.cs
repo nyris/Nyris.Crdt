@@ -84,7 +84,7 @@ namespace Nyris.Crdt.AspNetExample.Services
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(GetCollectionInfoPR));
             if (!_context.PartiallyReplicatedImageCollectionsRegistry.TryGetCollectionSize(
-                    CollectionId.Parse(request.Id), out var size))
+                    CollectionId.Parse(request.Id), out var size, out _))
             {
                 ThrowNotFound($"Collection with id '{request.Id}' not found");
             }

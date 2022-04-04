@@ -150,7 +150,7 @@ public class PropagationTests : IAsyncLifetime
         foreach (var crdt in crdts)
 		{
 			crdt.CollectionExists(collectionId).Should().BeTrue();
-			crdt.TryGetCollectionSize(collectionId, out var size).Should().BeTrue();
+			crdt.TryGetCollectionSize(collectionId, out var size, out _).Should().BeTrue();
 			size.Should().Be(1);
 			var response = await crdt.ApplyAsync<GetValueOperation<ImageGuid>,
 				ValueResponse<ImageInfo>>(collectionId,

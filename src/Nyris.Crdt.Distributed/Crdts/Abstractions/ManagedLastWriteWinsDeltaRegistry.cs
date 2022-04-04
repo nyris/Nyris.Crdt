@@ -43,6 +43,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public bool IsEmpty => _items.IsEmpty;
 
+        /// <inheritdoc />
+        public override ulong Size => (ulong) Values.Count();
+
+        /// <inheritdoc />
+        public override ulong StorageSize => (ulong)_items.Count;
+
         public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue? value)
         {
             // ReSharper disable once InconsistentlySynchronizedField - updates on individual items are atomic
@@ -181,9 +187,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override ReadOnlySpan<byte> CalculateHash()
             => HashingHelper.Combine(_items.OrderBy(i => i.Value.TimeStamp));
-
-        /// <inheritdoc />
-        public override ulong Size => (ulong)_items.Count;
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<KeyValuePair<TKey, TValue>> EnumerateItems(

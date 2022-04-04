@@ -204,14 +204,16 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public bool CollectionExists(TKey key) => _collectionInfos.ContainsKey(key);
 
-        public bool TryGetCollectionSize(TKey key, out ulong size)
+        public bool TryGetCollectionSize(TKey key, out ulong size, out ulong storageSize)
         {
             if (!_collectionInfos.TryGetValue(key, out var collectionInfo))
             {
                 size = 0;
+                storageSize = 0;
                 return false;
             }
             size = collectionInfo.Size;
+            storageSize = collectionInfo.StorageSize;
             return true;
         }
 
@@ -277,7 +279,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 // _logger?.LogDebug("TraceId {TraceId}, collection {CollectionKey} found locally", traceId, key);
                 var response = await collection.ApplyAsync(operation, cancellationToken);
-                await SetShardSizeAsync(shardId, collection.Size, traceId, propagateToNodes, cancellationToken);
+                await SetShardSizeAsync(shardId, collection.Size, collection.StorageSize, traceId, propagateToNodes, cancellationToken);
                 _logger?.LogDebug("TraceId {TraceId}, shard {ShardId} found locally", traceId, shardId);
                 return (TResponse)response;
             }
@@ -375,7 +377,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 var allShards = new Dictionary<ShardId, ulong>();
                 foreach (var (shardId, size) in _collectionInfos.Values.SelectMany(info => info.Shards.Dict))
                 {
-                    allShards.Add(shardId, size);
+                    allShards.Add(shardId, size.StorageSize);
                 }
 
                 var desiredDistribution = _partialReplicationStrategy
@@ -462,7 +464,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 if (!TryGetCollectionKey(shardId, out var key)
                     || !_collectionInfos.TryGetValue(key, out var collectionInfo)
-                    || collection.Size != collectionInfo.Shards[shardId]) continue;
+                    || collection.Size != collectionInfo.Shards[shardId].Size
+                    || collection.StorageSize != collectionInfo.Shards[shardId].StorageSize) continue;
 
                 if (!_currentState.TryGetValue(shardId, out var nodes))
                 {
@@ -508,14 +511,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return nodes;
         }
 
-        private async Task SetShardSizeAsync(ShardId shardId, ulong size, string traceId,
+        private async Task SetShardSizeAsync(ShardId shardId, ulong size, ulong storageSize, string traceId,
 											 int propagateToNodes,
 											 CancellationToken cancellationToken)
         {
             if (TryGetCollectionKey(shardId, out var key)
                 && _collectionInfos.TryGetValue(key, out var info)
-                && info.Shards.TryGetValue(shardId, out var shardSize)
-                && shardSize != size)
+                && info.Shards.TryGetValue(shardId, out var shardSizes)
+                && (shardSizes.Size != size || shardSizes.StorageSize != storageSize))
             {
                 if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
                 {
@@ -523,7 +526,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 }
                 try
                 {
-                    info.Shards[shardId] = size;
+                    // TODO: this allocation is unnecessary, should be removed
+                    info.Shards[shardId] = new ShardSizes(size, storageSize);
                 }
                 finally
                 {
@@ -563,6 +567,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                         shardId, collection.Size);
                     await SetShardSizeAsync(shardId,
                         collection.Size,
+                        collection.StorageSize,
                         "shard-size-refresh",
 						0,
                         cancellationToken);

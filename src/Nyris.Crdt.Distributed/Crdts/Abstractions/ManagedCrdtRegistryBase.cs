@@ -25,6 +25,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         public abstract ulong Size { get; }
+        public abstract ulong StorageSize { get; }
 
         public abstract IAsyncEnumerable<KeyValuePair<TKey, TItem>> EnumerateItems(
             CancellationToken cancellationToken = default);
