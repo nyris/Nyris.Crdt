@@ -99,3 +99,32 @@ Note that ManagedCRDTs are created with InstanceId as constructor argument.
 This id is used to distinguish between CRDT instances of the same type when 
 exchanging dtos with other nodes. So instanceId have to be unique within Crdt 
 instances if the same type. Otherwise, it is an opaque string.
+
+
+### Nyris.Crdt.AspNetExample
+
+You can use `Nyris.Crdt.AspNetExample` project to run an example server.
+
+#### Debug IDE
+
+Run `Nyris.Crdt.AspNetExample` with your IDE as `node-0`
+
+Run `node-1`:
+
+```bash
+cd samples/Node1
+dotnet run --no-build
+```
+
+Run `node-2`:
+
+```bash
+cd samples/Node2
+dotnet run --no-build
+```
+
+#### Docker
+
+```bash
+docker-compose up
+```

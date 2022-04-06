@@ -103,14 +103,14 @@ namespace Nyris.Crdt.Distributed.Services
             _logger.LogDebug("Attempting to connect to {NodeName} at {NodeAddress}", name, address);
             using var channel = GrpcChannel.ForAddress(address, _grpcChannelOptions);
 
-            if (channel.CreateGrpcService<TGrpcService>() is not IDtoPassingGrpcService<NodeSet.OrSetDto> proxy)
+            if (channel.CreateGrpcService<TGrpcService>() is not IDtoPassingGrpcService<NodeSet.NodeSetDto> proxy)
             {
                 throw new InitializationException(
                     $"Internal error: specified {nameof(TGrpcService)} does not implement IProxy<NodeSet.Dto>");
             }
 
             var dto = await _context.Nodes.ToDtoAsync();
-            var msg = new DtoMessage<NodeSet.OrSetDto>(_context.Nodes.TypeName,
+            var msg = new DtoMessage<NodeSet.NodeSetDto>(_context.Nodes.TypeName,
                 _context.Nodes.InstanceId,
                 dto, ShortGuid.Encode(Guid.NewGuid()));
             var response = await proxy.SendAsync(msg);
@@ -118,7 +118,7 @@ namespace Nyris.Crdt.Distributed.Services
             _logger.LogDebug("Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
                 name, response.Items?.Count, response.ObservedState?.Count);
 
-            await _context.MergeAsync<NodeSet, NodeSet.OrSetDto>(response, _context.Nodes.InstanceId);
+            await _context.MergeAsync<NodeSet, NodeSet.NodeSetDto>(response, _context.Nodes.InstanceId);
 
             _logger.LogDebug("State after merging: {NodeList}", string.Join(", ",
                 _context.Nodes.Value.Select(ni => $"{ni.Id}:{ni.Address}")));

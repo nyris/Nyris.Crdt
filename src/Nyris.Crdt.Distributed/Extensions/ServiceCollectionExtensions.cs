@@ -24,7 +24,7 @@ namespace Nyris.Crdt.Distributed.Extensions
             services.TryAddSingleton<IPropagationStrategy, NextInRingPropagationStrategy>();
             services.TryAddSingleton<IConsistencyCheckTargetsSelectionStrategy, NextInRingConsistencyCheckTargetsSelectionStrategy>();
 
-            services.AddConnectionServices<NodeSet, NodeSet.OrSetDto>();
+            services.AddConnectionServices<NodeSet, NodeSet.NodeSetDto>();
             return services;
         }
 

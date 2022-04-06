@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Nyris.Crdt.Distributed.Exceptions;
@@ -21,14 +22,14 @@ namespace Nyris.Crdt.Distributed.Utils
 
             var host = Dns.GetHostEntry(Dns.GetHostName());
 
-            foreach (var ip in host.AddressList)
+            foreach (var ip in host.AddressList.Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ToList())
             {
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    Console.WriteLine($"This node was assigned id={ThisNodeId}");
-                    _info = new NodeInfo(new Uri($"http://{ip}:{8080}"), ThisNodeId);
-                    return _info;
-                }
+                var uriString = Environment.GetEnvironmentVariable("DEFAULT_URI") ?? $"http://{ip}:{8080}";
+                _info = new NodeInfo(new Uri(uriString), ThisNodeId);
+
+                Console.WriteLine($"This node was assigned id={ThisNodeId} and uri={uriString}");
+
+                return _info;
             }
 
             throw new InitializationException("No network adapters with an IPv4 address in the system!");

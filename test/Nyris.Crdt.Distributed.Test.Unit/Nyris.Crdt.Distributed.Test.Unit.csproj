@@ -23,10 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Crdts\Abstractions\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\Nyris.Crdt.Distributed\Nyris.Crdt.Distributed.csproj" />
   </ItemGroup>
 

@@ -11,7 +11,6 @@ using Nyris.Crdt.AspNetExample;
 using Nyris.Extensions.Guids;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Nyris.Crdt.GrpcServiceSample.IntegrationTests;
 
@@ -154,7 +153,7 @@ public sealed class LargeTests
         var start = DateTime.Now;
         while (start.Add(maxDelay) > DateTime.Now)
         {
-            var info = await _clientA.GetCollectionInfoPRAsync(collectionIdMessage);
+            var info = await client.GetCollectionInfoPRAsync(collectionIdMessage);
             if (info.Size == size)
             {
                 _testOutputHelper.WriteLine($"Success! Collection {collectionIdMessage.Id} is of size {size}");

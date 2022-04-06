@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Contracts.Exceptions;
@@ -11,7 +12,10 @@ namespace Nyris.Crdt.Distributed.Model
         [property: ProtoMember(2)] InstanceId InstanceId,
         [property: ProtoMember(3)] TDto Value,
         [property: ProtoMember(4)] string TraceId,
-        [property: ProtoMember(5)] uint PropagationCounter = 0)
+        [property: ProtoMember(5)] uint PropagationCounter = 0,
+        [property: ProtoMember(6)] IEnumerable<NodeId>? TargetNodes = null,
+        [property: ProtoMember(7)] NodeId? SenderNode = null
+    )
     {
         private SemaphoreSlim? _semaphore;
 

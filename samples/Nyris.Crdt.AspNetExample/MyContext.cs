@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed;
-using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
@@ -22,9 +21,12 @@ namespace Nyris.Crdt.AspNetExample
             ImageCollectionsRegistry = new(new InstanceId("sample-collections-registry"),
                 logger: loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>());
 
+            UserObservedRemoveSet = new UserObservedRemoveSet(new InstanceId("users-or-set-collection"), logger: loggerFactory.CreateLogger<UserObservedRemoveSet>());
+
             Add<ImageInfoCollectionsRegistry, ImageInfoCollectionsRegistry.RegistryDto>(ImageCollectionsRegistry);
             Add<PartiallyReplicatedImageInfoCollectionsRegistry,
-				PartiallyReplicatedImageInfoCollectionsRegistry.PartiallyReplicatedCrdtRegistryDto>(PartiallyReplicatedImageCollectionsRegistry);
+                PartiallyReplicatedImageInfoCollectionsRegistry.PartiallyReplicatedCrdtRegistryDto>(PartiallyReplicatedImageCollectionsRegistry);
+            Add<UserObservedRemoveSet, UserObservedRemoveSet.UserSetDto>(UserObservedRemoveSet);
 
             IndexFactory.Register(ImageIdIndex.IndexName, () => new ImageIdIndex());
         }
@@ -32,5 +34,7 @@ namespace Nyris.Crdt.AspNetExample
         public ImageInfoCollectionsRegistry ImageCollectionsRegistry { get; }
 
         public PartiallyReplicatedImageInfoCollectionsRegistry PartiallyReplicatedImageCollectionsRegistry { get; }
+
+        public UserObservedRemoveSet UserObservedRemoveSet { get; }
     }
 }

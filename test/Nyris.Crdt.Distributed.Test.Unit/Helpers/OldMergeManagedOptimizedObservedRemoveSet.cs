@@ -1,36 +1,28 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Contracts.Exceptions;
+using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 
-namespace Nyris.Crdt.Distributed.Crdts.Abstractions
+namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
 {
-    /// <summary>
-    /// Optimized Observed-Remove Set is a CRDT proposed by Annette Bieniusa & Co: https://softech.cs.uni-kl.de/homepage/staff/AnnetteBieniusa/paper/techrep2012-semantics.pdf
-    /// It allows set of actors to add and remove elements unlimited number of times.
-    /// Contrary to original Observed-Remove Set, it has an upper bound on memory usage.
-    /// It is O(E*n + n), where E is the number of elements and n is the number of actors.
-    /// </summary>
-    [DebuggerDisplay("{_items.Count < 10 ? string.Join(';', _items) : \"... a lot of items ...\"}")]
-    public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
-        : ManagedCRDT<TDto>
+    public class OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto> : ManagedCRDT<TDto>
         where TItem : IEquatable<TItem>, IHashable
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
-        where TDto : ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
+        where TDto : OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
     {
         private HashSet<VersionedSignedItem<TActorId, TItem>> _items;
         private readonly Dictionary<TActorId, uint> _observedState;
         private readonly SemaphoreSlim _semaphore = new(1);
 
-        protected ManagedOptimizedObservedRemoveSet(InstanceId id,
+        protected OldMergeManagedOptimizedObservedRemoveSet(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {
@@ -57,13 +49,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        // NOTE: Logic Explained with Set Theory https://miro.com/app/board/uXjVObzJXTU=/
         /// <inheritdoc />
         public override async Task<MergeResult> MergeAsync(TDto other, CancellationToken cancellationToken = default)
         {
-            if (other.ObservedState is null || other.ObservedState.Count == 0) return MergeResult.NotUpdated;
-
-            var otherItems = other.Items is null ? new HashSet<VersionedSignedItem<TActorId, TItem>>() : new HashSet<VersionedSignedItem<TActorId, TItem>>(other.Items);
+            if (ReferenceEquals(other.ObservedState, null) || other.ObservedState.Count == 0) return MergeResult.NotUpdated;
+            other.Items ??= new HashSet<VersionedSignedItem<TActorId, TItem>>();
 
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
@@ -71,34 +61,43 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
             try
             {
-                // NOTE: Keeps items from Other Node if Local Node has never seen those (i.e No ObservedState/VersionVector present) or they have newer Version than Local Observed State
-                var newerOtherItems = otherItems.Where(i =>
-                    !_observedState.TryGetValue(i.Actor, out var exitingVersion) || i.Version > exitingVersion).ToHashSet();
-                // NOTE: If Other ObservedState has a Version that is higher than it's local Version, it means either It has new items or some item was deleted
-                var anyDeleted =
-                    other.ObservedState.Any(pair => _observedState.TryGetValue(pair.Key, out var localVersion) && pair.Value > localVersion);
+                // variables names a taken from the paper, they do not have obvious meaning by themselves
+                var m = _items.Intersect(other.Items).ToHashSet();
 
-                if (!newerOtherItems.Any() && !anyDeleted)
+                // we need to check if received dto is identical to this instance in order to return correct merge result
+                if (m.Count == _items.Count
+                    && _items.OrderBy(item => item.Actor).SequenceEqual(other.Items.OrderBy(item => item.Actor))
+                    && _observedState.OrderBy(pair => pair.Key).SequenceEqual(other.ObservedState.OrderBy(pair => pair.Key)))
                 {
                     return MergeResult.Identical;
                 }
 
-                // NOTE: These Local Items are Deleted when Other ObservedState has newer version but not the Item
-                var deletedOrOlderItems = _items.Where(i =>
-                    !otherItems.Contains(i) && other.ObservedState.TryGetValue(i.Actor, out var otherVersion) && i.Version < otherVersion).ToHashSet();
+                var m1 = _items
+                    .Except(other.Items)
+                    .Where(i => !other.ObservedState.TryGetValue(i.Actor, out var otherVersion)
+                                || i.Version > otherVersion);
 
-                // NOTE: Discard Deleted/Older Items
-                _items.ExceptWith(deletedOrOlderItems);
+                var m2 = other.Items
+                    .Except(_items)
+                    .Where(i => !_observedState.TryGetValue(i.Actor, out var myVersion)
+                                || i.Version > myVersion);
 
-                _items.UnionWith(newerOtherItems);
+                var u = m.Union(m1).Union(m2);
+
+                // TODO: maybe make it faster then O(n^2)?
+                var o = _items
+                    .Where(item => _items.Any(i => item.Item.Equals(i.Item)
+                                                   && item.Actor.Equals(i.Actor)
+                                                   && item.Version < i.Version));
+
+                _items = u.Except(o).ToHashSet();
 
                 // observed state is a element-wise max of two vectors.
-                foreach (var (actorId, _) in _observedState.Union(other.ObservedState))
+                foreach (var actorId in _observedState.Keys.ToList().Union(other.ObservedState.Keys))
                 {
-                    _observedState.TryGetValue(actorId, out var thisObservedState);
-                    other.ObservedState.TryGetValue(actorId, out var otherObservedState);
-
-                    _observedState[actorId] = Math.Max(thisObservedState, otherObservedState);
+                    _observedState.TryGetValue(actorId, out var thisVersion);
+                    other.ObservedState.TryGetValue(actorId, out var otherVersion);
+                    _observedState[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
                 }
             }
             finally
