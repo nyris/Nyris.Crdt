@@ -48,7 +48,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         protected Task RemoveItemFromIndexes(TKey key, TItem item, CancellationToken cancellationToken = default)
             => Task.WhenAll(_indexes.Values.Select(i =>
             {
-                _logger?.LogDebug("Removing {ItemKey} from {IndexName}", key, i.UniqueName);
+                // _logger?.LogDebug("Removing {ItemKey} from {IndexName}", key, i.UniqueName);
                 return i.RemoveAsync(key, item, cancellationToken);
             }));
 
@@ -56,7 +56,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             return Task.WhenAll(_indexes.Values.Select(i =>
             {
-                _logger?.LogDebug("Adding {ItemKey} to {IndexName}", key, i.UniqueName);
+                // _logger?.LogDebug("Adding {ItemKey} to {IndexName}", key, i.UniqueName);
                 return i.AddAsync(key, item, cancellationToken);
             }));
         }

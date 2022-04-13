@@ -45,7 +45,7 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
 
             var imageInfo = new ImageInfo(message.DownloadUrl ?? EmptyUri, message.ImageId);
             var operation = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(ImageGuid.FromGuid(message.ImageUuid),
-                imageInfo, DateTime.UtcNow);
+                imageInfo, DateTime.UtcNow, 1);
             await _context.PartiallyReplicatedImageCollectionsRegistry
                 .ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(
                     collectionId,

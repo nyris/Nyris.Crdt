@@ -6,6 +6,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Operations
 {
     public abstract record RegistryOperation : Operation, ISelectShards
     {
+        public abstract uint PropagateToNodes { get; init; }
+
         /// <inheritdoc />
         public abstract IEnumerable<ShardId> GetShards(IEnumerable<ShardId> shardIds);
     }

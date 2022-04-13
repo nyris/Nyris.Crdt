@@ -58,14 +58,14 @@ public class PropagationTests : IAsyncLifetime
         var collection = new ImageInfoLwwCollection(new InstanceId(collectionId.ToString()),
             queueProvider: nodes[0].QueueProvider,
             logger: _output.BuildLogger());
-        await crdts[0].TryAddAsync(collectionId, nodes[0].Id, collection, nNodes - 1);
+        await crdts[0].TryAddAsync(collectionId, nodes[0].Id, collection, (uint)nNodes - 1);
 
         // add item to collection
         var imageUuid = ImageGuid.New();
 		var downloadUrl = new Uri("http://test.url");
 		const string imageId = "1234";
         await collection.SetAsync(imageUuid, new ImageInfo(downloadUrl, imageId),
-            DateTime.UtcNow, nNodes - 1);
+            DateTime.UtcNow, (uint)nNodes - 1);
         foreach (var crdt in crdts)
         {
             crdt.Size.Should().Be(1);
@@ -77,7 +77,7 @@ public class PropagationTests : IAsyncLifetime
         }
 
         // remove item from collection
-        await collection.RemoveAsync(imageUuid, DateTime.UtcNow, nNodes - 1);
+        await collection.RemoveAsync(imageUuid, DateTime.UtcNow, (uint)nNodes - 1);
         foreach (var crdt in crdts)
         {
             crdt.Size.Should().Be(1);
@@ -134,31 +134,28 @@ public class PropagationTests : IAsyncLifetime
 											 {
 												 Name = "test-collection",
 												 ShardingConfig = new ShardingConfig { NumShards = nShards }
-											 }, nNodes - 1);
-
+											 }, (uint)nNodes - 1);
         // add item to collection
         var imageUuid = ImageGuid.New();
 		var downloadUrl = new Uri("http://test.url");
 		const string imageId = "1234";
 		var imageInfo = new ImageInfo(downloadUrl, imageId);
-		var addValue = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(imageUuid, imageInfo, DateTime.UtcNow);
+		var addValue = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(imageUuid, imageInfo, DateTime.UtcNow, 1);
 
-		await crdts[0].ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(collectionId,
-																											   addValue,
-																											   propagateToNodes: nNodes - 1);
+		await crdts[0].ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>,
+			ValueResponse<ImageInfo>>(collectionId, addValue);
 
-        foreach (var crdt in crdts)
+		foreach (var crdt in crdts)
 		{
 			crdt.CollectionExists(collectionId).Should().BeTrue();
-			crdt.TryGetCollectionSize(collectionId, out var size, out _).Should().BeTrue();
-			size.Should().Be(1);
-			var response = await crdt.ApplyAsync<GetValueOperation<ImageGuid>,
-				ValueResponse<ImageInfo>>(collectionId,
-										  new GetValueOperation<ImageGuid>(imageUuid),
-										  propagateToNodes: nNodes - 1);
-			response.Value.Should().NotBeNull();
-			response.Value!.Value.DownloadUrl.Should().Be(downloadUrl);
-			response.Value!.Value.ImageId.Should().Be(imageId);
+			// crdt.TryGetCollectionSize(collectionId, out var size, out _).Should().BeTrue();
+			// size.Should().Be(1);
+			var (valueResponse, success, _) = await crdt.ApplyAsync<GetValueOperation<ImageGuid>,
+				ValueResponse<ImageInfo>>(collectionId, new GetValueOperation<ImageGuid>(imageUuid));
+			success.Should().BeTrue();
+			valueResponse.Should().NotBeNull();
+			valueResponse!.Value.DownloadUrl.Should().Be(downloadUrl);
+			valueResponse!.Value.ImageId.Should().Be(imageId);
 		}
     }
 
@@ -183,6 +180,7 @@ public class PropagationTests : IAsyncLifetime
                 channelManagerMock.Object,
                 node.QueueProvider,
                 node.InfoProvider.GetMyNodeInfo(),
+                Mock.Of<IHostApplicationLifetime>(),
                 _output.BuildLoggerFor<PropagationService<TCrdt, TDto>>());
             await propagationService.StartAsync(CancellationToken.None);
             _hostedServices.Add(propagationService);

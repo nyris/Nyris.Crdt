@@ -16,7 +16,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         : ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>,
             IAcceptOperations<RegistryOperation, RegistryOperationResponse>
         where TValue : IHashable
-        where TKey : IEquatable<TKey>, IHashable
+        where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         /// <inheritdoc />
@@ -38,9 +38,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                         throw new KeyNotFoundException($"Key {getValueOperation.Key} was not found in registry");
                     }
                     return new ValueResponse<TValue>(value);
-                case AddValueOperation<TKey, TValue, TTimeStamp>(var key, var newValue, var timeStamp):
+                case AddValueOperation<TKey, TValue, TTimeStamp>(var key, var newValue, var timeStamp, var propagateToNodes):
                     var added = await SetAsync(key, newValue, timeStamp,
-                        propagateToNodes: 2,
+                        propagateToNodes,
                         cancellationToken: cancellationToken);
                     return new ValueResponse<TValue>(added.Value);
                 default:

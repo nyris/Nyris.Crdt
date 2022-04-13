@@ -19,12 +19,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>
         : ManagedCrdtRegistryBase<TKey, TValue, ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
         where TValue : IHashable
-        where TKey : IEquatable<TKey>
+        where TKey : IEquatable<TKey>, IComparable<TKey>
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
         private readonly SemaphoreSlim _semaphore = new(1, 1);
-        private List<TKey> _nextDto = new();
+        private ConcurrentBag<TKey> _nextDto = new();
 
         protected ManagedLastWriteWinsDeltaRegistry(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
@@ -67,7 +67,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public async Task<TimeStampedItem<TValue, TTimeStamp>> SetAsync(TKey key,
             TValue value,
             TTimeStamp timeStamp,
-            int propagateToNodes = 0,
+            uint propagateToNodes = 0,
             string? traceId = null,
             CancellationToken cancellationToken = default)
         {
@@ -88,12 +88,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             await AddItemToIndexesAsync(key, item.Value, cancellationToken: cancellationToken);
             _nextDto.Add(key);
-            await StateChangedAsync(propagationCounter: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
+            await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
             return item;
         }
 
         public async Task<TimeStampedItem<TValue, TTimeStamp>> RemoveAsync(TKey key, TTimeStamp timeStamp,
-            int propagateToNodes = 0,
+            uint propagateToNodes = 0,
             string? traceId = null,
             CancellationToken cancellationToken = default)
         {
@@ -110,13 +110,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     return v;
                 });
 
-            if (item.Deleted && item.TimeStamp.CompareTo(timeStamp) == 0)
-            {
-                await RemoveItemFromIndexes(key, item.Value, cancellationToken);
-            }
+            if (item.TimeStamp.CompareTo(timeStamp) != 0) return item;
 
+            await RemoveItemFromIndexes(key, item.Value, cancellationToken);
             _nextDto.Add(key);
-            await StateChangedAsync(propagationCounter: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
+            await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
             return item;
         }
 
@@ -151,7 +149,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             if (_nextDto.Count == 0) return new LastWriteWinsDto();
 
-            var keys = Interlocked.Exchange(ref _nextDto, new List<TKey>());
+            var keys = Interlocked.Exchange(ref _nextDto, new ConcurrentBag<TKey>());
             var items = new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(keys.Count);
 
             foreach (var key in keys)
@@ -186,7 +184,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         /// <inheritdoc />
         public override ReadOnlySpan<byte> CalculateHash()
-            => HashingHelper.Combine(_items.OrderBy(i => i.Value.TimeStamp));
+            => HashingHelper.Combine(_items.OrderBy(i => i.Key));
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<KeyValuePair<TKey, TValue>> EnumerateItems(
@@ -204,8 +202,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             var iHave = _items.TryGetValue(key, out var myItem);
             var otherHas = other.Items?.TryGetValue(key, out otherItem) ?? false;
 
-            var conflictSolved = iHave != otherHas // or if current key is missing from one of the registries
-                             || myItem!.TimeStamp!.CompareTo(otherItem!.TimeStamp) != 0;
+            // var conflictSolved = iHave != otherHas // or if current key is missing from one of the registries
+            //                  || myItem!.TimeStamp!.CompareTo(otherItem!.TimeStamp) != 0;
             // notes on last condition: notice that iHave and otherHas can have only 3 possibilities:
             // true-false, false-true and true-true. false-false is not possible, since in that case we would not
             // have this key to begin with. And true-false, false-true both satisfy iHave != otherHas
@@ -216,7 +214,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             // no need to update anything
             if (iHave && otherHas && myItem!.TimeStamp!.CompareTo(otherItem!.TimeStamp) >= 0 || !otherHas)
             {
-                return conflictSolved;
+                return false;
             }
 
             // reverse - update 'this' registry
@@ -231,7 +229,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 await AddItemToIndexesAsync(key, otherItem!.Value);
             }
 
-            return conflictSolved;
+            return true;
         }
 
         [ProtoContract]

@@ -94,7 +94,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public async Task<bool> TryAddAsync(TItemKey key,
             TActorId actorId,
             TItemValue value,
-            int waitForPropagationToNumNodes = 0,
+            uint propagationToNodes = 0,
             string? traceId = null,
             CancellationToken cancellationToken = default)
         {
@@ -117,7 +117,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             _logger?.LogDebug("TraceId: {TraceId}, item with key {ItemKey} added to registry, propagating",
                 traceId, key);
-            await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes,
+            await StateChangedAsync(propagateToNodes: propagationToNodes,
                 traceId: traceId,
                 cancellationToken: cancellationToken);
             _logger?.LogDebug("TraceId: {TraceId}, changes to registry propagated, end of {FuncName}",
@@ -130,7 +130,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         public async Task<TItemValue> GetOrCreateAsync(TItemKey key,
             Func<(TActorId, TItemValue)> createFunc,
-            int waitForPropagationToNumNodes = 0,
+            uint propagateToNodes = 0,
             CancellationToken cancellationToken = default)
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
@@ -154,12 +154,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 _semaphore.Release();
             }
 
-            await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes, cancellationToken: cancellationToken);
+            await StateChangedAsync(propagateToNodes: propagateToNodes, cancellationToken: cancellationToken);
             return value;
         }
 
         public async Task RemoveAsync(TItemKey key,
-            int waitForPropagationToNumNodes = 0,
+            uint propagationToNodes = 0,
             CancellationToken cancellationToken = default)
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
@@ -177,7 +177,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             finally
             {
                 _semaphore.Release();
-                await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes, cancellationToken: cancellationToken);
+                await StateChangedAsync(propagateToNodes: propagationToNodes, cancellationToken: cancellationToken);
             }
         }
 

@@ -33,7 +33,7 @@ namespace Nyris.Crdt.AspNetExample.EventHandlers
             {
                 return;
             }
-            var operation = new DeleteImageOperation(ImageGuid.FromGuid(message.ImageUuid), createdAt);
+            var operation = new DeleteImageOperation(ImageGuid.FromGuid(message.ImageUuid), createdAt, 1);
             await _context.PartiallyReplicatedImageCollectionsRegistry
                 .ApplyAsync<DeleteImageOperation, ValueResponse<bool>>(collectionId, operation);
         }

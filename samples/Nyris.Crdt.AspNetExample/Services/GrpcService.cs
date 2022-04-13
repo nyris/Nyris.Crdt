@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Extensions.Guids;
 
 namespace Nyris.Crdt.AspNetExample.Services
 {
@@ -40,7 +41,7 @@ namespace Nyris.Crdt.AspNetExample.Services
             var collection = new ImageInfoLwwCollection(new InstanceId(id.ToString()));
 
             var added = await _context.ImageCollectionsRegistry.TryAddAsync(id, _thisNodeId, collection,
-                waitForPropagationToNumNodes: 3,
+                propagationToNodes: 3,
                 traceId: request.TraceId,
                 cancellationToken: context.CancellationToken);
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(CreateImagesCollection));
@@ -59,7 +60,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                     IndexNames = new [] { ImageIdIndex.IndexName },
                     ShardingConfig = request.NumShards > 0 ? new ShardingConfig{ NumShards = (ushort) request.NumShards } : null
                 },
-                waitForPropagationToNumNodes: 2,
+                propagateToNodes: 3,
                 traceId: request.TraceId,
                 cancellationToken: context.CancellationToken);
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(CreateImagesCollectionPR));
@@ -93,16 +94,16 @@ namespace Nyris.Crdt.AspNetExample.Services
         }
 
         /// <inheritdoc />
-        public override async Task<Image> CreateImage(Image request, ServerCallContext context)
+        public override async Task<Image> CreateImage(CreateImageMessage request, ServerCallContext context)
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(CreateImage));
-            if (!_context.ImageCollectionsRegistry.TryGetValue(CollectionId.Parse(request.CollectionId), out var collection))
+            if (!_context.ImageCollectionsRegistry.TryGetValue(CollectionId.Parse(request.Image.CollectionId), out var collection))
             {
-                ThrowNotFound($"Collection with id '{request.CollectionId}' not found");
+                ThrowNotFound($"Collection with id '{request.Image.CollectionId}' not found");
             }
 
-            var imageGuid = string.IsNullOrEmpty(request.Guid) ? ImageGuid.New() : ImageGuid.Parse(request.Guid);
-            var imageInfo = new ImageInfo(new Uri(request.DownloadUri), Convert.ToHexString(request.Id.Span));
+            var imageGuid = string.IsNullOrEmpty(request.Image.Guid) ? ImageGuid.New() : ImageGuid.Parse(request.Image.Guid);
+            var imageInfo = new ImageInfo(new Uri(request.Image.DownloadUri), Convert.ToHexString(request.Image.Id.Span));
 
             await collection!.SetAsync(imageGuid,
                 imageInfo,
@@ -111,26 +112,33 @@ namespace Nyris.Crdt.AspNetExample.Services
                 traceId: request.TraceId,
                 cancellationToken: context.CancellationToken);
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(CreateImage));
-            return new Image(request) { Guid = imageGuid.ToString() };
+            return new Image(request.Image) { Guid = imageGuid.ToString() };
         }
 
         /// <inheritdoc />
-        public override async Task<Image> CreateImagePR(Image request, ServerCallContext context)
+        public override async Task<Image> CreateImagePR(CreateImageMessage request, ServerCallContext context)
         {
-            _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(CreateImagePR));
-            var imageGuid = string.IsNullOrEmpty(request.Guid) ? ImageGuid.New() : ImageGuid.Parse(request.Guid);
-            var imageInfo = new ImageInfo(new Uri(request.DownloadUri), Convert.ToHexString(request.Id.Span));
+            var traceId = string.IsNullOrWhiteSpace(request.TraceId) ? ShortGuid.NewGuid().ToString() : request.TraceId;
+            // _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", traceId, nameof(CreateImagePR));
+
+            var imageGuid = string.IsNullOrEmpty(request.Image.Guid) ? ImageGuid.New() : ImageGuid.Parse(request.Image.Guid);
+            var imageInfo = new ImageInfo(new Uri(request.Image.DownloadUri), Convert.ToHexString(request.Image.Id.Span));
 
             var result = await _context.PartiallyReplicatedImageCollectionsRegistry
                 .ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(
-                    CollectionId.Parse(request.CollectionId),
-                    new AddValueOperation<ImageGuid, ImageInfo, DateTime>(imageGuid, imageInfo, DateTime.UtcNow),
-                    traceId: request.TraceId,
+                    CollectionId.Parse(request.Image.CollectionId),
+                    new AddValueOperation<ImageGuid, ImageInfo, DateTime>(imageGuid, imageInfo, DateTime.UtcNow, request.PropagateToNodes),
+                    traceId: traceId,
                     cancellationToken: context.CancellationToken);
 
-            _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(CreateImagePR));
+            if (!result.Success)
+            {
+                _logger.LogError("TraceId {TraceId}: {FuncName} failed with message \"{Message}\"",
+                traceId, nameof(CreateImagePR), result.Message);
+            }
+            // else _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", traceId, nameof(CreateImagePR));
             return result.Value != default
-                ? new Image(request) { Guid = imageGuid.ToString()}
+                ? new Image(request.Image) { Guid = imageGuid.ToString()}
                 : new Image();
         }
 
@@ -155,8 +163,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                 Guid = request.ImageUuid,
                 CollectionId = request.CollectionId,
                 Id = ByteString.CopyFrom(Convert.FromHexString(image!.ImageId)),
-                DownloadUri = image.DownloadUrl.ToString(),
-                TraceId = request.TraceId
+                DownloadUri = image.DownloadUrl.ToString()
             };
         }
 
@@ -168,7 +175,6 @@ namespace Nyris.Crdt.AspNetExample.Services
                 .ApplyAsync<GetValueOperation<ImageGuid>, ValueResponse<ImageInfo>>(
                     CollectionId.Parse(request.CollectionId),
                     new GetValueOperation<ImageGuid>(ImageGuid.Parse(request.ImageUuid)),
-					propagateToNodes: 2,
 					traceId: request.TraceId);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(GetImagePR));
@@ -177,8 +183,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                 Guid = request.ImageUuid,
                 CollectionId = request.CollectionId,
                 Id = ByteString.CopyFrom(Convert.FromHexString(result.Value?.Value?.ImageId ?? "")),
-                DownloadUri = result.Value?.Value?.DownloadUrl.ToString(),
-                TraceId = request.TraceId
+                DownloadUri = result.Value?.Value?.DownloadUrl.ToString()
             };
         }
 
@@ -191,7 +196,6 @@ namespace Nyris.Crdt.AspNetExample.Services
                     CollectionId.Parse(request.CollectionId),
                     new FindIdsOperation(Convert.ToHexString(request.Id.Span)),
                     request.TraceId,
-					2,
                     context.CancellationToken);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(FindImagePR));
@@ -204,17 +208,23 @@ namespace Nyris.Crdt.AspNetExample.Services
         }
 
         /// <inheritdoc />
-        public override async Task<BoolResponse> DeleteImagePR(ImageUuids request, ServerCallContext context)
+        public override async Task<BoolResponse> DeleteImagePR(DeleteImageRequest request, ServerCallContext context)
         {
-            _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(DeleteImagePR));
+            var traceId = string.IsNullOrWhiteSpace(request.TraceId) ? ShortGuid.NewGuid().ToString() : request.TraceId;
+            // _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", traceId, nameof(DeleteImagePR));
+
             var result = await _context.PartiallyReplicatedImageCollectionsRegistry
                 .ApplyAsync<DeleteImageOperation, ValueResponse<bool>>(
                     CollectionId.Parse(request.CollectionId),
-                    new DeleteImageOperation(ImageGuid.Parse(request.ImageUuid), DateTime.UtcNow),
-                    propagateToNodes: 2,
-                    traceId: request.TraceId);
+                    new DeleteImageOperation(ImageGuid.Parse(request.ImageUuid), DateTime.UtcNow, request.PropagateToNodes),
+                    traceId: traceId);
 
-            _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(DeleteImagePR));
+            if (!result.Success)
+            {
+                _logger.LogError("TraceId {TraceId}: {FuncName} failed with message \"{Message}\"",
+                    traceId, nameof(CreateImagePR), result.Message);
+            }
+            // else _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", traceId, nameof(DeleteImagePR));
             return new BoolResponse{ Value = result.Success  };
         }
 

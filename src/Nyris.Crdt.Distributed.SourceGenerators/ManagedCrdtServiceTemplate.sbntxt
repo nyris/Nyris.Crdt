@@ -54,8 +54,8 @@ namespace Nyris.Crdt.Distributed
 {{~ for op in OperationInfos ~}}
         public Task<Response<{{ op.OperationResponseType }}>> ApplyAsync(CrdtOperation<{{ op.OperationType }}> operation, CancellationToken cancellationToken = default)
         {
-            _logger.LogDebug("Received operation: {Dto}", JsonConvert.SerializeObject(operation));
-            return _context.ApplyAsync<{{ op.CrdtTypeParams }}, {{ op.OperationType }}, {{ op.OperationResponseType }}>(operation.ShardId, operation.Operation, operation.InstanceId, operation.TraceId, operation.PropagateToNodes, cancellationToken);
+            // _logger.LogDebug("Received operation: {Dto}", JsonConvert.SerializeObject(operation));
+            return _context.ApplyAsync<{{ op.CrdtTypeParams }}, {{ op.OperationType }}, {{ op.OperationResponseType }}>(operation.ShardId, operation.Operation, operation.InstanceId, operation.TraceId, cancellationToken);
         }
 {{~ end ~}}
 
@@ -71,10 +71,10 @@ namespace Nyris.Crdt.Distributed
             // _logger.LogDebug("TraceId {TraceId}: Received dto for id='{Id}': {Dto}", dto.TraceId, dto.InstanceId, JsonConvert.SerializeObject(dto));
             var result = await _context.MergeAsync<{{ type.CrdtInfos[0].TypeName }}, {{ type.CrdtInfos[0].AllArgumentsString }}>(dto.Value,
                 dto.InstanceId,
-                propagationCounter: dto.PropagationCounter > 0 ? dto.PropagationCounter - 1 : 0,
+                propagateToNodes: dto.PropagationCounter > 0 ? dto.PropagationCounter - 1 : 0,
                 traceId: dto.TraceId,
                 cancellationToken: cancellationToken);
-            _logger.LogDebug("TraceId {TraceId}: finished executing {FuncName}", dto.TraceId, nameof(SendAsync));
+            // _logger.LogDebug("TraceId {TraceId}: finished executing {FuncName}", dto.TraceId, nameof(SendAsync));
             return result;
         }
 {{~ else ~}}
@@ -107,7 +107,7 @@ namespace Nyris.Crdt.Distributed
             {
                 return _context.MergeAsync<{{ crdtInfo.TypeName }}, {{ crdtInfo.AllArgumentsString }}>(msg.Value,
                     msg.InstanceId,
-                    propagationCounter: msg.PropagationCounter > 0 ? msg.PropagationCounter - 1 : 0,
+                    propagateToNodes: msg.PropagationCounter > 0 ? msg.PropagationCounter - 1 : 0,
                     traceId: msg.TraceId,
                     cancellationToken: cancellationToken);
             }
@@ -131,7 +131,7 @@ namespace Nyris.Crdt.Distributed
 
             await foreach(var dto in dtos)
             {
-                _logger.LogDebug("Received dto during sync for id='{Id}': {Dto}", instanceId, JsonConvert.SerializeObject(dto));
+                // _logger.LogDebug("Received dto during sync for id='{Id}': {Dto}", instanceId, JsonConvert.SerializeObject(dto));
 
                 await _context.MergeAsync<TCrdt, TDto>(dto,
                     instanceId,
@@ -141,7 +141,7 @@ namespace Nyris.Crdt.Distributed
 
             await foreach(var dto in _context.EnumerateDtoBatchesAsync<TCrdt, TDto>(instanceId, context.CancellationToken))
             {
-                _logger.LogDebug("Sending dto during sync for id='{Id}': {Dto}", instanceId, JsonConvert.SerializeObject(dto));
+                // _logger.LogDebug("Sending dto during sync for id='{Id}': {Dto}", instanceId, JsonConvert.SerializeObject(dto));
                 yield return dto;
             }
         }
