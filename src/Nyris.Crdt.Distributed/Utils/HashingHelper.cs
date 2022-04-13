@@ -167,7 +167,7 @@ namespace Nyris.Crdt.Distributed.Utils
         public static ReadOnlySpan<byte> Combine<TKey, TItem, TTimeStamp>(
             IEnumerable<KeyValuePair<TKey, TimeStampedItem<TItem, TTimeStamp>>> items)
             where TKey : IEquatable<TKey>
-            where TItem : IHashable
+            where TItem : IHashable?
             where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
         {
             var sha1 = Pool.Get();
@@ -177,7 +177,7 @@ namespace Nyris.Crdt.Distributed.Utils
                 {
                     sha1.AppendData(CalculateHash(key));
                     sha1.AppendData(BitConverter.GetBytes(item.Deleted));
-                    sha1.AppendData(item.Value.CalculateHash());
+                    if(item.Value is not null) sha1.AppendData(item.Value.CalculateHash());
                     sha1.AppendData(CalculateHash(item.TimeStamp));
                 }
 
@@ -266,7 +266,7 @@ namespace Nyris.Crdt.Distributed.Utils
                 double doubleValue => BitConverter.GetBytes(doubleValue),
                 decimal decimalValue => MemoryMarshal.Cast<int, byte>(decimal.GetBits(decimalValue)),
                 char charValue => BitConverter.GetBytes(charValue),
-                string stringValue => Encoding.Default.GetBytes(stringValue),
+                string stringValue => Encoding.UTF8.GetBytes(stringValue),
                 DateTime dateTime => BitConverter.GetBytes(dateTime.ToBinary()),
                 Guid guid => guid.ToByteArray(),
                 IHashable hashable => hashable.CalculateHash(),
