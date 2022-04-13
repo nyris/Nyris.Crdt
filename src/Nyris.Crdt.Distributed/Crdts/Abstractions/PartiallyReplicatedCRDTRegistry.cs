@@ -14,6 +14,7 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
+using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
@@ -133,12 +134,46 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             set => _context = value;
         }
 
+        public async Task<Dictionary<ShardId, IDictionary<TCollectionKey, TCollectionValue>>> GetLocalShardsAsync()
+        {
+            var result = new Dictionary<ShardId, IDictionary<TCollectionKey, TCollectionValue>>(_collections.Count);
+            foreach (var shardId in _collections.Keys.OrderBy(k => k))
+            {
+                var dict = new Dictionary<TCollectionKey, TCollectionValue>((int)_collections[shardId].Size);
+                await foreach (var (key, item) in _collections[shardId].EnumerateItems())
+                {
+                    dict[key] = item;
+                }
+                result[shardId] = dict;
+            }
+
+            return result;
+        }
+
+        public async Task<Dictionary<ShardId, ICollection<TCollectionDto>>> GetLocalShardDtosAsync()
+        {
+            var result = new Dictionary<ShardId, ICollection<TCollectionDto>>(_collections.Count);
+            foreach (var shardId in _collections.Keys.OrderBy(k => k))
+            {
+                var list = new List<TCollectionDto>((int)_collections[shardId].StorageSize);
+                await foreach (var dto in _collections[shardId].EnumerateDtoBatchesAsync())
+                {
+                    list.Add(dto);
+                }
+                result[shardId] = list;
+            }
+
+            return result;
+        }
+
         public async Task<bool> TryAddCollectionAsync(TKey key, CollectionConfig config,
-            int waitForPropagationToNumNodes = 0,
+            uint propagateToNodes = 0,
             string? traceId = null,
             CancellationToken cancellationToken = default)
         {
             traceId ??= ShortGuid.Encode(Guid.NewGuid());
+            var result = false;
+
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
                 throw new NyrisException("Deadlock");
@@ -149,57 +184,59 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     .Range(0, config.ShardingConfig?.NumShards ?? 1)
                     .Select(_ => ShardId.GenerateNew());
 
-                return _collectionInfos.TryAdd(_thisNode.Id, key,
-                           new CollectionInfo(name: config.Name,
-                               shardIds: shardIds,
-                               indexes: config.IndexNames));
+                result = _collectionInfos.TryAdd(_thisNode.Id, key,new CollectionInfo(name: config.Name,
+                    shardIds: shardIds,
+                    indexes: config.IndexNames));
             }
             finally
             {
                 _semaphore.Release();
-                await RebalanceAsync(traceId: traceId,
-                    cancellationToken: cancellationToken);
-                await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes,
-                    traceId: traceId,
-                    cancellationToken: cancellationToken);
-                _logger?.LogDebug("TraceId: {TraceId}, changes to registry propagated, end of {FuncName}",
-                    traceId, nameof(TryAddCollectionAsync));
             }
+
+            await RebalanceAsync(traceId: traceId, cancellationToken: cancellationToken);
+            MaybeUpdateCurrentState();
+            await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
+            // _logger?.LogDebug("TraceId: {TraceId}, changes to registry propagated, end of {FuncName}",
+            //     traceId, nameof(TryAddCollectionAsync));
+            return result;
         }
 
         public async Task<bool> TryRemoveCollectionAsync(TKey key,
-            int waitForPropagationToNumNodes = 0,
+            uint propagateToNodes = 0,
             string? traceId = null,
             CancellationToken cancellationToken = default)
         {
             traceId ??= ShortGuid.Encode(Guid.NewGuid());
+            var result = false;
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
                 throw new NyrisException("Deadlock");
             }
             try
             {
-                if (!_collectionInfos.TryGetValue(key, out var info)) return true;
-                _collectionInfos.Remove(key);
-                foreach (var shardId in info.Shards.Keys)
+                if (_collectionInfos.TryGetValue(key, out var info))
                 {
-                    _currentState.Remove(shardId);
-                    if (_collections.TryRemove(shardId, out var collection))
+                    _collectionInfos.Remove(key);
+                    foreach (var shardId in info.Shards.Keys)
                     {
-                        ManagedCrdtContext.Remove<TCollection, TCollectionDto>(collection);
+                        _currentState.Remove(shardId);
+                        if (_collections.TryRemove(shardId, out var collection))
+                        {
+                            ManagedCrdtContext.Remove<TCollection, TCollectionDto>(collection);
+                        }
                     }
                 }
-                return true;
+
+                result = true;
             }
             finally
             {
                 _semaphore.Release();
-                await RebalanceAsync(traceId: traceId,
-                    cancellationToken: cancellationToken);
-                await StateChangedAsync(propagationCounter: waitForPropagationToNumNodes,
-                    traceId: traceId,
-                    cancellationToken: cancellationToken);
             }
+
+            await RebalanceAsync(traceId: traceId, cancellationToken: cancellationToken);
+            await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
+            return result;
         }
 
         public bool CollectionExists(TKey key) => _collectionInfos.ContainsKey(key);
@@ -220,14 +257,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public async Task<Response<TResponse>> ApplyAsync<TOperation, TResponse>(TKey key,
             TOperation operation,
             string? traceId = null,
-			int propagateToNodes = 0,
             CancellationToken cancellationToken = default)
             where TOperation : TCollectionOperationBase
             where TResponse : TCollectionOperationResponseBase
 		{
 			traceId ??= ShortGuid.Encode(Guid.NewGuid());
-            _logger?.LogDebug("TraceId {TraceId}, registry received an operation for collection " +
-                              "{CollectionKey} of type {OperationType}", traceId, key, typeof(TOperation));
+            // _logger?.LogDebug("TraceId {TraceId}, registry received an operation for collection " +
+            //                   "{CollectionKey} of type {OperationType}", traceId, key, typeof(TOperation));
             if (!_collectionInfos.TryGetValue(key, out var info))
             {
                 return Response<TResponse>.Fail($"{key} was not found in the collectionInfos");
@@ -243,7 +279,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     return await ApplyToSingleShardAsync<TOperation, TResponse>(routeToShards[0],
                         operation,
                         traceId,
-						propagateToNodes,
                         cancellationToken);
             }
 
@@ -253,7 +288,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 tasks[i] = ApplyToSingleShardAsync<TOperation, TResponse>(routeToShards[i],
                     operation,
                     traceId,
-					propagateToNodes,
                     cancellationToken);
             }
 
@@ -265,7 +299,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         internal async Task<Response<TResponse>> ApplyToSingleShardAsync<TOperation, TResponse>(ShardId shardId,
             TOperation operation,
             string traceId,
-			int propagateToNodes,
             CancellationToken cancellationToken = default)
             where TOperation : TCollectionOperationBase
             where TResponse : TCollectionOperationResponseBase
@@ -279,12 +312,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 // _logger?.LogDebug("TraceId {TraceId}, collection {CollectionKey} found locally", traceId, key);
                 var response = await collection.ApplyAsync(operation, cancellationToken);
-                await SetShardSizeAsync(shardId, collection.Size, collection.StorageSize, traceId, propagateToNodes, cancellationToken);
-                _logger?.LogDebug("TraceId {TraceId}, shard {ShardId} found locally", traceId, shardId);
+                // await SetShardSizeAsync(shardId, collection.Size, collection.StorageSize, traceId, propagateToNodes, cancellationToken);
+                // _logger?.LogDebug("TraceId {TraceId}, shard {ShardId} found locally", traceId, shardId);
                 return (TResponse)response;
             }
 
-            var nodes = nodesWithShard.Value.ToList();
+            var nodes = nodesWithShard.Value.Where(nodeId => nodeId != _thisNode.Id).ToList();
             if (nodes.Count == 0) return Response<TResponse>.Fail("Operation routed to zero shards");
 
             var routeTo = nodes[Random.Next(0, nodes.Count)];
@@ -300,9 +333,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     $"Could not get {typeof(IOperationPassingGrpcService<TOperation, TResponse>)}");
             }
 
-            _logger?.LogDebug("TraceId {TraceId}, operation was re-routed to node {NodeId}", traceId, routeTo);
+            // _logger?.LogDebug("TraceId {TraceId}, operation was re-routed to node {NodeId}", traceId, routeTo);
             return await client.ApplyAsync(
-                new CrdtOperation<TOperation>(TypeName, InstanceId, traceId, propagateToNodes, shardId, operation),
+                new CrdtOperation<TOperation>(TypeName, InstanceId, traceId, shardId, operation),
                 cancellationToken);
         }
 
@@ -325,9 +358,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             finally
             {
                 _semaphore.Release();
-                if(infosMerge == MergeResult.ConflictSolved) await RebalanceAsync(cancellationToken: cancellationToken);
-                MaybeUpdateCurrentState();
             }
+            if(infosMerge == MergeResult.ConflictSolved) await RebalanceAsync(cancellationToken: cancellationToken);
+            MaybeUpdateCurrentState();
 
             return conflict ? MergeResult.ConflictSolved : MergeResult.Identical;
         }
@@ -382,8 +415,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
                 var desiredDistribution = _partialReplicationStrategy
                     .GetDistribution(allShards, ManagedCrdtContext.Nodes.Value);
-                _logger?.LogDebug("TraceId {TraceId}: new desired distribution {DesiredDistribution}",
-                    traceId, JsonConvert.SerializeObject(desiredDistribution));
+
+                if (!desiredDistribution.OrderedEquals(_desiredDistribution))
+                {
+                    _logger?.LogDebug("TraceId {TraceId}: new desired distribution {DesiredDistribution}",
+                        traceId, JsonConvert.SerializeObject(desiredDistribution));
+                }
 
                 // If some node(s) went down, remove it/them from current state.
                 foreach (var shardId in _currentState.Keys)
@@ -504,7 +541,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         {
             if(!_desiredDistribution.TryGetValue(ShardId.FromInstanceId(instanceId), out var nodes))
             {
-                _logger?.LogDebug("");
+                _logger?.LogWarning("Requested list of nodes for shard {ShardId}, but it is not found", shardId);
                 return ArraySegment<NodeInfo>.Empty;
             }
 
@@ -512,8 +549,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         private async Task SetShardSizeAsync(ShardId shardId, ulong size, ulong storageSize, string traceId,
-											 int propagateToNodes,
-											 CancellationToken cancellationToken)
+											 uint propagateToNodes, CancellationToken cancellationToken)
         {
             if (TryGetCollectionKey(shardId, out var key)
                 && _collectionInfos.TryGetValue(key, out var info)
@@ -526,21 +562,23 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 }
                 try
                 {
+                    _logger?.LogDebug("Setting size of {ShardId} during refresh to {Size} ({StorageSize})",
+                        shardId, size, storageSize);
                     // TODO: this allocation is unnecessary, should be removed
                     info.Shards[shardId] = new ShardSizes(size, storageSize);
                 }
                 finally
                 {
                     _semaphore.Release();
-                    await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
-                    await RebalanceAsync(traceId, cancellationToken);
                 }
+
+                await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
+                await RebalanceAsync(traceId, cancellationToken);
             }
         }
 
         private async Task RefreshShardSizesAsync(CancellationToken cancellationToken)
         {
-
             while (!cancellationToken.IsCancellationRequested)
             {
                 await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
@@ -555,7 +593,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        private async Task TryRefreshShardSizesAsync(CancellationToken cancellationToken)
+        internal async Task TryRefreshShardSizesAsync(CancellationToken cancellationToken)
         {
             foreach (var shardId in _collections.Keys)
             {
@@ -563,8 +601,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     && nodes.Contains(_thisNode.Id)
                     && _collections.TryGetValue(shardId, out var collection))
                 {
-                    _logger?.LogDebug("Setting size of {ShardId} during refresh to {Size}",
-                        shardId, collection.Size);
                     await SetShardSizeAsync(shardId,
                         collection.Size,
                         collection.StorageSize,
