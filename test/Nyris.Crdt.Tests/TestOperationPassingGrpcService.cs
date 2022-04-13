@@ -63,7 +63,6 @@ namespace Nyris.Crdt.Tests
 						   operation.Operation,
 						   operation.InstanceId,
 						   operation.TraceId,
-						   operation.PropagateToNodes,
 						   cancellationToken);
 		}
 	}

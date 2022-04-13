@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
@@ -11,27 +12,30 @@ namespace Nyris.Crdt.AspNetExample
     {
         public const string IndexName = nameof(ImageIdIndex);
 
-        private readonly ConcurrentDictionary<string, List<ImageGuid>> _dict = new();
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<ImageGuid, bool>> _dict = new();
         /// <inheritdoc />
         public string UniqueName => IndexName;
 
         /// <inheritdoc />
-        public async Task AddAsync(ImageGuid key, ImageInfo item, CancellationToken cancellationToken = default)
+        public async Task AddAsync(ImageGuid key, ImageInfo? item, CancellationToken cancellationToken = default)
         {
-            _dict.AddOrUpdate(item.ImageId, _ => new List<ImageGuid> { key }, (_, list) =>
-            {
-                list.Add(key);
-                return list;
-            });
+            if (item?.ImageId is null) return;
+            _dict.AddOrUpdate(item.ImageId,
+                _ => new ConcurrentDictionary<ImageGuid, bool>{ [key] = true },
+                (_, ids) =>
+                {
+                    ids.TryAdd(key, true);
+                    return ids;
+                });
         }
 
         /// <inheritdoc />
-        public async Task RemoveAsync(ImageGuid key, ImageInfo item, CancellationToken cancellationToken = default)
+        public async Task RemoveAsync(ImageGuid key, ImageInfo? item, CancellationToken cancellationToken = default)
         {
             if (item?.ImageId is null) return;
             if (_dict.TryGetValue(item.ImageId, out var keys))
             {
-                keys.Remove(key);
+                keys.TryRemove(key, out _);
                 if (keys.Count == 0)
                 {
                     _dict.TryRemove(item.ImageId, out _);
@@ -42,7 +46,7 @@ namespace Nyris.Crdt.AspNetExample
         /// <inheritdoc />
         public async Task<IList<ImageGuid>> FindAsync(string input) =>
             _dict.TryGetValue(input, out var keys)
-                ? keys
+                ? keys.Keys.ToList()
                 : ArraySegment<ImageGuid>.Empty;
     }
 }

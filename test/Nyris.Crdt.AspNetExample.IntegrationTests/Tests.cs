@@ -96,11 +96,14 @@ public class Tests : IDisposable
         {
             TraceId = traceId
         });
-        var image = await _clientA.CreateImageAsync(new Image
+        var image = await _clientA.CreateImageAsync(new CreateImageMessage
         {
-            DownloadUri = "https://url-looking.string/",
-            Id = ByteString.CopyFrom(imageId),
-            CollectionId = collection.Id,
+            Image = new Image
+            {
+                DownloadUri = "https://url-looking.string/",
+                Id = ByteString.CopyFrom(imageId),
+                CollectionId = collection.Id
+            },
             TraceId = traceId
         });
 
@@ -130,11 +133,14 @@ public class Tests : IDisposable
         });
         // await Task.Delay(TimeSpan.FromSeconds(1));
 
-        var image = await _clientB.CreateImageAsync(new Image
+        var image = await _clientB.CreateImageAsync(new CreateImageMessage
         {
-            DownloadUri = "https://url-looking.string/",
-            Id = ByteString.CopyFrom(imageId),
-            CollectionId = collection.Id,
+            Image = new Image
+            {
+                DownloadUri = "https://url-looking.string/",
+                Id = ByteString.CopyFrom(imageId),
+                CollectionId = collection.Id
+            },
             TraceId = traceId
         });
 
@@ -281,12 +287,16 @@ public class Tests : IDisposable
             TraceId = traceId,
             NumShards = numShards
         });
-        var image = await _clientA.CreateImagePRAsync(new Image
+        var image = await _clientA.CreateImagePRAsync(new CreateImageMessage
         {
-            DownloadUri = "https://url-looking.string/",
-            Id = ByteString.CopyFrom(imageId),
-            CollectionId = collection.Id,
-            TraceId = traceId
+            Image = new Image
+            {
+                DownloadUri = "https://url-looking.string/",
+                Id = ByteString.CopyFrom(imageId),
+                CollectionId = collection.Id
+            },
+            TraceId = traceId,
+            PropagateToNodes = 1
         });
 
         image.Guid.Should().NotBeEmpty();
@@ -319,12 +329,16 @@ public class Tests : IDisposable
         });
         // await Task.Delay(TimeSpan.FromSeconds(1));
 
-        var image = await _clientB.CreateImagePRAsync(new Image
+        var image = await _clientB.CreateImagePRAsync(new CreateImageMessage
         {
-            DownloadUri = "https://url-looking.string/",
-            Id = ByteString.CopyFrom(imageId),
-            CollectionId = collection.Id,
-            TraceId = traceId
+            Image = new Image
+            {
+                DownloadUri = "https://url-looking.string/",
+                Id = ByteString.CopyFrom(imageId),
+                CollectionId = collection.Id
+            },
+            TraceId = traceId,
+            PropagateToNodes = 1
         });
 
         image.Guid.Should().NotBeEmpty();
@@ -356,22 +370,27 @@ public class Tests : IDisposable
             NumShards = numShards
         });
 
-        var image = await _clientB.CreateImagePRAsync(new Image
+        var image = await _clientB.CreateImagePRAsync(new CreateImageMessage
         {
-            DownloadUri = "https://url-looking.string/",
-            Id = ByteString.CopyFrom(imageId),
-            CollectionId = collection.Id,
-            TraceId = traceId
+            Image = new Image
+            {
+                DownloadUri = "https://url-looking.string/",
+                Id = ByteString.CopyFrom(imageId),
+                CollectionId = collection.Id
+            },
+            TraceId = traceId,
+            PropagateToNodes = 1
         });
 
         image.Guid.Should().NotBeEmpty();
         image.CollectionId.Should().Be(collection.Id);
 
-        var response = await _clientC.DeleteImagePRAsync(new ImageUuids
+        var response = await _clientC.DeleteImagePRAsync(new DeleteImageRequest
         {
             ImageUuid = image.Guid,
             CollectionId = collection.Id,
-            TraceId = traceId
+            TraceId = traceId,
+            PropagateToNodes = 1
         });
 
         response.Value.Should().BeTrue();
@@ -391,12 +410,16 @@ public class Tests : IDisposable
 
         var images = await AddRandomImagesPartiallyReplicatedAsync(_clientB, collection.Id, 2, traceId);
         // create a copy of first image, so that we can find more than one image later
-        var duplicateImage = await _clientC.CreateImagePRAsync(new Image
+        var duplicateImage = await _clientC.CreateImagePRAsync(new CreateImageMessage
         {
-            Id = images[0].Id,
-            CollectionId = collection.Id,
-            DownloadUri = "http://whatever",
-            TraceId = traceId
+            Image = new Image
+            {
+                Id = images[0].Id,
+                CollectionId = collection.Id,
+                DownloadUri = "http://whatever"
+            },
+            TraceId = traceId,
+            PropagateToNodes = 1
         });
 
         var tasks = new[]
@@ -462,11 +485,14 @@ public class Tests : IDisposable
         for (var i = 0; i < n; ++i)
         {
             Random.Shared.NextBytes(imageIdBuffer);
-            var image = await client.CreateImageAsync(new Image
+            var image = await client.CreateImageAsync(new CreateImageMessage
             {
-                DownloadUri = $"https://url-looking.string/{i}",
-                Id = ByteString.CopyFrom(imageIdBuffer),
-                CollectionId = collectionId,
+                Image = new Image
+                {
+                    DownloadUri = $"https://url-looking.string/{i}",
+                    Id = ByteString.CopyFrom(imageIdBuffer),
+                    CollectionId = collectionId
+                },
                 TraceId = traceId
             });
 
@@ -484,12 +510,16 @@ public class Tests : IDisposable
         for (var i = 0; i < n; ++i)
         {
             Random.Shared.NextBytes(imageIdBuffer);
-            var image = await client.CreateImagePRAsync(new Image
+            var image = await client.CreateImagePRAsync(new CreateImageMessage
             {
-                DownloadUri = $"https://url-looking.string/{i}",
-                Id = ByteString.CopyFrom(imageIdBuffer),
-                CollectionId = collectionId,
-                TraceId = traceId
+                Image = new Image
+                {
+                    DownloadUri = $"https://url-looking.string/{i}",
+                    Id = ByteString.CopyFrom(imageIdBuffer),
+                    CollectionId = collectionId
+                },
+                TraceId = traceId,
+                PropagateToNodes = 1
             });
 
             image.Guid.Should().NotBeEmpty();

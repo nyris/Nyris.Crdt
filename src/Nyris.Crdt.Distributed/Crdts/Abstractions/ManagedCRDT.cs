@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
@@ -69,7 +70,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
 
-        protected internal async Task StateChangedAsync(int propagationCounter = 0,
+        protected internal async Task StateChangedAsync(uint propagateToNodes = 0,
             string? traceId = null,
             CancellationToken cancellationToken = default)
         {
@@ -77,22 +78,22 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 InstanceId,
                 await ToDtoAsync(cancellationToken),
                 traceId ?? ShortGuid.Encode(Guid.NewGuid()),
-                propagationCounter);
+                propagateToNodes);
 
-            _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
+            // _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
             await _queue.EnqueueAsync(dtoMessage, cancellationToken);
 
             if (_dependentCrdts.IsEmpty)
             {
                 await dtoMessage.MaybeWaitForCompletionAsync(cancellationToken);
-                _logger?.LogDebug("TraceId: {TraceId}, dto was sent and awaited, returning", traceId);
+                // _logger?.LogDebug("TraceId: {TraceId}, dto was sent and awaited, returning", traceId);
                 return;
             }
 
             await Task.WhenAll(_dependentCrdts
                 .Select(crdt => crdt.HandleChangeInAnotherCrdtAsync(InstanceId, cancellationToken))
                 .Append(dtoMessage.MaybeWaitForCompletionAsync(cancellationToken)));
-            _logger?.LogDebug("TraceId: {TraceId}, dto was sent and awaited (including dependent crdts), returning", traceId);
+            // _logger?.LogDebug("TraceId: {TraceId}, dto was sent and awaited (including dependent crdts), returning", traceId);
         }
 
         /// <inheritdoc />
