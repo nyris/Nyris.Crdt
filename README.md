@@ -52,23 +52,30 @@ There are limitations on defining your CRDT:
    will result in an error.
 
 If implementing a Dto type for your crdt, note that dto type should result in a unique nameof()
-within a project. That is, even if c# allows two `class Dto` within diffferent namespaces,
-this will result in an error when usin this library due to grpc methods collision.
+within a project. That is, even if c# allows two `class Dto` within different namespaces,
+this will result in an error when using this library due to grpc methods collision.
 
-In addition to CRDT, you will need an implementation of `IManagedCRDTFactory` for each CRDT.
+This can play a role when, for example, trying to use same DTO type with different generic type arguments (think `SomeDto<int>` and `SomeDto<string>`). You can not use both of them together, grpc can not distinguish between them. So you will need to have a separate Dto types, like this:
+`SomeDtoInt : SomeDto<int>` and `SomeDtoString : SomeDto<string>` 
+
+Some CRDTs may need to create instances of ManagedCrdts as part of their operation. For example - this is true for registries (key-value stores), where values are themselves ManagedCRDTs (for example - PartiallyReplicatedCRDTRegistry). If such value was created on one node, it needs to be propagated to other nodes. And since that value is a ManagedCRDT it is not enough to just create it, it also needs to be added to ManagedContext.
+In case CRDT needs to do that, it should implement a `ICreateAndDeleteManagedCrdtsInside` interface. Let's call CRDTs that implement that interface - container CRDTs. Then CRDTs that are created by such a "container" we will call it's "items". 
+
+In addition to simply having an "item" CRDT, you will need an implementation of `IManagedCRDTFactory` for it.
 For example:
 ```c#
-public sealed class GrowthSetFactory : IManagedCRDTFactory<ManagedGrowthSet, HashSet<int>, List<int>>
+public sealed class ImageInfoLwwCollectionFactory : IManagedCRDTFactory<ImageInfoLwwCollection, LastWriteWinsDto>
 {
     /// <inheritdoc />
-    public ManagedGrowthSet Create(List<int> dto) => ManagedGrowthSet.FromDto(dto);
+    public ImageInfoLwwCollection Create(InstanceId instanceId) => new ImageInfoLwwCollection(instanceId);
 }
 ```
+
 
 ##### 5. Add your CRDTs to the context:
 
 Though CRDTs are not required to be properties of ManagedCrdtContext, it is easier to keep them there.
-Context will be added as Singlton in the DI, so you can easily inject it into other services.
+Context will be added as Singleton in the DI, so you can easily inject it into other services.
 
 What is required, is to call `Add` method on the ManagedCrdtContext. For example:
 
@@ -77,7 +84,7 @@ internal sealed class MyContext : ManagedCrdtContext
 {
     public MyContext()
     {
-        Add(ImageCollectionsRegistry, ItemInfoCollectionsRegistry.DefaultFactory);
+        Add<ImageInfoCollectionsRegistry, ImageInfoCollectionsRegistry.RegistryDto>(ImageCollectionsRegistry);
     }
 
     public ItemInfoCollectionsRegistry ImageCollectionsRegistry { get; } = new("whatever");

@@ -16,8 +16,7 @@ namespace Nyris.Crdt.AspNetExample
         {
         }
 
-        public sealed class ImageInfoLwwCollectionFactory : IManagedCRDTFactory<ImageInfoLwwCollection,
-            LastWriteWinsDto>
+        public sealed class ImageInfoLwwCollectionFactory : IManagedCRDTFactory<ImageInfoLwwCollection, LastWriteWinsDto>
         {
             private readonly IAsyncQueueProvider? _queueProvider;
             private readonly ILogger? _logger;
