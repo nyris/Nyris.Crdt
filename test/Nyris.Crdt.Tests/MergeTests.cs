@@ -65,7 +65,7 @@ public class MergeTests
     }
 
     [Fact]
-    public async Task CollectionInfosRegistryWorks()
+    public void CollectionInfosRegistryWorks()
     {
         var registry1 = new HashableCrdtRegistry<NodeId, CollectionId, CollectionInfo,
             CollectionInfo.CollectionInfoDto,
@@ -76,16 +76,16 @@ public class MergeTests
             CollectionInfo.CollectionInfoFactory>();
 
         var collectionId1 = CollectionId.New();
-        var node1 = NodeId.New();
+        var node1 = NodeId.GenerateNew();
         var collectionId2 = CollectionId.New();
-        var node2 = NodeId.New();
+        var node2 = NodeId.GenerateNew();
 
-        var shardId1 = ShardId.New();
+        var shardId1 = ShardId.GenerateNew();
         registry1.TryAdd(node1, collectionId1, new CollectionInfo("1", new [] { shardId1 })).Should().BeTrue();
         registry1[collectionId1].Shards[shardId1] = 2;
 
-        var shardId21 = ShardId.New();
-        var shardId22 = ShardId.New();
+        var shardId21 = ShardId.GenerateNew();
+        var shardId22 = ShardId.GenerateNew();
         registry2.TryAdd(node2, collectionId2, new CollectionInfo("2", new [] { shardId21, shardId22 })).Should().BeTrue();
         registry2[collectionId2].Shards[shardId21] = 3;
         registry2[collectionId2].Shards[shardId22] = 4;

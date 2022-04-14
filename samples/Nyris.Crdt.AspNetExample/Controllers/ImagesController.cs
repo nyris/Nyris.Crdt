@@ -44,7 +44,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         {
             var indexId = CollectionId.FromGuid(data.IndexId);
             var index = await _context.ImageCollectionsRegistry.GetOrCreateAsync(indexId,
-                () => (_thisNodeId, new ImageInfoLwwCollection(new  InstanceId(data.IndexId.ToString("N")))));
+                () => (_thisNodeId, new ImageInfoLwwCollection(new InstanceId(data.IndexId.ToString("N")))));
 
             var datetime = DateTime.UtcNow;
             var img = await index.SetAsync(ImageGuid.FromGuid(data.ImageUuid),

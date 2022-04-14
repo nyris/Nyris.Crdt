@@ -12,22 +12,22 @@ namespace Nyris.Crdt.Tests;
 public sealed class SerializationTests
 {
     [Fact]
-    public void ShardIdSerializable() => TypeSerializable(ShardId.New());
+    public void ShardIdSerializable() => TypeSerializable(ShardId.GenerateNew());
 
     [Fact]
-    public void InstanceIdSerializable() => TypeSerializable(InstanceId.New());
+    public void InstanceIdSerializable() => TypeSerializable(InstanceId.GenerateNew());
 
     [Fact]
     public void CollectionIdSerializable() => TypeSerializable(CollectionId.New());
 
     [Fact]
     public void TypeNameAndInstanceIdSerializable()
-        => TypeSerializable(new TypeNameAndInstanceId("name", InstanceId.New()));
+        => TypeSerializable(new TypeNameAndInstanceId("name", InstanceId.GenerateNew()));
 
     [Fact]
     public void HashAndInstanceIdSerializable()
         => TypeSerializable(new HashAndInstanceId(HashingHelper.CalculateHash(Random.Shared.NextDouble()).ToArray(),
-            InstanceId.New()));
+            InstanceId.GenerateNew()));
 
     [Fact]
     public void TypeNameAndHashSerializable()
@@ -40,7 +40,7 @@ public sealed class SerializationTests
 
     [Fact]
     public void NodeInfoSerializable()
-        => TypeSerializable(new NodeInfo(new Uri("about:blank"), NodeId.New()));
+        => TypeSerializable(new NodeInfo(new Uri("about:blank"), new NodeId(Guid.NewGuid().ToString())));
 
 
 

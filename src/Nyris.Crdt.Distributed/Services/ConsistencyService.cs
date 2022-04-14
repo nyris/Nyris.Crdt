@@ -132,7 +132,7 @@ namespace Nyris.Crdt.Distributed.Services
             var enumerable = _context.EnumerateDtoBatchesAsync<TCrdt, TDto>(instanceId, cancellationToken);
             var callOptions = new CallOptions(new Metadata
             {
-                new("instance-id", instanceId.Value),
+                new("instance-id", instanceId.ToString()),
                 new("crdt-type-name", typeName)
             }, cancellationToken: cancellationToken);
             await foreach (var dto in dtoPassingGrpcService.EnumerateCrdtAsync(enumerable, callOptions).WithCancellation(cancellationToken))
