@@ -36,8 +36,9 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
 		}
 
 		public override ulong Size { get; }
+        public override ulong StorageSize { get; }
 
-		public override async IAsyncEnumerable<KeyValuePair<InstanceId, MockUserCRDT>> EnumerateItems(
+        public override async IAsyncEnumerable<KeyValuePair<InstanceId, MockUserCRDT>> EnumerateItems(
 			CancellationToken cancellationToken = default
 		)
 		{

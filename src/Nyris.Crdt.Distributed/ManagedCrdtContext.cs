@@ -150,6 +150,7 @@ namespace Nyris.Crdt.Distributed
             if (allowPropagation && mergeResult == MergeResult.ConflictSolved)
             {
                 await crdt.StateChangedAsync(propagateToNodes: propagateToNodes,
+                    fromMerge: true,
                     traceId: traceId,
                     cancellationToken: cancellationToken);
             }

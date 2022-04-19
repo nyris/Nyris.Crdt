@@ -195,7 +195,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             await RebalanceAsync(traceId: traceId, cancellationToken: cancellationToken);
             MaybeUpdateCurrentState();
-            await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
+            await StateChangedAsync(propagateToNodes, false, traceId, cancellationToken);
             // _logger?.LogDebug("TraceId: {TraceId}, changes to registry propagated, end of {FuncName}",
             //     traceId, nameof(TryAddCollectionAsync));
             return result;
@@ -235,7 +235,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
 
             await RebalanceAsync(traceId: traceId, cancellationToken: cancellationToken);
-            await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
+            await StateChangedAsync(propagateToNodes, false, traceId, cancellationToken);
             return result;
         }
 
@@ -539,7 +539,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         IList<NodeInfo> INodesWithReplicaProvider.GetNodesThatShouldHaveReplicaOfCollection(InstanceId instanceId)
         {
-            if(!_desiredDistribution.TryGetValue(ShardId.FromInstanceId(instanceId), out var nodes))
+            var shardId = ShardId.FromInstanceId(instanceId);
+
+            if(!_desiredDistribution.TryGetValue(shardId, out var nodes))
             {
                 _logger?.LogWarning("Requested list of nodes for shard {ShardId}, but it is not found", shardId);
                 return ArraySegment<NodeInfo>.Empty;
@@ -572,7 +574,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     _semaphore.Release();
                 }
 
-                await StateChangedAsync(propagateToNodes, traceId, cancellationToken);
+                await StateChangedAsync(propagateToNodes, false, traceId, cancellationToken);
                 await RebalanceAsync(traceId, cancellationToken);
             }
         }

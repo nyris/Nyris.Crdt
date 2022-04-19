@@ -71,6 +71,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
 
         protected internal async Task StateChangedAsync(uint propagateToNodes = 0,
+            bool fromMerge = false,
             string? traceId = null,
             CancellationToken cancellationToken = default)
         {
@@ -81,8 +82,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 propagateToNodes);
 
             // _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
-            await _queue.EnqueueAsync(dtoMessage, cancellationToken);
-
+            var enqueueTask = _queue.EnqueueAsync(dtoMessage, cancellationToken);
+            
+            // TODO: instead, calls "fromMerge" should be queued into a second queue 
+            if (!fromMerge) await enqueueTask;
+            
             if (_dependentCrdts.IsEmpty)
             {
                 await dtoMessage.MaybeWaitForCompletionAsync(cancellationToken);

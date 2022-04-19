@@ -35,7 +35,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         public async Task<IActionResult> GetItemsAsync(string id)
         {
             var r = await _context.PartiallyReplicatedImageCollectionsRegistry.GetLocalShardsAsync();
-            var shardId = ShardId.Parse(id);
+            var shardId = new ShardId(id);
             if (!r.ContainsKey(shardId)) return NotFound();
 
             return Ok(r[shardId].OrderBy(pair => pair.Key));
@@ -45,12 +45,12 @@ namespace Nyris.Crdt.AspNetExample.Controllers
         public async Task<IActionResult> GetItemDtosAsync(string id)
         {
             var r = await _context.PartiallyReplicatedImageCollectionsRegistry.GetLocalShardDtosAsync();
-            var shardId = ShardId.Parse(id);
+            var shardId = new ShardId(id);
             if (!r.ContainsKey(shardId)) return NotFound();
 
             var hash = Convert.ToHexString(_context.GetHash(
                 new TypeNameAndInstanceId(
-                    TypeNameCompressor.GetName<ImageInfoLwwCollectionWithSerializableOperations>(), id)));
+                    TypeNameCompressor.GetName<ImageInfoLwwCollectionWithSerializableOperations>(), new InstanceId(id))));
 
             var result = new Dictionary<ImageGuid, TimeStampedItem<ImageInfo, DateTime>>();
             foreach (var dto in r[shardId])
