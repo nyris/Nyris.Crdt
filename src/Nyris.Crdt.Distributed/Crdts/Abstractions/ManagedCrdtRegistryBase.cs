@@ -60,17 +60,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }));
         }
 
-        protected bool TryGetIndex<TIndex>(string indexName, [NotNullWhen(true)] out TIndex? result)
-            where TIndex : class
+        protected bool TryGetIndex<TIndex>(string indexName, [NotNullWhen(true)] out TIndex? value) where TIndex: IIndex<TKey, TItem>
         {
-            if (!_indexes.TryGetValue(indexName, out var index))
-            {
-                result = default;
-                return false;
-            }
+            var result = _indexes.TryGetValue(indexName, out var tempValue);
 
-            result = index as TIndex;
-            return result != null;
+            value = (TIndex?) tempValue;
+
+            return result;
+
         }
     }
 }
