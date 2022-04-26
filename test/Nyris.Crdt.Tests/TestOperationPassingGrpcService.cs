@@ -47,7 +47,7 @@ namespace Nyris.Crdt.Tests
 		}
 
 		/// <inheritdoc />
-		public Task<TResponse> ApplyAsync(CrdtOperation<TOperation> operation, CancellationToken cancellationToken = default)
+		public Task<Response<TResponse>> ApplyAsync(CrdtOperation<TOperation> operation, CancellationToken cancellationToken = default)
 		{
 			return _context.ApplyAsync<TCrdt,
 				TKey,
@@ -63,7 +63,6 @@ namespace Nyris.Crdt.Tests
 						   operation.Operation,
 						   operation.InstanceId,
 						   operation.TraceId,
-						   operation.PropagateToNodes,
 						   cancellationToken);
 		}
 	}

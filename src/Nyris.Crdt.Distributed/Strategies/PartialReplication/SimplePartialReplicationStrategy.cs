@@ -15,7 +15,7 @@ namespace Nyris.Crdt.Distributed.Strategies.PartialReplication
             var result = new Dictionary<TKey, IList<NodeInfo>>(collectionSizes.Count);
             var orderedNodes= nodes.OrderBy(nodeInfo => nodeInfo.Id).ToList();
             var orderedKeys = collectionSizes
-                .OrderByDescending(pair => pair.Value)
+                .OrderByDescending(pair => Chunkify(pair.Value))
                 .ThenBy(pair => pair.Key)
                 .Select(pair => pair.Key)
                 .ToList();
@@ -43,6 +43,15 @@ namespace Nyris.Crdt.Distributed.Strategies.PartialReplication
             }
 
             return result;
+        }
+
+        private ulong Chunkify(ulong size)
+        {
+            return size switch
+            {
+                < 1000 => 0,
+                _ => (ulong)Math.Log10(size)
+            };
         }
     }
 }

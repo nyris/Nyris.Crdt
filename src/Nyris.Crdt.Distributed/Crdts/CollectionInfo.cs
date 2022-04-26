@@ -22,7 +22,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             {
                 foreach (var shardId in shardIds)
                 {
-                    Shards.TryAdd(DefaultConfiguration.NodeInfoProvider.ThisNodeId, shardId, 0);
+                    Shards.TryAdd(DefaultConfiguration.NodeInfoProvider.ThisNodeId, shardId, new ShardSizes(0, 0));
                 }
             }
 
@@ -40,7 +40,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         {
             _name = ReferenceEquals(dto.Name, null) ? new SingleValue<string>("") : new SingleValue<string>(dto.Name);
 
-            Shards = new HashableCrdtRegistry<NodeId, ShardId, ulong>();
+            Shards = new HashableCrdtRegistry<NodeId, ShardId, ShardSizes>();
             Shards.MaybeMerge(dto.Shards);
 
             IndexNames = dto.IndexNames != null
@@ -49,7 +49,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         public HashableOptimizedObservedRemoveSet<NodeId, string> IndexNames { get; }
-        public HashableCrdtRegistry<NodeId, ShardId, ulong> Shards { get; }
+        public HashableCrdtRegistry<NodeId, ShardId, ShardSizes> Shards { get; }
 
         public string Name
         {
@@ -57,7 +57,8 @@ namespace Nyris.Crdt.Distributed.Crdts
             set => _name.Value = value;
         }
 
-        public ulong Size => Shards.Values.Aggregate((ulong)0, (a, b) => a + b);
+        public ulong Size => Shards.Values.Aggregate((ulong)0, (a, b) => a + b.Size);
+        public ulong StorageSize => Shards.Values.Aggregate((ulong)0, (a, b) => a + b.StorageSize);
 
         /// <inheritdoc />
         public MergeResult Merge(CollectionInfoDto other)
@@ -87,7 +88,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             public SingleValue<string>.SingleValueDto? Name { get; set; }
 
             [ProtoMember(2)]
-            public HashableCrdtRegistry<NodeId, ShardId, ulong>.HashableCrdtRegistryDto? Shards { get; set; }
+            public HashableCrdtRegistry<NodeId, ShardId, ShardSizes>.HashableCrdtRegistryDto? Shards { get; set; }
 
             [ProtoMember(3)]
             public HashableOptimizedObservedRemoveSet<NodeId, string>.OptimizedObservedRemoveSetDto? IndexNames { get; set; }
@@ -98,5 +99,41 @@ namespace Nyris.Crdt.Distributed.Crdts
             /// <inheritdoc />
             public CollectionInfo Create(CollectionInfoDto dto) => new(dto);
         }
+    }
+
+    [ProtoContract]
+    public struct ShardSizes : IHashable, IEquatable<ShardSizes>
+    {
+        [ProtoMember(1)]
+        public ulong StorageSize;
+
+        [ProtoMember(2)]
+        public ulong Size;
+
+        public ShardSizes(ulong size, ulong storageSize)
+        {
+            Size = size;
+            StorageSize = storageSize;
+        }
+
+        /// <inheritdoc />
+        public ReadOnlySpan<byte> CalculateHash()
+        {
+            Span<byte> result = new byte[2 * sizeof(ulong)];
+            BitConverter.TryWriteBytes(result[..sizeof(ulong)], StorageSize);
+            BitConverter.TryWriteBytes(result[sizeof(ulong)..], Size);
+            return result;
+        }
+
+        /// <inheritdoc />
+        public bool Equals(ShardSizes other) => StorageSize == other.StorageSize && Size == other.Size;
+
+        /// <inheritdoc />
+        public override bool Equals(object? obj) => obj is ShardSizes other && Equals(other);
+
+        /// <inheritdoc />
+        public override int GetHashCode() => HashCode.Combine(StorageSize, Size);
+        public static bool operator ==(ShardSizes left, ShardSizes right) => left.Equals(right);
+        public static bool operator !=(ShardSizes left, ShardSizes right) => !left.Equals(right);
     }
 }

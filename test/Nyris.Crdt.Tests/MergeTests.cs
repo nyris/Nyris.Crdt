@@ -82,25 +82,28 @@ public class MergeTests
 
         var shardId1 = ShardId.GenerateNew();
         registry1.TryAdd(node1, collectionId1, new CollectionInfo("1", new [] { shardId1 })).Should().BeTrue();
-        registry1[collectionId1].Shards[shardId1] = 2;
+        registry1[collectionId1].Shards[shardId1] = new ShardSizes(2, 3);
 
         var shardId21 = ShardId.GenerateNew();
         var shardId22 = ShardId.GenerateNew();
         registry2.TryAdd(node2, collectionId2, new CollectionInfo("2", new [] { shardId21, shardId22 })).Should().BeTrue();
-        registry2[collectionId2].Shards[shardId21] = 3;
-        registry2[collectionId2].Shards[shardId22] = 4;
+        registry2[collectionId2].Shards[shardId21] = new ShardSizes(3, 3);
+        registry2[collectionId2].Shards[shardId22] = new ShardSizes(4, 5);
 
         registry1.Merge(registry2.ToDto()).Should().Be(MergeResult.ConflictSolved);
         registry1[collectionId2].Name.Should().Be("2");
-        registry1[collectionId2].Size.Should().Be(7);
+        registry1[collectionId2].Size.Should().Be(7, "3 + 4 is 7");
+        registry1[collectionId2].StorageSize.Should().Be(8, "3 + 5 is 8");
         registry1[collectionId1].Name.Should().Be("1");
         registry1[collectionId1].Size.Should().Be(2);
+        registry1[collectionId1].StorageSize.Should().Be(3);
 
         registry2.Remove(collectionId2);
         registry1.Merge(registry2.ToDto()).Should().Be(MergeResult.ConflictSolved);
         registry1.TryGetValue(collectionId2, out _).Should().BeFalse();
         registry1[collectionId1].Name.Should().Be("1");
         registry1[collectionId1].Size.Should().Be(2);
+        registry1[collectionId1].StorageSize.Should().Be(3);
     }
 
     private async Task SyncCrdtsAsync<TCrdt, TDto>(IList<TCrdt> crdts)

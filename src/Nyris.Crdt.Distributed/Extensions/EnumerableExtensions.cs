@@ -31,5 +31,22 @@ namespace Nyris.Crdt.Distributed.Extensions
 
             yield return bucket[..count];
         }
+
+        public static bool OrderedEquals<TKey, TValue>(
+            this IDictionary<TKey, IList<TValue>> first, IDictionary<TKey, IList<TValue>> second)
+            where TKey : IEquatable<TKey>
+            where TValue : IEquatable<TValue>, IComparable<TValue>
+        {
+            if (first.Count != second.Count) return false;
+
+            foreach (var (key, value) in first)
+            {
+                if (!second.ContainsKey(key)) return false;
+
+                if (!value.OrderBy(i => i).SequenceEqual(second[key].OrderBy(i => i))) return false;
+            }
+
+            return true;
+        }
     }
 }

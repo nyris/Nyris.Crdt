@@ -48,7 +48,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
 
             var datetime = DateTime.UtcNow;
             var img = await index.SetAsync(ImageGuid.FromGuid(data.ImageUuid),
-                new ImageInfo(data.DownloadUri, data.ImageId), datetime);
+                new ImageInfo(data.DownloadUrl, data.ImageId), datetime);
             return img.TimeStamp == datetime ? Ok(img) : Conflict(img);
         }
 

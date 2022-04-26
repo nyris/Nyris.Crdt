@@ -23,6 +23,7 @@ spec:
         version: {{ VERSION }}
         commit: {{ COMMIT }}
       annotations:
+        co.elastic.logs/enabled: "false"
         prometheus.io/scrape: 'true'
         prometheus.io/port: '80'
         prometheus.io/path: '/metrics'

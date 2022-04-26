@@ -30,8 +30,8 @@ namespace Nyris.Crdt.AspNetExample
         {
             return operation switch
             {
-                DeleteImageOperation(var imageGuid, var dateTime) => new ValueResponse<bool>(
-                    (await RemoveAsync(imageGuid, dateTime, cancellationToken: cancellationToken)).Deleted),
+                DeleteImageOperation(var imageGuid, var dateTime, var propagateToNodes) => new ValueResponse<bool>(
+                    (await RemoveAsync(imageGuid, dateTime, propagateToNodes, cancellationToken: cancellationToken)).Deleted),
                 FindIdsOperation findIdsOperation => new ValueResponse<IList<ImageGuid>>(await FindAsync(findIdsOperation.ImageId)),
                 _ => await base.ApplyAsync(operation, cancellationToken)
             };

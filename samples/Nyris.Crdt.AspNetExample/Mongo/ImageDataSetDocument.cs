@@ -9,6 +9,6 @@ namespace Nyris.Crdt.AspNetExample.Mongo
         public string ImageId { get; set; }
 
         [BsonElement("d")]
-        public Uri DownloadUri { get; set; }
+        public Uri DownloadUrl { get; set; }
     }
 }

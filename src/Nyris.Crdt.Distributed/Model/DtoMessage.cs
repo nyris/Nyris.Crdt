@@ -11,7 +11,7 @@ namespace Nyris.Crdt.Distributed.Model
         [property: ProtoMember(2)] InstanceId InstanceId,
         [property: ProtoMember(3)] TDto Value,
         [property: ProtoMember(4)] string TraceId,
-        [property: ProtoMember(5)] int PropagationCounter = 0)
+        [property: ProtoMember(5)] uint PropagationCounter = 0)
     {
         private SemaphoreSlim? _semaphore;
 
@@ -34,10 +34,10 @@ namespace Nyris.Crdt.Distributed.Model
 
         public async Task MaybeWaitForCompletionAsync(CancellationToken cancellationToken = default)
         {
-            if (!await (Semaphore?.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken) 
+            if (!await (Semaphore?.WaitAsync(TimeSpan.FromSeconds(60), cancellationToken)
                         ?? Task.FromResult(true)))
             {
-                throw new NyrisException("Could not complete");
+                throw new NyrisException($"TraceId: {TraceId}, Could not complete");
             }
         }
     }

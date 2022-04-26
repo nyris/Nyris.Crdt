@@ -14,7 +14,6 @@ namespace Nyris.Crdt.Distributed.Utils
     internal sealed class AsyncQueue<T> : IAsyncQueue<T>
     {
         private long _queueLength = 0L;
-
         private readonly SemaphoreSlim _enumerationSemaphore = new(1);
         private readonly BufferBlock<T> _bufferBlock;
 
@@ -31,22 +30,9 @@ namespace Nyris.Crdt.Distributed.Utils
 
         public async Task EnqueueAsync(T item, CancellationToken cancellationToken)
         {
-            var attempts = 0;
+            var success = await _bufferBlock.SendAsync(item, cancellationToken);
+            if (!success) throw new NyrisException($"Message was not queued");
             Interlocked.Increment(ref _queueLength);
-            while(attempts < 3)
-            {
-                var cts = new CancellationTokenSource();
-                var t = _bufferBlock.SendAsync(item, cts.Token);
-                await Task.WhenAny(t, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
-
-                if(t.IsCompletedSuccessfully && t.Result) return;
-                cts.Cancel();
-
-                ++attempts;
-                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-            }
-
-            throw new NyrisException("Could not enqueue");
         }
 
         public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken token = default)

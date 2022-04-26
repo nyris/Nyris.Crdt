@@ -14,7 +14,6 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Utils;
 using Nyris.Extensions.Guids;
 
 namespace Nyris.Crdt.Distributed
@@ -64,7 +63,7 @@ namespace Nyris.Crdt.Distributed
             }
 
             _typeToTypeNameMapping.AddOrUpdate(typeof(TCrdt),
-                _ => new HashSet<TypeNameAndInstanceId> {typeNameAndInstanceId},
+                _ => new HashSet<TypeNameAndInstanceId> { typeNameAndInstanceId },
                 (_, nameAndId) =>
                 {
                     nameAndId.Add(typeNameAndInstanceId);
@@ -96,14 +95,14 @@ namespace Nyris.Crdt.Distributed
         internal void Remove<TCrdt, TDto>(TCrdt crdt)
             where TCrdt : ManagedCRDT<TDto>
         {
-            Logger?.LogDebug("Instance {InstanceId} of crdt {CrdtName} is being removed from context",
-                crdt.InstanceId, crdt.TypeName);
+            // Logger?.LogDebug("Instance {InstanceId} of crdt {CrdtName} is being removed from context",
+            //     crdt.InstanceId, crdt.TypeName);
             var typeNameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
 
             _managedCrdts.TryRemove(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), out _);
             _sameManagedCrdts.TryRemove(typeNameAndInstanceId, out _);
 
-            if(_typeToTypeNameMapping.TryGetValue(typeof(TCrdt), out var nameAndInstanceIds))
+            if (_typeToTypeNameMapping.TryGetValue(typeof(TCrdt), out var nameAndInstanceIds))
             {
                 nameAndInstanceIds.Remove(typeNameAndInstanceId);
             }
@@ -118,7 +117,7 @@ namespace Nyris.Crdt.Distributed
             CancellationToken cancellationToken = default)
             where TCrdt : ManagedCRDT<TDto>
         {
-            if(_holders.TryGetValue(nameAndInstanceId, out var holder))
+            if (_holders.TryGetValue(nameAndInstanceId, out var holder))
             {
                 await holder.MarkForDeletionLocallyAsync(nameAndInstanceId.InstanceId, cancellationToken);
             }
@@ -132,7 +131,7 @@ namespace Nyris.Crdt.Distributed
 
         public async Task<TDto> MergeAsync<TCrdt, TDto>(TDto dto,
             InstanceId instanceId,
-            int propagationCounter = 0,
+            uint propagateToNodes = 0,
             bool allowPropagation = true,
             string? traceId = null,
             CancellationToken cancellationToken = default)
@@ -146,18 +145,19 @@ namespace Nyris.Crdt.Distributed
             }
 
             var mergeResult = await crdt.MergeAsync(dto, cancellationToken);
-            Logger?.LogDebug("TraceId {TraceId}: merging result {MergeResult} for {CrdtName} ({InstanceId})",
-                traceId, mergeResult, TypeNameCompressor.GetName<TCrdt>(), instanceId);
+            // Logger?.LogDebug("TraceId {TraceId}: merging result {MergeResult} for {CrdtName} ({InstanceId})",
+            // traceId, mergeResult, TypeNameCompressor.GetName<TCrdt>(), instanceId);
             if (allowPropagation && mergeResult == MergeResult.ConflictSolved)
             {
-                await crdt.StateChangedAsync(propagationCounter: propagationCounter,
+                await crdt.StateChangedAsync(propagateToNodes: propagateToNodes,
+                    fromMerge: true,
                     traceId: traceId,
                     cancellationToken: cancellationToken);
             }
             return await crdt.ToDtoAsync(cancellationToken);
         }
 
-        public async Task<TCollectionOperationResponse> ApplyAsync<TCrdt,
+        public Task<Response<TCollectionOperationResponse>> ApplyAsync<TCrdt,
             TKey,
             TCollection,
             TCollectionKey,
@@ -207,13 +207,13 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            return await crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key,
+            return crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key,
                 operation,
                 traceId: traceId,
                 cancellationToken: cancellationToken);
         }
 
-        public async Task<TCollectionOperationResponse> ApplyAsync<TCrdt,
+        public Task<Response<TCollectionOperationResponse>> ApplyAsync<TCrdt,
             TKey,
             TCollection,
             TCollectionKey,
@@ -229,7 +229,6 @@ namespace Nyris.Crdt.Distributed
             TCollectionOperation operation,
             InstanceId instanceId,
             string? traceId = null,
-			int propagateToNodes = 0,
             CancellationToken cancellationToken = default)
             where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
                 TCollection,
@@ -264,10 +263,9 @@ namespace Nyris.Crdt.Distributed
                                                            "that instanceId of that type is coordinated across servers");
             }
 
-            return await crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
+            return crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
                 operation,
                 traceId: traceId ?? ShortGuid.Encode(Guid.NewGuid()),
-				propagateToNodes,
                 cancellationToken: cancellationToken);
         }
 
@@ -281,7 +279,7 @@ namespace Nyris.Crdt.Distributed
 
         internal bool IsHashEqual(TypeNameAndInstanceId typeNameAndInstanceId, ReadOnlySpan<byte> hash)
         {
-            if(!_sameManagedCrdts.TryGetValue(typeNameAndInstanceId, out var crdt))
+            if (!_sameManagedCrdts.TryGetValue(typeNameAndInstanceId, out var crdt))
             {
                 throw new ManagedCrdtContextSetupException($"Checking hash for Crdt named {typeNameAndInstanceId.TypeName} " +
                                                            $"with id {typeNameAndInstanceId.InstanceId} failed - " +
