@@ -61,7 +61,7 @@ namespace Nyris.Crdt.AspNetExample.Controllers
                 }
             }
 
-            return Ok(new {hash, dtos = result.OrderBy(pair => pair.Key)});
+            return Ok(new { hash, dtos = result.OrderBy(pair => pair.Key) });
         }
     }
 }

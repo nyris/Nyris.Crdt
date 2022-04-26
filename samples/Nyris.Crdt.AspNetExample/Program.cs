@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Extensions.Hosting;
 using Nyris.Extensions.AspNetCore.Hosting;
 using OpenTelemetry.Trace;

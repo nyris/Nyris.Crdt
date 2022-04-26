@@ -18,9 +18,19 @@ namespace Nyris.Crdt
         [ProtoMember(1)]
         public TItem Item { get; }
 
+        /// <summary>
+        /// Concept of Tag of Item
+        /// <para />
+        /// Actor + Version = Tag
+        /// </summary>
         [ProtoMember(2)]
         public uint Version { get; }
 
+        /// <summary>
+        /// Concept of Tag of Item
+        /// <para />
+        /// Actor + Version = Tag
+        /// </summary>
         [ProtoMember(3)]
         public TActorId Actor { get; }
 

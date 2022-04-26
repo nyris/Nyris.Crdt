@@ -22,6 +22,12 @@ service Api {
   rpc FindImagePR (FindImageById) returns (ImageUuidList);
   rpc DeleteImagePR (DeleteImageRequest) returns (BoolResponse);
   rpc DeleteCollectionPR (CollectionIdMessage) returns (BoolResponse);
+
+  rpc CreateUser (UserCreateRequest) returns (UserResponse);
+  rpc GetUser (UserGetRequest) returns (UserResponse);
+  rpc GetAllUsers(UsersGetRequest) returns (UsersResponse);
+  rpc DeleteUser (UserDeleteRequest) returns (UserDeleteResponse);
+  rpc DeleteAllUsers (UsersDeleteRequest) returns (UsersDeleteResponse);
 }
 
 message HelloRequest {
@@ -93,3 +99,45 @@ message CreateImageMessage {
   string traceId = 2;
   uint32 propagateToNodes = 3;
 }
+
+message UserGetRequest {
+	string id = 1;
+	string traceId = 2;
+}
+
+message UserDeleteRequest {
+	string id = 1;
+	string traceId = 2;
+}
+
+message UserDeleteResponse {
+	string id = 1;
+	string traceId = 2;
+}
+
+message UserCreateRequest {
+	string guid = 1;
+	string firstName = 2;
+	string lastName = 3;
+	string traceId = 4;
+}
+
+message UserResponse {
+	string guid = 1;
+	string firstName = 2;
+	string lastName = 3;
+	string traceId = 4;
+}
+
+message UsersGetRequest {
+	string traceId = 1;
+}
+
+message UsersResponse {
+	repeated UserResponse users = 1;
+}
+
+message UsersDeleteRequest {
+	string traceId = 1;
+}
+message UsersDeleteResponse {}

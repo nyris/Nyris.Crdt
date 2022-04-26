@@ -33,7 +33,7 @@ namespace Nyris.Crdt.AspNetExample
         {
             services.AddLogging(builder => builder.AddSerilog());
 
-            services.AddGrpc();
+            services.AddGrpc(options => { options.EnableDetailedErrors = true; });
             services.AddManagedCrdts<MyContext>()
                 .WithKubernetesDiscovery(options =>
                 {
@@ -65,7 +65,7 @@ namespace Nyris.Crdt.AspNetExample
                 {
                     Title = "Distributed CRDTs sample app",
                     Version = "v1",
-                    Contact = new OpenApiContact{Email = "nikita@nyris.io", Name = "Nikita Chizhov"}
+                    Contact = new OpenApiContact { Email = "nikita@nyris.io", Name = "Nikita Chizhov" }
                 });
             });
             services.Configure<MongoConfiguration>(c => Configuration.GetSection("MongoDb").Bind(c));

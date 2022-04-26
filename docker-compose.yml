@@ -3,7 +3,7 @@ services:
   node-0:
     build:
       context: .
-      dockerfile: Dockerfile.Local
+      dockerfile: samples/Nyris.Crdt.AspNetExample/Dockerfile
     environment:
       - NODE_NAME=node-0
     ports:
@@ -12,7 +12,7 @@ services:
   node-1:
     build:
       context: .
-      dockerfile: Dockerfile.Local
+      dockerfile: samples/Nyris.Crdt.AspNetExample/Dockerfile
     environment:
       - NODE_NAME=node-1
     ports:
@@ -21,7 +21,7 @@ services:
   node-2:
     build:
       context: .
-      dockerfile: Dockerfile.Local
+      dockerfile: samples/Nyris.Crdt.AspNetExample/Dockerfile
     environment:
       - NODE_NAME=node-2
     ports:

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
@@ -31,6 +30,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private string? _typeName;
         private readonly ConcurrentBag<IReactToOtherCrdtChange> _dependentCrdts = new();
         private readonly ILogger? _logger;
+        private readonly NodeInfo? _thisNode;
 
         /// <summary>
         /// Constructor.
@@ -41,11 +41,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// distinguish which instance was updated. </param>
         /// <param name="queueProvider"></param>
         /// <param name="logger"></param>
-        protected ManagedCRDT(InstanceId instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null)
+        /// <param name="thisNode"></param>
+        protected ManagedCRDT(InstanceId instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null, NodeInfo? thisNode = null)
         {
             _queue = (queueProvider ?? DefaultConfiguration.QueueProvider).GetQueue<TDto>(GetType());
             InstanceId = instanceId;
             _logger = logger;
+            _thisNode = thisNode;
         }
 
         internal string TypeName
@@ -70,23 +72,25 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public abstract IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(CancellationToken cancellationToken = default);
 
-        protected internal async Task StateChangedAsync(uint propagateToNodes = 0,
+        protected internal virtual async Task StateChangedAsync(uint propagateToNodes = 0,
             bool fromMerge = false,
             string? traceId = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default, IEnumerable<NodeId>? targetNodes = null)
         {
             var dtoMessage = new DtoMessage<TDto>(TypeName,
                 InstanceId,
                 await ToDtoAsync(cancellationToken),
                 traceId ?? ShortGuid.Encode(Guid.NewGuid()),
-                propagateToNodes);
+                propagateToNodes,
+                targetNodes,
+                _thisNode?.Id);
 
             // _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
             var enqueueTask = _queue.EnqueueAsync(dtoMessage, cancellationToken);
-            
+
             // TODO: instead, calls "fromMerge" should be queued into a second queue 
             if (!fromMerge) await enqueueTask;
-            
+
             if (_dependentCrdts.IsEmpty)
             {
                 await dtoMessage.MaybeWaitForCompletionAsync(cancellationToken);

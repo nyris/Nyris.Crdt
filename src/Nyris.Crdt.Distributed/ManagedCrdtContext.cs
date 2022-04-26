@@ -35,7 +35,7 @@ namespace Nyris.Crdt.Distributed
         {
             Logger = logger;
             Nodes = nodes ?? new(new InstanceId("nodes_internal"));
-            Add<NodeSet, NodeSet.OrSetDto>(Nodes);
+            Add<NodeSet, NodeSet.NodeSetDto>(Nodes);
         }
 
         protected internal void Add<TCrdt, TDto>(TCrdt crdt)

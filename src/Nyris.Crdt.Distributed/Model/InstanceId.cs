@@ -10,7 +10,7 @@ namespace Nyris.Crdt.Distributed.Model
     /// </summary>
     [GenerateId("instance", BackingFieldType = BackingFieldType.String)]
     [ProtoContract]
-    public readonly partial struct InstanceId: IHashable
+    public readonly partial struct InstanceId : IHashable
     {
         [ProtoMember(1)]
         private readonly string _id;
@@ -22,7 +22,7 @@ namespace Nyris.Crdt.Distributed.Model
 
         public static InstanceId FromShardId(ShardId id) => new(id.ToString());
 
-        private static partial void AssertValid(string id) {}
+        private static partial void AssertValid(string id) { }
 
         public static partial InstanceId GenerateNew() => new(Guid.NewGuid().ToString());
     }

@@ -75,17 +75,21 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
                 (__, v) =>
                 {
-                    if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
+                    // NOTE: If existing value was old then update
+                    if (v.TimeStamp.CompareTo(timeStamp) < 0)
+                    {
+                        _ = RemoveItemFromIndexes(key, v.Value, cancellationToken);
+                        v.Value = value;
+                        v.Deleted = false;
+                        v.TimeStamp = timeStamp;
+                    }
 
-                    _ = RemoveItemFromIndexes(key, v.Value, cancellationToken);
-                    v.Value = value;
-                    v.Deleted = false;
-                    v.TimeStamp = timeStamp;
                     return v;
                 });
 
             if (item.TimeStamp.CompareTo(timeStamp) != 0) return item;
 
+            // Updated / Concurrent / new TimeStampedItem
             await AddItemToIndexesAsync(key, item.Value, cancellationToken: cancellationToken);
             _nextDto.Add(key);
             await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
