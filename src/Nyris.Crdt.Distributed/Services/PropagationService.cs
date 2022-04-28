@@ -64,10 +64,9 @@ namespace Nyris.Crdt.Distributed.Services
             {
                 // await first finished task, add new one in it's place
                 var nextTaskPlace = await completionBuffer.ReceiveAsync(stoppingToken);
-                tasks[nextTaskPlace] = ProcessDtoMessage(dto, stoppingToken).ContinueWith(_ =>
-                {
-                    completionBuffer.Post(nextTaskPlace);
-                }, stoppingToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Current);
+                tasks[nextTaskPlace] = ProcessDtoMessage(dto, stoppingToken).ContinueWith(
+                    _ => { completionBuffer.Post(nextTaskPlace); }, stoppingToken,
+                    TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Current);
             }
 
             _logger.LogError("Queue in {ServiceName} finished enumerating, which is unexpected", GetType().Name);

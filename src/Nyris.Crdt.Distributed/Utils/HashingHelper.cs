@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.Extensions.ObjectPool;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Utils
 {
@@ -140,7 +141,7 @@ namespace Nyris.Crdt.Distributed.Utils
         }
 
         public static ReadOnlySpan<byte> Combine<TKey, TItem, TActorId>(
-            IEnumerable<KeyValuePair<TKey, VersionedSignedItem<TActorId, TItem>>> items)
+            IEnumerable<KeyValuePair<TKey, DottedItem<TActorId, TItem>>> items)
             where TKey : IHashable
             where TItem : IEquatable<TItem>, IHashable
             where TActorId : IEquatable<TActorId>, IHashable
@@ -151,9 +152,9 @@ namespace Nyris.Crdt.Distributed.Utils
                 foreach (var (key, item) in items)
                 {
                     sha1.AppendData(key.CalculateHash());
-                    sha1.AppendData(item.Actor.CalculateHash());
-                    sha1.AppendData(item.Item.CalculateHash());
-                    sha1.AppendData(BitConverter.GetBytes(item.Version));
+                    sha1.AppendData(item.Dot.Actor.CalculateHash());
+                    sha1.AppendData(item.Value.CalculateHash());
+                    sha1.AppendData(BitConverter.GetBytes(item.Dot.Version));
                 }
 
                 return sha1.GetHashAndReset();
@@ -177,7 +178,7 @@ namespace Nyris.Crdt.Distributed.Utils
                 {
                     sha1.AppendData(CalculateHash(key));
                     sha1.AppendData(BitConverter.GetBytes(item.Deleted));
-                    if(item.Value is not null) sha1.AppendData(item.Value.CalculateHash());
+                    if (item.Value is not null) sha1.AppendData(item.Value.CalculateHash());
                     sha1.AppendData(CalculateHash(item.TimeStamp));
                 }
 
@@ -190,7 +191,7 @@ namespace Nyris.Crdt.Distributed.Utils
         }
 
         public static ReadOnlySpan<byte> Combine<TItem, TActorId>(
-            IEnumerable<VersionedSignedItem<TActorId, TItem>> items)
+            IEnumerable<DottedItem<TActorId, TItem>> items)
             where TItem : IEquatable<TItem>
             where TActorId : IEquatable<TActorId>
         {
@@ -199,9 +200,9 @@ namespace Nyris.Crdt.Distributed.Utils
             {
                 foreach (var item in items)
                 {
-                    sha1.AppendData(CalculateHash(item.Actor));
-                    sha1.AppendData(CalculateHash(item.Item));
-                    sha1.AppendData(BitConverter.GetBytes(item.Version));
+                    sha1.AppendData(CalculateHash(item.Dot.Actor));
+                    sha1.AppendData(CalculateHash(item.Value));
+                    sha1.AppendData(BitConverter.GetBytes(item.Dot.Version));
                 }
 
                 return sha1.GetHashAndReset();
@@ -250,12 +251,18 @@ namespace Nyris.Crdt.Distributed.Utils
             }
         }
 
+        public static ReadOnlySpan<byte> CalculateHash<TK, TV>(KeyValuePair<TK, TV> pair)
+            where TK : notnull where TV : notnull
+        {
+            return Combine(CalculateHash(pair.Key), CalculateHash(pair.Value));
+        }
+
         public static ReadOnlySpan<byte> CalculateHash<T>(T value) where T : notnull
         {
             return value switch
             {
-                byte byteValue => new [] {byteValue},
-                sbyte sbyteValue => new [] {(byte) sbyteValue}, // overflow is fine
+                byte byteValue => new[] {byteValue},
+                sbyte sbyteValue => new[] {(byte) sbyteValue}, // overflow is fine
                 short shortValue => BitConverter.GetBytes(shortValue),
                 ushort ushortValue => BitConverter.GetBytes(ushortValue),
                 int intValue => BitConverter.GetBytes(intValue),

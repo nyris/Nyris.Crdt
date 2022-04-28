@@ -1,15 +1,14 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net5.0;netstandard2.1</TargetFrameworks>
-        <LangVersion>9</LangVersion>
+        <TargetFrameworks>net5.0</TargetFrameworks>
+        <LangVersion>10</LangVersion>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-      <PackageReference Include="Nyris.Contracts.Exceptions" Version="1.1.0" />
-      <PackageReference Include="protobuf-net" Version="2.4.6" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+        <PackageReference Include="Nyris.Contracts.Exceptions" Version="1.1.0" />
+        <PackageReference Include="protobuf-net" Version="2.4.6" />
     </ItemGroup>
-
 </Project>

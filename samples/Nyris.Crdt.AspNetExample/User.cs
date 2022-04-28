@@ -2,12 +2,14 @@
 using System.Security.Cryptography;
 using System.Text;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
+using Nyris.Crdt.Model;
 using ProtoBuf;
 
 namespace Nyris.Crdt.AspNetExample
 {
     [ProtoContract(SkipConstructor = true)]
-    public record User([property: ProtoMember(1)] Guid Id, [property: ProtoMember(2)] string FirstName, [property: ProtoMember(3)] string LastName) : IHashable
+    public record User([property: ProtoMember(1)] Guid Id, [property: ProtoMember(2)] string FirstName,
+        [property: ProtoMember(3)] string LastName) : IHashable
     {
         public ReadOnlySpan<byte> CalculateHash()
         {

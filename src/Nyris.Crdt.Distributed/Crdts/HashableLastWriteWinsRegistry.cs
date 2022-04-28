@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
@@ -14,6 +15,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         public HashableLastWriteWinsRegistry()
         {
         }
+
         /// <inheritdoc />
         public ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(Items.OrderBy(i => i.Value.TimeStamp));
     }

@@ -4,7 +4,8 @@ namespace Nyris.Crdt
     {
         Identical,
         ConflictSolved,
+
         NotUpdated // this result is for Delta CRDTs, where it is useful to know if "our" (full) instance
-                   // was not updated by "their" (delta) update
+        // was not updated by "their" (delta) update
     }
 }

@@ -17,9 +17,11 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly ConcurrentDictionary<NodeId, GrpcChannel> _channels = new();
         private readonly ManagedCrdtContext _context;
         private readonly ConcurrentDictionary<NodeId, TGrpcService> _grpcClients = new();
+        private readonly NodeId _thisNodeId;
 
-        public ChannelManager(ManagedCrdtContext context)
+        public ChannelManager(ManagedCrdtContext context, NodeInfo nodeInfo)
         {
+            _thisNodeId = nodeInfo.Id;
             _context = context;
             ChannelManagerAccessor.Manager = this;
         }
@@ -30,7 +32,7 @@ namespace Nyris.Crdt.Distributed.Services
             if (!_grpcClients.TryGetValue(nodeId, out var client)
                 && TryGetOrCreate(nodeId, out var channel))
             {
-                var interceptor = new FailureInterceptor(_channels, _context, _grpcClients, nodeId);
+                var interceptor = new FailureInterceptor(_channels, _context, _grpcClients, nodeId, _thisNodeId);
                 client = channel.Intercept(interceptor).CreateGrpcService<TGrpcService>();
                 _grpcClients.TryAdd(nodeId, client);
             }
@@ -63,6 +65,7 @@ namespace Nyris.Crdt.Distributed.Services
             private readonly ManagedCrdtContext _context;
             private readonly ConcurrentDictionary<NodeId, TGrpcService> _grpcClients;
             private readonly NodeId _nodeId;
+            private readonly NodeId _thisNodeId;
 
             private static readonly int TolerateErrorsTimes = 3;
             private int _failures = 0;
@@ -70,13 +73,14 @@ namespace Nyris.Crdt.Distributed.Services
             /// <inheritdoc />
             public FailureInterceptor(ConcurrentDictionary<NodeId, GrpcChannel> channels,
                 ManagedCrdtContext context,
-                ConcurrentDictionary<NodeId, TGrpcService> grpcClients, NodeId nodeId)
+                ConcurrentDictionary<NodeId, TGrpcService> grpcClients, NodeId nodeId, NodeId thisNodeId)
 
             {
                 _channels = channels;
                 _context = context;
                 _grpcClients = grpcClients;
                 _nodeId = nodeId;
+                _thisNodeId = thisNodeId;
             }
 
             /// <inheritdoc />
@@ -115,10 +119,10 @@ namespace Nyris.Crdt.Distributed.Services
                 var failures = Interlocked.Increment(ref _failures);
                 if (failures < TolerateErrorsTimes) return;
 
-                _ = _context.Nodes.RemoveAsync(i => i.Id == _nodeId);
+                _ = _context.Nodes.RemoveAsync(i => i.Id == _nodeId, _thisNodeId);
                 _grpcClients.TryRemove(_nodeId, out _);
                 await (_channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask);
             }
         }
-	}
+    }
 }

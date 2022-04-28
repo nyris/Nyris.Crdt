@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
@@ -29,7 +30,8 @@ namespace Nyris.Crdt.Distributed.Crdts
             {
                 value = default;
                 return false;
-            };
+            }
+
             value = v.Value;
             return true;
         }
@@ -47,7 +49,8 @@ namespace Nyris.Crdt.Distributed.Crdts
     }
 
     public class HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
-        : ICRDT<HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.HashableCrdtRegistryDto>,
+        : ICRDT<HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.
+                HashableCrdtRegistryDto>,
             IHashable
         where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>

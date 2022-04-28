@@ -24,7 +24,8 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(NodeSetDto other, CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(NodeSetDto other,
+            CancellationToken cancellationToken = default)
         {
             var result = await base.MergeAsync(other, cancellationToken);
 
@@ -38,15 +39,18 @@ namespace Nyris.Crdt.Distributed.Crdts
 
         public static readonly IManagedCRDTFactory<NodeSet, NodeSetDto> DefaultFactory = new Factory();
 
-
+        // TODO: Sending this DTO is failing, Problem might be new complex types now like DottedItem and Tombstones
         [ProtoContract]
         public sealed class NodeSetDto : OrSetDto
         {
             [ProtoMember(1)]
-            public override HashSet<VersionedSignedItem<NodeId, NodeInfo>>? Items { get; set; }
+            public override HashSet<DottedItem<NodeId, NodeInfo>>? Items { get; set; }
 
             [ProtoMember(2)]
-            public override Dictionary<NodeId, uint>? ObservedState { get; set; }
+            public override Dictionary<NodeId, VersionVector<NodeId>>? VersionVectors { get; set; }
+
+            [ProtoMember(3)]
+            public override HashSet<Tombstone<NodeId>>? Tombstones { get; set; }
         }
 
         private sealed class Factory : IManagedCRDTFactory<NodeSet, NodeSetDto>

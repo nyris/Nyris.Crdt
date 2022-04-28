@@ -99,9 +99,10 @@ namespace Nyris.Crdt
                     var iHave = Items.TryGetValue(key, out var myItem);
                     var otherHas = other.Items.TryGetValue(key, out var otherItem);
 
-                    conflictSolved = conflictSolved  // if conflict was in the previous key, keep the true value immediately
-                                     || iHave != otherHas // or if current key is missing from one of the registries
-                                     || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) != 0;
+                    conflictSolved =
+                        conflictSolved // if conflict was in the previous key, keep the true value immediately
+                        || iHave != otherHas // or if current key is missing from one of the registries
+                        || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) != 0;
                     // notes on last condition: notice that iHave and otherHas can have only 3 possibilities:
                     // true-false, false-true and true-true. false-false is not possible, since in that case we would not
                     // have this key to begin with. And true-false, false-true both satisfy iHave != otherHas
@@ -116,7 +117,7 @@ namespace Nyris.Crdt
                     }
 
                     // at this point we ruled out true-false, so other item will always be not null
-                    if(!iHave || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) < 0)
+                    if (!iHave || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) < 0)
                     {
                         Items.AddOrUpdate(key,
                             _ => otherItem,

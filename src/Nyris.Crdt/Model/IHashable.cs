@@ -1,8 +1,7 @@
 using System;
 
-namespace Nyris.Crdt.Distributed.Crdts.Interfaces
+namespace Nyris.Crdt.Model
 {
-
     public interface IHashable
     {
         ReadOnlySpan<byte> CalculateHash();

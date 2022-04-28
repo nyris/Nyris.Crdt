@@ -2,8 +2,8 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model.Converters;
+using Nyris.Crdt.Model;
 using ProtoBuf;
 
 namespace Nyris.Crdt.AspNetExample
@@ -14,7 +14,8 @@ namespace Nyris.Crdt.AspNetExample
     [JsonConverter(typeof(InternalIdJsonConverter<CollectionId, Factory>))]
     [TypeConverter(typeof(InternalIdTypeConverter<CollectionId, Factory>))]
     [ProtoContract]
-    public readonly struct CollectionId : IEquatable<CollectionId>, IFormattable, IComparable<CollectionId>, IAs<Guid>, IHashable
+    public readonly struct CollectionId : IEquatable<CollectionId>, IFormattable, IComparable<CollectionId>, IAs<Guid>,
+        IHashable
     {
         /// <summary>
         /// Converts guid into NodeId.
@@ -61,8 +62,7 @@ namespace Nyris.Crdt.AspNetExample
             return false;
         }
 
-        [ProtoMember(1)]
-        private readonly Guid _id;
+        [ProtoMember(1)] private readonly Guid _id;
 
         private CollectionId(Guid id)
         {

@@ -8,9 +8,11 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.AspNetExample
 {
-    public sealed class UserObservedRemoveSet : ManagedOptimizedObservedRemoveSet<NodeId, User, UserObservedRemoveSet.UserSetDto>
+    public sealed class
+        UserObservedRemoveSet : ManagedOptimizedObservedRemoveSet<NodeId, User, UserObservedRemoveSet.UserSetDto>
     {
-        public UserObservedRemoveSet(InstanceId id, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null) : base(id, queueProvider, logger)
+        public UserObservedRemoveSet(InstanceId id, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null) :
+            base(id, queueProvider, logger)
         {
         }
 
@@ -18,10 +20,13 @@ namespace Nyris.Crdt.AspNetExample
         public sealed class UserSetDto : OrSetDto
         {
             [ProtoMember(1)]
-            public override HashSet<VersionedSignedItem<NodeId, User>>? Items { get; set; }
+            public override HashSet<DottedItem<NodeId, User>>? Items { get; set; }
 
             [ProtoMember(2)]
-            public override Dictionary<NodeId, uint>? ObservedState { get; set; }
+            public override Dictionary<NodeId, VersionVector<NodeId>>? VersionVectors { get; set; }
+
+            [ProtoMember(3)]
+            public override HashSet<Tombstone<NodeId>>? Tombstones { get; set; }
         }
 
         public sealed class Factory : IManagedCRDTFactory<UserObservedRemoveSet, UserSetDto>

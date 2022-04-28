@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 using Nyris.Extensions.Guids;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
@@ -42,7 +43,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <param name="queueProvider"></param>
         /// <param name="logger"></param>
         /// <param name="thisNode"></param>
-        protected ManagedCRDT(InstanceId instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null, NodeInfo? thisNode = null)
+        protected ManagedCRDT(InstanceId instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null,
+            NodeInfo? thisNode = null)
         {
             _queue = (queueProvider ?? DefaultConfiguration.QueueProvider).GetQueue<TDto>(GetType());
             InstanceId = instanceId;

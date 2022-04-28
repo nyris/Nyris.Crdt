@@ -7,7 +7,7 @@ internal static class TestingUtils
 {
     public static async Task WaitFor(Func<Task> func)
     {
-        var maxWait = TimeSpan.FromSeconds(60);
+        var maxWait = TimeSpan.FromSeconds(10);
         var start = DateTime.Now;
         Exception? exception = null;
 

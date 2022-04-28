@@ -6,9 +6,11 @@ using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Test.Unit.Helpers;
 
-internal class MockOldMergeManagedOptimizedObservedRemoveSet : OldMergeManagedOptimizedObservedRemoveSet<NodeId, MockUser, MockOldMergeManagedOptimizedObservedRemoveSet.MockUserSetDto>
+internal class MockOldMergeManagedOptimizedObservedRemoveSet : OldMergeManagedOptimizedObservedRemoveSet<NodeId,
+    MockUser, MockOldMergeManagedOptimizedObservedRemoveSet.MockUserSetDto>
 {
-    public MockOldMergeManagedOptimizedObservedRemoveSet(InstanceId id, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null) : base(id, queueProvider, logger)
+    public MockOldMergeManagedOptimizedObservedRemoveSet(InstanceId id, IAsyncQueueProvider? queueProvider = null,
+        ILogger? logger = null) : base(id, queueProvider, logger)
     {
     }
 
@@ -16,9 +18,9 @@ internal class MockOldMergeManagedOptimizedObservedRemoveSet : OldMergeManagedOp
     public class MockUserSetDto : OrSetDto
     {
         [ProtoMember(1)]
-        public override HashSet<VersionedSignedItem<NodeId, MockUser>>? Items { get; set; }
+        public override HashSet<DottedItem<NodeId, MockUser>>? Items { get; set; }
 
         [ProtoMember(2)]
-        public override Dictionary<NodeId, uint>? ObservedState { get; set; }
+        public override Dictionary<NodeId, VersionVector<NodeId>>? VersionVectors { get; set; }
     }
 }

@@ -7,9 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Contracts.Exceptions;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
@@ -26,16 +26,19 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
         where TDto : ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
     {
-        private HashSet<VersionedSignedItem<TActorId, TItem>> _items;
-        private readonly Dictionary<TActorId, uint> _observedState;
+        private readonly HashSet<DottedItem<TActorId, TItem>> _items;
+        private readonly HashSet<DottedItem<TActorId, TItem>> _deltas;
+        private readonly Dictionary<TActorId, VersionVector<TActorId>> _versionVectors;
+        private readonly HashSet<Tombstone<TActorId>> _tombstones;
         private readonly SemaphoreSlim _semaphore = new(1);
 
         protected ManagedOptimizedObservedRemoveSet(InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {
-            _items = new HashSet<VersionedSignedItem<TActorId, TItem>>();
-            _observedState = new Dictionary<TActorId, uint>();
+            _items = new();
+            _versionVectors = new();
+            _tombstones = new();
         }
 
         /// <inheritdoc />
@@ -45,11 +48,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
                 return HashingHelper.Combine(
-                    HashingHelper.Combine(_items.OrderBy(i => i.Actor)),
-                    HashingHelper.Combine(_observedState.OrderBy(pair => pair.Key)));
+                    HashingHelper.Combine(_items.OrderBy(i => i.Dot.Actor)),
+                    HashingHelper.Combine(_versionVectors.OrderBy(pair => pair.Key)));
             }
             finally
             {
@@ -57,48 +61,62 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        // NOTE: Logic Explained with Set Theory https://miro.com/app/board/uXjVObzJXTU=/
         /// <inheritdoc />
         public override async Task<MergeResult> MergeAsync(TDto other, CancellationToken cancellationToken = default)
         {
-            if (other.ObservedState is null || other.ObservedState.Count == 0) return MergeResult.NotUpdated;
+            if (other.VersionVectors is null || other.VersionVectors.Count == 0) return MergeResult.NotUpdated;
 
-            var otherItems = other.Items is null ? new HashSet<VersionedSignedItem<TActorId, TItem>>() : new HashSet<VersionedSignedItem<TActorId, TItem>>(other.Items);
+            var otherItems = other.Items is null
+                ? new HashSet<DottedItem<TActorId, TItem>>()
+                : new HashSet<DottedItem<TActorId, TItem>>(other.Items);
 
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
-                // NOTE: Keeps items from Other Node if Local Node has never seen those (i.e No ObservedState/VersionVector present) or they have newer Version than Local Observed State
-                var newerOtherItems = otherItems.Where(i =>
-                    !_observedState.TryGetValue(i.Actor, out var exitingVersion) || i.Version > exitingVersion).ToHashSet();
-                // NOTE: If Other ObservedState has a Version that is higher than it's local Version, it means either It has new items or some item was deleted
-                var anyDeleted =
-                    other.ObservedState.Any(pair => _observedState.TryGetValue(pair.Key, out var localVersion) && pair.Value > localVersion);
+                // NOTE: Keeps items from Other Node if Local Node has never seen those (i.e No VersionVector present) or they have newer Dot than Local Observed State
+                // var newerOtherItems = otherItems.Where(i =>
+                //         !_versionVectors.TryGetValue(i.Dot.Actor, out var exitingVersion) || i.Dot > exitingVersion)
+                //     .ToHashSet();
 
-                if (!newerOtherItems.Any() && !anyDeleted)
+                // NOTE: Delta (i.e Dto) has never been seen (0) or has newer Operations (1)
+                // 0. Other VersionVectors has a VersionVector that this Node hasn't even seen
+                // 1.If Other VersionVectors has a VersionVectors that is higher than it's local VersionVectors, it means either It has new items or some item was deleted
+                var dtoHasNewOperations =
+                    other.VersionVectors.Any(pair =>
+                        !_versionVectors.TryGetValue(pair.Key, out var localVersion) || pair.Value > localVersion);
+
+                if (!dtoHasNewOperations)
                 {
                     return MergeResult.Identical;
                 }
 
-                // NOTE: These Local Items are Deleted when Other ObservedState has newer version but not the Item
-                var deletedOrOlderItems = _items.Where(i =>
-                    !otherItems.Contains(i) && other.ObservedState.TryGetValue(i.Actor, out var otherVersion) && i.Version < otherVersion).ToHashSet();
+                if (other.Tombstones is not null)
+                {
+                    // NOTE: Local Items are Deleted when it's Dot exists in other Tombstones
+                    var deletedItems = _items.Where(i => other.Tombstones.Any(t => t.Dot == i.Dot)).ToHashSet();
 
-                // NOTE: Discard Deleted/Older Items
-                _items.ExceptWith(deletedOrOlderItems);
+                    _items.ExceptWith(deletedItems);
+                }
 
-                _items.UnionWith(newerOtherItems);
+                if (other.Items is not null)
+                {
+                    _items.UnionWith(other.Items);
+                }
 
                 // observed state is a element-wise max of two vectors.
-                foreach (var (actorId, _) in _observedState.Union(other.ObservedState))
+                foreach (var (actorId, _) in _versionVectors.Union(other.VersionVectors))
                 {
-                    _observedState.TryGetValue(actorId, out var thisObservedState);
-                    other.ObservedState.TryGetValue(actorId, out var otherObservedState);
+                    var defaultValue = new VersionVector<TActorId>(actorId, 0);
+                    var thisObservedState = _versionVectors.GetValueOrDefault(actorId, defaultValue);
+                    // TODO: otherObservedState is null Struct
+                    var otherObservedState = other.VersionVectors.GetValueOrDefault(actorId, defaultValue);
 
-                    _observedState[actorId] = Math.Max(thisObservedState, otherObservedState);
+                    _versionVectors[actorId] =
+                        thisObservedState > otherObservedState ? thisObservedState : otherObservedState;
                 }
             }
             finally
@@ -115,15 +133,22 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
                 return new TDto
                 {
-                    Items = _items
-                        .Select(i => new VersionedSignedItem<TActorId, TItem>(i.Actor, i.Version, i.Item))
+                    Items = _items.Count == 0
+                        ? null
+                        : _items
+                            .Select(i => new DottedItem<TActorId, TItem>(i.Dot, i.Value))
+                            .ToHashSet(),
+                    VersionVectors = _versionVectors.Count == 0
+                        ? null
+                        : _versionVectors
+                            .ToDictionary(pair => pair.Key, pair => pair.Value),
+                    Tombstones = _tombstones.Select(i => new Tombstone<TActorId>(i.Dot))
                         .ToHashSet(),
-                    ObservedState = _observedState
-                        .ToDictionary(pair => pair.Key, pair => pair.Value)
                 };
             }
             finally
@@ -133,9 +158,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public override async IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            yield return await ToDtoAsync(cancellationToken); // unfortunately making ORSet a delta Crdt is not an easy task
+            yield return
+                await ToDtoAsync(cancellationToken); // unfortunately making ORSet a delta Crdt is not an easy task
         }
 
         public HashSet<TItem> Value
@@ -146,8 +173,15 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 {
                     throw new NyrisException("Deadlock");
                 }
-                try { return _items.Select(i => i.Item).ToHashSet(); }
-                finally { _semaphore.Release(); }
+
+                try
+                {
+                    return _items.Select(i => i.Value).ToHashSet();
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
             }
         }
 
@@ -157,50 +191,63 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
-                // default value for int is 0, so if key is not preset, lastObservedVersion will be assigned 0, which is intended
-                _observedState.TryGetValue(actorPerformingAddition, out var observedVersion);
-                ++observedVersion;
+                var prevVersion = _versionVectors.GetValueOrDefault(actorPerformingAddition,
+                    new VersionVector<TActorId>(actorPerformingAddition, 0));
 
-                _items.Add(new VersionedSignedItem<TActorId, TItem>(actorPerformingAddition, observedVersion, item));
+                var nextVersion = prevVersion.Next();
+
+                _items.Add(new DottedItem<TActorId, TItem>(new Dot<TActorId>(nextVersion), item));
 
                 // notice that i.Actor.Equals(actorPerformingAddition) means that there may be multiple copies of item
                 // stored at the same time. This is by design
-                _items.RemoveWhere(i =>
-                    i.Item.Equals(item) && i.Version < observedVersion && i.Actor.Equals(actorPerformingAddition));
-                _observedState[actorPerformingAddition] = observedVersion;
+                _items.RemoveWhere(i => i.Value.Equals(item) && i.Dot < nextVersion);
+                _versionVectors[actorPerformingAddition] = nextVersion;
             }
             finally
             {
                 _semaphore.Release();
             }
+
             await StateChangedAsync();
         }
 
-        public virtual Task RemoveAsync(TItem item) => RemoveAsync(i => i.Equals(item));
+        public virtual Task RemoveAsync(TItem item, TActorId actorPerformingAddition) =>
+            RemoveAsync(i => i.Equals(item), actorPerformingAddition);
 
-        public virtual async Task RemoveAsync(Func<TItem, bool> condition)
+        public virtual async Task RemoveAsync(Func<TItem, bool> condition, TActorId actorPerformingAddition)
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15)))
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
-                _items.RemoveWhere(i => condition(i.Item));
+                var itemsToBeRemoved = _items.Where(i => condition(i.Value)).ToHashSet();
+
+                if (itemsToBeRemoved.Count > 0)
+                {
+                    _items.ExceptWith(itemsToBeRemoved);
+
+                    _tombstones.UnionWith(itemsToBeRemoved.Select(i => new Tombstone<TActorId>(i.Dot)));
+                }
             }
             finally
             {
                 _semaphore.Release();
             }
+
             await StateChangedAsync();
         }
 
         public abstract class OrSetDto
         {
-            public abstract HashSet<VersionedSignedItem<TActorId, TItem>>? Items { get; set; }
-            public abstract Dictionary<TActorId, uint>? ObservedState { get; set; }
+            public abstract HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
+            public abstract Dictionary<TActorId, VersionVector<TActorId>>? VersionVectors { get; set; }
+            public abstract HashSet<Tombstone<TActorId>>? Tombstones { get; set; }
         }
     }
 }

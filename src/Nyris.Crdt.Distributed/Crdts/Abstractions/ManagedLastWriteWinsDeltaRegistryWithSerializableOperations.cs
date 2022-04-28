@@ -9,6 +9,7 @@ using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
@@ -37,8 +38,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     {
                         throw new KeyNotFoundException($"Key {getValueOperation.Key} was not found in registry");
                     }
+
                     return new ValueResponse<TValue>(value);
-                case AddValueOperation<TKey, TValue, TTimeStamp>(var key, var newValue, var timeStamp, var propagateToNodes):
+                case AddValueOperation<TKey, TValue, TTimeStamp>(var key, var newValue, var timeStamp, var
+                    propagateToNodes):
                     var added = await SetAsync(key, newValue, timeStamp,
                         propagateToNodes,
                         cancellationToken: cancellationToken);

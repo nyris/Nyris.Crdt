@@ -12,12 +12,14 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 {
     public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>
-        : ManagedCrdtRegistryBase<TKey, TValue, ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
+        : ManagedCrdtRegistryBase<TKey, TValue,
+            ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
         where TValue : IHashable
         where TKey : IEquatable<TKey>, IComparable<TKey>
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
@@ -47,7 +49,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public override ulong Size => (ulong) Values.Count();
 
         /// <inheritdoc />
-        public override ulong StorageSize => (ulong)_items.Count;
+        public override ulong StorageSize => (ulong) _items.Count;
 
         public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue? value)
         {
@@ -92,7 +94,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             // Updated / Concurrent / new TimeStampedItem
             await AddItemToIndexesAsync(key, item.Value, cancellationToken: cancellationToken);
             _nextDto.Add(key);
-            await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
+            await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId,
+                cancellationToken: cancellationToken);
             return item;
         }
 
@@ -118,12 +121,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             await RemoveItemFromIndexes(key, item.Value, cancellationToken);
             _nextDto.Add(key);
-            await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId, cancellationToken: cancellationToken);
+            await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId,
+                cancellationToken: cancellationToken);
             return item;
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(LastWriteWinsDto other, CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(LastWriteWinsDto other,
+            CancellationToken cancellationToken = default)
         {
             if (ReferenceEquals(other.Items, null) || other.Items.Count == 0) return MergeResult.NotUpdated;
 
@@ -132,6 +137,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
                 foreach (var key in other.Items.Keys)
@@ -171,7 +177,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<LastWriteWinsDto> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public override async IAsyncEnumerable<LastWriteWinsDto> EnumerateDtoBatchesAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             const int maxBatchSize = 10;
             foreach (var batch in _items.Batch(maxBatchSize))
@@ -182,7 +189,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     var (key, item) = batch.Span[i];
                     items.Add(key, item);
                 }
-                yield return new LastWriteWinsDto { Items = items };
+
+                yield return new LastWriteWinsDto {Items = items};
             }
         }
 
@@ -224,7 +232,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             // reverse - update 'this' registry
             if (iHave && myItem!.TimeStamp!.CompareTo(otherItem!.TimeStamp) < 0 || !iHave)
             {
-                if(iHave) await RemoveItemFromIndexes(key, myItem!.Value);
+                if (iHave) await RemoveItemFromIndexes(key, myItem!.Value);
 
                 _nextDto.Add(key);
                 _items.AddOrUpdate(key,

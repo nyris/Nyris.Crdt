@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Test.Unit.Helpers;
 

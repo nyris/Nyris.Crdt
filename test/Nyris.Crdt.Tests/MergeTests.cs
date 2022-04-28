@@ -26,7 +26,7 @@ public class MergeTests
             .ToList();
 
         var collectionId = CollectionId.Parse("0bcacccc-77d8-45f3-a823-10b705b34692");
-        await registries[0].TryAddCollectionAsync(collectionId, new CollectionConfig{Name = "0"});
+        await registries[0].TryAddCollectionAsync(collectionId, new CollectionConfig {Name = "0"});
         registries[0].CalculateHash().SequenceEqual(registries[1].CalculateHash()).Should().BeFalse();
 
         await SyncCrdtsAsync<PartiallyReplicatedImageInfoCollectionsRegistry,
@@ -81,12 +81,12 @@ public class MergeTests
         var node2 = NodeId.GenerateNew();
 
         var shardId1 = ShardId.GenerateNew();
-        registry1.TryAdd(node1, collectionId1, new CollectionInfo("1", new [] { shardId1 })).Should().BeTrue();
+        registry1.TryAdd(node1, collectionId1, new CollectionInfo("1", new[] {shardId1})).Should().BeTrue();
         registry1[collectionId1].Shards[shardId1] = new ShardSizes(2, 3);
 
         var shardId21 = ShardId.GenerateNew();
         var shardId22 = ShardId.GenerateNew();
-        registry2.TryAdd(node2, collectionId2, new CollectionInfo("2", new [] { shardId21, shardId22 })).Should().BeTrue();
+        registry2.TryAdd(node2, collectionId2, new CollectionInfo("2", new[] {shardId21, shardId22})).Should().BeTrue();
         registry2[collectionId2].Shards[shardId21] = new ShardSizes(3, 3);
         registry2[collectionId2].Shards[shardId22] = new ShardSizes(4, 5);
 
@@ -99,7 +99,8 @@ public class MergeTests
         registry1[collectionId1].StorageSize.Should().Be(3);
 
         registry2.Remove(collectionId2);
-        registry1.Merge(registry2.ToDto()).Should().Be(MergeResult.ConflictSolved);
+        var dto = registry2.ToDto();
+        registry1.Merge(dto).Should().Be(MergeResult.ConflictSolved);
         registry1.TryGetValue(collectionId2, out _).Should().BeFalse();
         registry1[collectionId1].Name.Should().Be("1");
         registry1[collectionId1].Size.Should().Be(2);
