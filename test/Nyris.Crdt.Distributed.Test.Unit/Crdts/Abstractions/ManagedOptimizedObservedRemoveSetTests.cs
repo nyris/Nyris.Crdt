@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
-using FluentAssertions.Equivalency;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Nyris.Crdt.Distributed.Model;
@@ -31,30 +30,29 @@ public class ManagedOptimizedObservedRemoveSetTests
         _testOutput = testOutput;
         var managedCrdtMock =
             new Mock<MockManagedOptimizedObservedRemoveSet>(new InstanceId("mock-user-or-set-crdt-id"),
-                It.IsAny<IQueryProvider>(), It.IsAny<ILogger>()) {CallBase = true};
+                NodeId.GenerateNew(),
+                It.IsAny<IQueryProvider>(), It.IsAny<ILogger>()) { CallBase = true };
         _managedCrdt = managedCrdtMock.Object;
 
         managedCrdtMock.Setup(x => x.StateChangedAsync(
             It.IsAny<uint>(),
             It.IsAny<bool>(),
             It.IsAny<string>(),
-            It.IsAny<CancellationToken>(),
-            It.IsAny<IEnumerable<NodeId>>()
+            It.IsAny<CancellationToken>()
         )).Returns(Task.CompletedTask);
 
         var managedCrdtOldMergeMock =
             new Mock<MockOldMergeManagedOptimizedObservedRemoveSet>(
                     new InstanceId("mock-old-merge-user-or-set-crdt-id"), It.IsAny<IQueryProvider>(),
                     It.IsAny<ILogger>())
-                {CallBase = true};
+                { CallBase = true };
         _managedCrdtOldMerge = managedCrdtOldMergeMock.Object;
 
         managedCrdtOldMergeMock.Setup(x => x.StateChangedAsync(
             It.IsAny<uint>(),
             It.IsAny<bool>(),
             It.IsAny<string>(),
-            It.IsAny<CancellationToken>(),
-            It.IsAny<IEnumerable<NodeId>>())
+            It.IsAny<CancellationToken>())
         ).Returns(Task.CompletedTask);
     }
 
@@ -72,7 +70,7 @@ public class ManagedOptimizedObservedRemoveSetTests
 
         foreach (var item in localItems)
         {
-            await _managedCrdt.AddAsync(item.Value, mockNodeA);
+            await _managedCrdt.AddAsync(item.Value);
         }
 
         var resultB = await _managedCrdt.MergeAsync(dtoB, CancellationToken.None);
@@ -96,7 +94,7 @@ public class ManagedOptimizedObservedRemoveSetTests
 
         foreach (var item in localItems)
         {
-            await _managedCrdt.AddAsync(item.Value, mockNodeA);
+            await _managedCrdt.AddAsync(item.Value);
         }
 
         var resultB0 = await _managedCrdt.MergeAsync(dtoB, CancellationToken.None);
@@ -122,22 +120,22 @@ public class ManagedOptimizedObservedRemoveSetTests
 
         foreach (var item in localItems)
         {
-            await _managedCrdt.AddAsync(item.Value, mockNodeA);
+            await _managedCrdt.AddAsync(item.Value);
         }
 
         var resultB0 = await _managedCrdt.MergeAsync(dtoB, CancellationToken.None);
 
         // Delete Last Value
-        dtoB.VersionVectors![mockNodeB] = dtoB.VersionVectors![mockNodeB].Next();
+        dtoB.VersionVectors![mockNodeB] += 1;
         var deletedItem = dtoB.Items!.Last();
 
-        dtoB.Items!.ExceptWith(new[] {deletedItem});
+        dtoB.Items!.ExceptWith(new[] { deletedItem });
 
-        (dtoB.Tombstones as HashSet<Tombstone<NodeId>>)!.Add(new Tombstone<NodeId>(deletedItem.Dot));
+        dtoB.Tombstones!.Add(deletedItem.Dot, new HashSet<NodeId> { mockNodeB });
 
         // Add New Value to get ConflictSolved result
-        dtoB.VersionVectors![mockNodeB] = dtoB.VersionVectors![mockNodeB].Next();
-        dtoB.Items.Add(new DottedItem<NodeId, MockUser>(new Dot<NodeId>(dtoB.VersionVectors![mockNodeB]),
+        dtoB.VersionVectors![mockNodeB] += 1;
+        dtoB.Items.Add(new DottedItem<NodeId, MockUser>(new Dot<NodeId>(mockNodeB, dtoB.VersionVectors![mockNodeB]),
             new MockUser(Guid.NewGuid(), "mock-user-" + _userCount++)));
 
 
@@ -160,7 +158,7 @@ public class ManagedOptimizedObservedRemoveSetTests
 
         foreach (var item in localItems)
         {
-            await _managedCrdt.AddAsync(item.Value, localNodeA);
+            await _managedCrdt.AddAsync(item.Value);
             await _managedCrdtOldMerge.AddAsync(item.Value, localNodeA);
         }
 
@@ -190,12 +188,12 @@ public class ManagedOptimizedObservedRemoveSetTests
 
             var dtoB = new MockManagedOptimizedObservedRemoveSet.MockUserSetDto
             {
-                VersionVectors = new Dictionary<NodeId, VersionVector<NodeId>>
+                VersionVectors = new Dictionary<NodeId, uint>
                 {
-                    {remoteNodeB, new VersionVector<NodeId>(remoteNodeB, dtoBOperations)}
+                    { remoteNodeB, dtoBOperations }
                 },
                 Items = remoteNodeBAllItems,
-                Tombstones = new HashSet<Tombstone<NodeId>>()
+                Tombstones = new Dictionary<Dot<NodeId>, HashSet<NodeId>>()
             };
 
             var dtoBOld = new MockOldMergeManagedOptimizedObservedRemoveSet.MockUserSetDto
@@ -215,10 +213,10 @@ public class ManagedOptimizedObservedRemoveSetTests
 
                 // Delete Last Value 1 Op
                 dtoBOperations += 1;
-                dtoB.VersionVectors![remoteNodeB] = new VersionVector<NodeId>(remoteNodeB, dtoBOperations);
+                dtoB.VersionVectors![remoteNodeB] = dtoBOperations;
                 var itemToRemove = remoteNodeItems.Last();
-                dtoB.Items!.ExceptWith(new[] {itemToRemove});
-                (dtoB.Tombstones as HashSet<Tombstone<NodeId>>)!.Add(new Tombstone<NodeId>(itemToRemove.Dot));
+                dtoB.Items!.ExceptWith(new[] { itemToRemove });
+                dtoB.Tombstones!.Add(itemToRemove.Dot, new HashSet<NodeId> { remoteNodeB });
 
                 dtoBOld = new MockOldMergeManagedOptimizedObservedRemoveSet.MockUserSetDto
                 {
@@ -241,16 +239,56 @@ public class ManagedOptimizedObservedRemoveSetTests
         _managedCrdt.Value.Count.Should().Be((iterations * 3) - totalRemoveOps + (int) initialLocalItems);
     }
 
+    [Fact]
+    public async Task Can_Merge_Deleted_Dtos_With_Delta()
+    {
+        var mockNodeA = new NodeId("mock-or-set-node-a");
+        var mockNodeB = new NodeId("mock-or-set-node-b");
+
+        var dtoB = GetRandomDto(mockNodeB, 3);
+
+        var localItems = GetRandomItems(mockNodeA, 4);
+
+        foreach (var item in localItems)
+        {
+            await _managedCrdt.AddAsync(item.Value);
+        }
+
+        var resultB0 = await _managedCrdt.MergeAsync(dtoB, CancellationToken.None);
+
+        // Delete Last Value
+        dtoB.VersionVectors![mockNodeB] += 1;
+        var deletedItem = dtoB.Items!.Last();
+
+        dtoB.Items!.ExceptWith(new[] { deletedItem });
+        dtoB.Tombstones!.Add(deletedItem.Dot, new HashSet<NodeId> { mockNodeB });
+
+        var delta = new MockManagedOptimizedObservedRemoveSet.MockUserSetDto
+        {
+            // NOTE: Missing Items, as in Delta ORSet Deleted Items would be represented by Tombstones
+            Tombstones = dtoB.Tombstones,
+            VersionVectors = dtoB.VersionVectors
+        };
+
+        var resultB1 = await _managedCrdt.MergeAsync(delta, CancellationToken.None);
+
+        resultB0.Should().Be(MergeResult.ConflictSolved, "Merge of 3 Items with initial dtoB");
+        resultB1.Should().Be(MergeResult.ConflictSolved, "Deletion of 1 Item");
+
+        _managedCrdt.Value.Should().BeEquivalentTo(dtoB.Items!.Union(localItems).Select(i => i.Value).ToHashSet(),
+            because: "Delta change with No Items but deleted Item's Tombstone");
+    }
+
     private static MockManagedOptimizedObservedRemoveSet.MockUserSetDto GetRandomDto(NodeId node, uint items)
     {
         return new MockManagedOptimizedObservedRemoveSet.MockUserSetDto
         {
-            VersionVectors = new Dictionary<NodeId, VersionVector<NodeId>>
+            VersionVectors = new Dictionary<NodeId, uint>
             {
-                {node, new VersionVector<NodeId>(node, items)}
+                { node, items }
             },
             Items = GetRandomItems(node, items),
-            Tombstones = new HashSet<Tombstone<NodeId>>()
+            Tombstones = new Dictionary<Dot<NodeId>, HashSet<NodeId>>()
         };
     }
 

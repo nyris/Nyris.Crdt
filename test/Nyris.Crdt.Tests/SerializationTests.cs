@@ -56,13 +56,13 @@ public sealed class SerializationTests
             {
                 new(new Dot<NodeId>(id, 1), nodeInfo)
             },
-            Tombstones = new HashSet<Tombstone<NodeId>>
+            Tombstones = new Dictionary<Dot<NodeId>, HashSet<NodeId>>
             {
-                new(new Dot<NodeId>(id, 2))
+                { new Dot<NodeId>(id, 2), new HashSet<NodeId> { id } }
             },
-            VersionVectors = new Dictionary<NodeId, VersionVector<NodeId>>
+            VersionVectors = new Dictionary<NodeId, uint>
             {
-                { id, new VersionVector<NodeId>(id, 2) }
+                { id, 2 }
             }
         });
     }

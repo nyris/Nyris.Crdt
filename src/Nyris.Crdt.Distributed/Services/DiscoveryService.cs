@@ -46,14 +46,14 @@ namespace Nyris.Crdt.Distributed.Services
                     {
                         new MethodConfig
                         {
-                            Names = {MethodName.Default},
+                            Names = { MethodName.Default },
                             RetryPolicy = new RetryPolicy
                             {
                                 MaxAttempts = 5,
                                 InitialBackoff = TimeSpan.FromSeconds(2),
                                 BackoffMultiplier = 2,
                                 MaxBackoff = TimeSpan.FromSeconds(32),
-                                RetryableStatusCodes = {StatusCode.Unavailable}
+                                RetryableStatusCodes = { StatusCode.Unavailable }
                             }
                         }
                     }
@@ -81,7 +81,7 @@ namespace Nyris.Crdt.Distributed.Services
         {
             _logger.LogDebug("{ServiceName} executing", nameof(DiscoveryService<TGrpcService>));
 
-            await _context.Nodes.AddAsync(_thisNode, _thisNode.Id);
+            await _context.Nodes.AddAsync(_thisNode);
             await foreach (var (address, name) in GetAllUris(cancellationToken))
             {
                 try

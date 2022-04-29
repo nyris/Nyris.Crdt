@@ -35,10 +35,11 @@ namespace Nyris.Crdt.Distributed
 
         internal NodeSet Nodes { get; }
 
-        protected ManagedCrdtContext(ILogger<ManagedCrdtContext>? logger = null, NodeSet? nodes = null)
+        protected ManagedCrdtContext(NodeInfo nodeInfo, ILogger<ManagedCrdtContext>? logger = null,
+            NodeSet? nodes = null)
         {
             Logger = logger;
-            Nodes = nodes ?? new(new InstanceId("nodes_internal"));
+            Nodes = nodes ?? new(new InstanceId("nodes_internal"), nodeInfo);
             Add<NodeSet, NodeSet.NodeSetDto>(Nodes);
         }
 
@@ -67,7 +68,7 @@ namespace Nyris.Crdt.Distributed
             }
 
             _typeToTypeNameMapping.AddOrUpdate(typeof(TCrdt),
-                _ => new HashSet<TypeNameAndInstanceId> {typeNameAndInstanceId},
+                _ => new HashSet<TypeNameAndInstanceId> { typeNameAndInstanceId },
                 (_, nameAndId) =>
                 {
                     nameAndId.Add(typeNameAndInstanceId);

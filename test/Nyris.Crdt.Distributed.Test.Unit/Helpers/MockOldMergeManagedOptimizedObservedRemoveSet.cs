@@ -10,9 +10,7 @@ internal class MockOldMergeManagedOptimizedObservedRemoveSet : OldMergeManagedOp
     MockUser, MockOldMergeManagedOptimizedObservedRemoveSet.MockUserSetDto>
 {
     public MockOldMergeManagedOptimizedObservedRemoveSet(InstanceId id, IAsyncQueueProvider? queueProvider = null,
-        ILogger? logger = null) : base(id, queueProvider, logger)
-    {
-    }
+        ILogger? logger = null) : base(id, queueProvider, logger) { }
 
     [ProtoContract]
     public class MockUserSetDto : OrSetDto
@@ -21,6 +19,6 @@ internal class MockOldMergeManagedOptimizedObservedRemoveSet : OldMergeManagedOp
         public override HashSet<DottedItem<NodeId, MockUser>>? Items { get; set; }
 
         [ProtoMember(2)]
-        public override Dictionary<NodeId, VersionVector<NodeId>>? VersionVectors { get; set; }
+        public override Dictionary<NodeId, uint>? VersionVectors { get; set; }
     }
 }

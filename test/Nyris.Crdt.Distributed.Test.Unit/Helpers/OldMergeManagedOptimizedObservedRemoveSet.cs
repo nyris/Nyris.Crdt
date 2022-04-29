@@ -20,7 +20,7 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
         where TDto : OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
     {
         private HashSet<DottedItem<TActorId, TItem>> _items;
-        private readonly Dictionary<TActorId, VersionVector<TActorId>> _versionVectors;
+        private readonly Dictionary<TActorId, uint> _versionVectors;
         private readonly SemaphoreSlim _semaphore = new(1);
 
         protected OldMergeManagedOptimizedObservedRemoveSet(InstanceId id,
@@ -80,12 +80,12 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
                 var m1 = _items
                     .Except(other.Items)
                     .Where(i => !other.VersionVectors.TryGetValue(i.Dot.Actor, out var otherVersion)
-                                || i.Dot > otherVersion);
+                                || i.Dot.Version > otherVersion);
 
                 var m2 = other.Items
                     .Except(_items)
                     .Where(i => !_versionVectors.TryGetValue(i.Dot.Actor, out var myVersion)
-                                || i.Dot > myVersion);
+                                || i.Dot.Version > myVersion);
 
                 var u = m.Union(m1).Union(m2);
 
@@ -98,12 +98,10 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
                 // observed state is a element-wise max of two vectors.
                 foreach (var actorId in _versionVectors.Keys.ToList().Union(other.VersionVectors.Keys))
                 {
-                    var defaultValue = new VersionVector<TActorId>(actorId, 0);
+                    _versionVectors.TryGetValue(actorId, out var thisVersion);
+                    other.VersionVectors.TryGetValue(actorId, out var otherVersion);
 
-                    var thisVersion = _versionVectors.GetValueOrDefault(actorId, defaultValue);
-                    var otherVersion = other.VersionVectors.GetValueOrDefault(actorId, defaultValue);
-
-                    _versionVectors[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
+                    _versionVectors[actorId] = Math.Max(thisVersion, otherVersion);
                 }
             }
             finally
@@ -175,16 +173,15 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
 
             try
             {
-                var observedVersion = _versionVectors.GetValueOrDefault(actorPerformingAddition,
-                    new VersionVector<TActorId>(actorPerformingAddition, 0));
+                _versionVectors.TryGetValue(actorPerformingAddition, out var observedVersion);
 
-                observedVersion = observedVersion.Next();
+                observedVersion += 1;
 
-                _items.Add(new DottedItem<TActorId, TItem>(new Dot<TActorId>(observedVersion), item));
+                _items.Add(new DottedItem<TActorId, TItem>(new Dot<TActorId>(actorPerformingAddition, observedVersion), item));
 
                 // notice that i.Actor.Equals(actorPerformingAddition) means that there may be multiple copies of item
                 // stored at the same time. This is by design
-                _items.RemoveWhere(i => i.Value.Equals(item) && i.Dot < observedVersion);
+                _items.RemoveWhere(i => i.Value.Equals(item) && i.Dot.Version < observedVersion);
                 _versionVectors[actorPerformingAddition] = observedVersion;
             }
             finally
@@ -219,7 +216,7 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
         public abstract class OrSetDto
         {
             public abstract HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
-            public abstract Dictionary<TActorId, VersionVector<TActorId>>? VersionVectors { get; set; }
+            public abstract Dictionary<TActorId, uint>? VersionVectors { get; set; }
         }
     }
 }

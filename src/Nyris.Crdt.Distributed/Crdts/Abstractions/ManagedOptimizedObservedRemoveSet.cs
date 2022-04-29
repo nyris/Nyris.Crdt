@@ -27,16 +27,24 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         where TDto : ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
     {
         private readonly HashSet<DottedItem<TActorId, TItem>> _items;
-        private readonly HashSet<DottedItem<TActorId, TItem>> _deltas;
-        private readonly Dictionary<TActorId, VersionVector<TActorId>> _versionVectors;
-        private readonly HashSet<Tombstone<TActorId>> _tombstones;
+        private HashSet<DottedItem<TActorId, TItem>> _delta;
+
+        private readonly Dictionary<TActorId, uint> _versionVectors;
+
+        // NOTE: Original Tombstones term represents the whole deleted Item {TItem} in original ORSet,
+        // but this field only contains {Dot}s of deleted Items, this is also referred as "DotCloud" in https://bartoszsypytkowski.com/optimizing-state-based-crdts-part-2/
+        private readonly Dictionary<Dot<TActorId>, HashSet<TActorId>> _tombstones;
         private readonly SemaphoreSlim _semaphore = new(1);
+        private readonly TActorId _thisNodeId;
 
         protected ManagedOptimizedObservedRemoveSet(InstanceId id,
+            TActorId thisNodeId,
             IAsyncQueueProvider? queueProvider = null,
             ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
         {
+            _thisNodeId = thisNodeId;
             _items = new();
+            _delta = new();
             _versionVectors = new();
             _tombstones = new();
         }
@@ -64,7 +72,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override async Task<MergeResult> MergeAsync(TDto other, CancellationToken cancellationToken = default)
         {
-            if (other.VersionVectors is null || other.VersionVectors.Count == 0) return MergeResult.NotUpdated;
+            if ((other.SourceId is not null && _thisNodeId.Equals(other.SourceId)) ||
+                (other.VersionVectors is null || other.VersionVectors.Count == 0)) return MergeResult.NotUpdated;
 
             var otherItems = other.Items is null
                 ? new HashSet<DottedItem<TActorId, TItem>>()
@@ -78,45 +87,66 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             try
             {
                 // NOTE: Keeps items from Other Node if Local Node has never seen those (i.e No VersionVector present) or they have newer Dot than Local Observed State
-                // var newerOtherItems = otherItems.Where(i =>
-                //         !_versionVectors.TryGetValue(i.Dot.Actor, out var exitingVersion) || i.Dot > exitingVersion)
-                //     .ToHashSet();
+                var newerOtherItems = otherItems.Where(i =>
+                        !(other.Tombstones is not null && other.Tombstones.ContainsKey(i.Dot)) &&
+                        (!_versionVectors.TryGetValue(i.Dot.Actor, out var exitingVersion) || i.Dot.Version > exitingVersion))
+                    .ToHashSet();
 
-                // NOTE: Delta (i.e Dto) has never been seen (0) or has newer Operations (1)
-                // 0. Other VersionVectors has a VersionVector that this Node hasn't even seen
-                // 1.If Other VersionVectors has a VersionVectors that is higher than it's local VersionVectors, it means either It has new items or some item was deleted
-                var dtoHasNewOperations =
-                    other.VersionVectors.Any(pair =>
-                        !_versionVectors.TryGetValue(pair.Key, out var localVersion) || pair.Value > localVersion);
+                var newerTombstones = other.Tombstones ?? new Dictionary<Dot<TActorId>, HashSet<TActorId>>();
 
-                if (!dtoHasNewOperations)
+                // NOTE: Delta is Identical when
+                // 0. There are No new items
+                // 1. There NO newer Tombstones, i.e No Items were deleted or No Items were deleted that this Node hasn't seen
+                if (newerOtherItems.Count == 0 && newerTombstones.Count == 0)
                 {
                     return MergeResult.Identical;
                 }
 
-                if (other.Tombstones is not null)
+                if (newerTombstones.Count != 0)
                 {
                     // NOTE: Local Items are Deleted when it's Dot exists in other Tombstones
-                    var deletedItems = _items.Where(i => other.Tombstones.Any(t => t.Dot == i.Dot)).ToHashSet();
+                    var deletedItems = _items.Where(i => newerTombstones.TryGetValue(i.Dot, out _)).ToHashSet();
 
                     _items.ExceptWith(deletedItems);
+                    newerOtherItems.ExceptWith(deletedItems);
                 }
 
-                if (other.Items is not null)
-                {
-                    _items.UnionWith(other.Items);
-                }
+                _items.UnionWith(newerOtherItems);
+                _delta = _items.ToHashSet();
 
                 // observed state is a element-wise max of two vectors.
-                foreach (var (actorId, _) in _versionVectors.Union(other.VersionVectors))
+                foreach (var (actorId, otherVersion) in other.VersionVectors)
                 {
-                    var defaultValue = new VersionVector<TActorId>(actorId, 0);
-                    var thisObservedState = _versionVectors.GetValueOrDefault(actorId, defaultValue);
-                    // TODO: otherObservedState is null Struct
-                    var otherObservedState = other.VersionVectors.GetValueOrDefault(actorId, defaultValue);
+                    if (_versionVectors.TryGetValue(actorId, out var existingVersion))
+                    {
+                        _versionVectors[actorId] = Math.Max(otherVersion, existingVersion);
+                    }
+                    else
+                    {
+                        _versionVectors.Add(actorId, otherVersion);
+                    }
+                }
 
-                    _versionVectors[actorId] =
-                        thisObservedState > otherObservedState ? thisObservedState : otherObservedState;
+                var allKnownNodes = _versionVectors.Select(pair => pair.Key).OrderBy(id => id).ToHashSet();
+
+                foreach (var (dot, actorIds) in newerTombstones)
+                {
+                    // NOTE: Update existing tombstone for given Dot (i.e pair.Key)
+                    if (_tombstones.TryGetValue(dot, out var observedByActors))
+                    {
+                        observedByActors.UnionWith(actorIds);
+                    }
+                    else
+                    {
+                        observedByActors = actorIds;
+                        _tombstones.Add(dot, observedByActors);
+                    }
+
+                    // NOTE: Delete Tombstones which every known Node has already seen.
+                    if (allKnownNodes.SetEquals(observedByActors.OrderBy(id => id)))
+                    {
+                        _tombstones.Remove(dot);
+                    }
                 }
             }
             finally
@@ -138,17 +168,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 return new TDto
                 {
-                    Items = _items.Count == 0
-                        ? null
-                        : _items
-                            .Select(i => new DottedItem<TActorId, TItem>(i.Dot, i.Value))
-                            .ToHashSet(),
-                    VersionVectors = _versionVectors.Count == 0
-                        ? null
-                        : _versionVectors
-                            .ToDictionary(pair => pair.Key, pair => pair.Value),
-                    Tombstones = _tombstones.Select(i => new Tombstone<TActorId>(i.Dot))
-                        .ToHashSet(),
+                    Items = _delta,
+                    VersionVectors = _versionVectors,
+                    Tombstones = _tombstones
                 };
             }
             finally
@@ -165,7 +187,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 await ToDtoAsync(cancellationToken); // unfortunately making ORSet a delta Crdt is not an easy task
         }
 
-        public HashSet<TItem> Value
+        public IReadOnlyCollection<TItem> Value
         {
             get
             {
@@ -176,7 +198,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
                 try
                 {
-                    return _items.Select(i => i.Value).ToHashSet();
+                    return _items.Select(i => i.Value).ToList().AsReadOnly();
                 }
                 finally
                 {
@@ -185,7 +207,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
         }
 
-        public virtual async Task AddAsync(TItem item, TActorId actorPerformingAddition)
+        public virtual async Task AddAsync(TItem item)
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15)))
             {
@@ -194,17 +216,19 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
             try
             {
-                var prevVersion = _versionVectors.GetValueOrDefault(actorPerformingAddition,
-                    new VersionVector<TActorId>(actorPerformingAddition, 0));
+                _versionVectors.TryGetValue(_thisNodeId, out var version);
 
-                var nextVersion = prevVersion.Next();
+                version += 1;
 
-                _items.Add(new DottedItem<TActorId, TItem>(new Dot<TActorId>(nextVersion), item));
+                var newItem = new DottedItem<TActorId, TItem>(new Dot<TActorId>(_thisNodeId, version), item);
 
-                // notice that i.Actor.Equals(actorPerformingAddition) means that there may be multiple copies of item
+                _items.Add(newItem);
+                _delta.Add(newItem);
+
+                // notice that i.Actor.Equals(_thisNodeId) means that there may be multiple copies of item
                 // stored at the same time. This is by design
-                _items.RemoveWhere(i => i.Value.Equals(item) && i.Dot < nextVersion);
-                _versionVectors[actorPerformingAddition] = nextVersion;
+                _items.RemoveWhere(i => i.Value.Equals(item) && i.Dot.Version < version);
+                _versionVectors[_thisNodeId] = version;
             }
             finally
             {
@@ -214,10 +238,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             await StateChangedAsync();
         }
 
-        public virtual Task RemoveAsync(TItem item, TActorId actorPerformingAddition) =>
-            RemoveAsync(i => i.Equals(item), actorPerformingAddition);
+        public virtual Task RemoveAsync(TItem item) => RemoveAsync(i => i.Equals(item));
 
-        public virtual async Task RemoveAsync(Func<TItem, bool> condition, TActorId actorPerformingAddition)
+        public virtual async Task RemoveAsync(Func<TItem, bool> condition)
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15)))
             {
@@ -231,8 +254,19 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 if (itemsToBeRemoved.Count > 0)
                 {
                     _items.ExceptWith(itemsToBeRemoved);
+                    _delta.ExceptWith(itemsToBeRemoved);
 
-                    _tombstones.UnionWith(itemsToBeRemoved.Select(i => new Tombstone<TActorId>(i.Dot)));
+                    foreach (var dottedItem in itemsToBeRemoved)
+                    {
+                        if (_tombstones.TryGetValue(dottedItem.Dot, out var observedByActors))
+                        {
+                            observedByActors.Add(_thisNodeId);
+                        }
+                        else
+                        {
+                            _tombstones.Add(dottedItem.Dot, new HashSet<TActorId> { _thisNodeId });
+                        }
+                    }
                 }
             }
             finally
@@ -246,8 +280,9 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public abstract class OrSetDto
         {
             public abstract HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
-            public abstract Dictionary<TActorId, VersionVector<TActorId>>? VersionVectors { get; set; }
-            public abstract HashSet<Tombstone<TActorId>>? Tombstones { get; set; }
+            public abstract Dictionary<TActorId, uint>? VersionVectors { get; set; }
+            public abstract Dictionary<Dot<TActorId>, HashSet<TActorId>>? Tombstones { get; set; }
+            public abstract NodeId? SourceId { get; set; }
         }
     }
 }

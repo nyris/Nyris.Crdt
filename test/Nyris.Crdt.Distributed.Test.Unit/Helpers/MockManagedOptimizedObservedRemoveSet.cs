@@ -10,10 +10,9 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers;
 internal class MockManagedOptimizedObservedRemoveSet : ManagedOptimizedObservedRemoveSet<NodeId, MockUser,
     MockManagedOptimizedObservedRemoveSet.MockUserSetDto>
 {
-    public MockManagedOptimizedObservedRemoveSet(InstanceId id, IAsyncQueueProvider? queueProvider = null,
-        ILogger? logger = null) : base(id, queueProvider, logger)
-    {
-    }
+    public MockManagedOptimizedObservedRemoveSet(InstanceId id, NodeId nodeId,
+        IAsyncQueueProvider? queueProvider = null,
+        ILogger? logger = null) : base(id, nodeId, queueProvider, logger) { }
 
     [ProtoContract]
     public sealed class MockUserSetDto : OrSetDto
@@ -22,9 +21,12 @@ internal class MockManagedOptimizedObservedRemoveSet : ManagedOptimizedObservedR
         public override HashSet<DottedItem<NodeId, MockUser>>? Items { get; set; }
 
         [ProtoMember(2)]
-        public override Dictionary<NodeId, VersionVector<NodeId>>? VersionVectors { get; set; }
+        public override Dictionary<NodeId, uint>? VersionVectors { get; set; }
 
         [ProtoMember(3)]
-        public override HashSet<Tombstone<NodeId>>? Tombstones { get; set; }
+        public override Dictionary<Dot<NodeId>, HashSet<NodeId>>? Tombstones { get; set; }
+
+        [ProtoMember(4)]
+        public override NodeId? SourceId { get; set; }
     }
 }

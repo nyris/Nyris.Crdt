@@ -9,8 +9,7 @@ namespace Nyris.Crdt;
 /// <typeparam name="TActorId"></typeparam>
 /// <typeparam name="TItem"></typeparam>
 [ProtoContract]
-public readonly struct DottedItem<TActorId, TItem> : IEquatable<DottedItem<TActorId, TItem>>,
-    IEquatable<VersionVector<TActorId>>, IEquatable<Tombstone<TActorId>>
+public readonly struct DottedItem<TActorId, TItem> : IEquatable<DottedItem<TActorId, TItem>>
     where TActorId : IEquatable<TActorId>
     where TItem : IEquatable<TItem>
 {
@@ -35,10 +34,6 @@ public readonly struct DottedItem<TActorId, TItem> : IEquatable<DottedItem<TActo
     public bool Equals(DottedItem<TActorId, TItem> other)
         => Value.Equals(other.Value) && Dot.Equals(other.Dot);
 
-    public bool Equals(VersionVector<TActorId> other) => Dot.Equals(other);
-
-    public bool Equals(Tombstone<TActorId> other) => Dot.Equals(other.Dot);
-
     public override bool Equals(object? obj) => obj is DottedItem<TActorId, TItem> other && Equals(other);
 
     public override int GetHashCode() => HashCode.Combine(Value.GetHashCode(), Dot.GetHashCode());
@@ -48,16 +43,4 @@ public readonly struct DottedItem<TActorId, TItem> : IEquatable<DottedItem<TActo
 
     public static bool operator !=(DottedItem<TActorId, TItem> left,
         DottedItem<TActorId, TItem> right) => !left.Equals(right);
-
-    public static bool operator ==(DottedItem<TActorId, TItem> left,
-        VersionVector<TActorId> right) => left.Equals(right);
-
-    public static bool operator !=(DottedItem<TActorId, TItem> left,
-        VersionVector<TActorId> right) => !left.Equals(right);
-
-    public static bool operator ==(DottedItem<TActorId, TItem> left,
-        Tombstone<TActorId> right) => left.Equals(right);
-
-    public static bool operator !=(DottedItem<TActorId, TItem> left,
-        Tombstone<TActorId> right) => !left.Equals(right);
 }

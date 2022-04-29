@@ -19,9 +19,10 @@ record NodeMock(NodeId Id, ManagedCrdtContext Context, INodeInfoProvider InfoPro
             var id = NodeId.GenerateNew();
             var infoProvider = new ManualNodeInfoProvider(id, new NodeInfo(new Uri($"https://{id}.node"), id));
             var queueProvider = new QueueProvider(queueCapacity);
-            var nodes = new NodeSet(new InstanceId(id.ToString()), infoProvider, queueProvider: queueProvider);
-            var context = new TestContext(nodes);
-            await context.Nodes.AddAsync(infoProvider.GetMyNodeInfo(), id);
+            var nodes = new NodeSet(new InstanceId(id.ToString()), infoProvider.GetMyNodeInfo(),
+                queueProvider: queueProvider);
+            var context = new TestContext(infoProvider.GetMyNodeInfo(), nodes);
+            await context.Nodes.AddAsync(infoProvider.GetMyNodeInfo());
             result.Add(new NodeMock(id, context, infoProvider, queueProvider));
         }
 

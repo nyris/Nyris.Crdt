@@ -19,7 +19,7 @@ namespace Nyris.Crdt.Sets
         where TActorId : IEquatable<TActorId>
     {
         protected HashSet<DottedItem<TActorId, TItem>> Items;
-        protected readonly Dictionary<TActorId, VersionVector<TActorId>> VersionVectors;
+        protected readonly Dictionary<TActorId, uint> VersionVectors;
         protected readonly object SetChangeLock = new();
 
         public OptimizedObservedRemoveSet()
@@ -79,13 +79,13 @@ namespace Nyris.Crdt.Sets
                 var m1 = Items
                     .Except(other.Items)
                     .Where(i => !other.VersionVectors.TryGetValue(i.Dot.Actor, out var otherVersion)
-                                || i.Dot > otherVersion);
+                                || i.Dot.Version > otherVersion);
 
                 // NOTE: Items for merge in other Node which "current" Node doesn't know about or has older version, i.e m2 == -m1
                 var m2 = other.Items
                     .Except(Items)
                     .Where(i => !VersionVectors.TryGetValue(i.Dot.Actor, out var myVersion)
-                                || i.Dot > myVersion);
+                                || i.Dot.Version > myVersion);
 
                 var u = m.Union(m1).Union(m2);
 
@@ -100,12 +100,10 @@ namespace Nyris.Crdt.Sets
                 // observed state is a element-wise max of two vectors.
                 foreach (var actorId in VersionVectors.Keys.ToList().Union(other.VersionVectors.Keys))
                 {
-                    var defaultValue = new VersionVector<TActorId>(actorId, 0);
+                    VersionVectors.TryGetValue(actorId, out var thisVersion);
+                    other.VersionVectors.TryGetValue(actorId, out var otherVersion);
 
-                    var thisVersion = VersionVectors.GetValueOrDefault(actorId, defaultValue);
-                    var otherVersion = other.VersionVectors.GetValueOrDefault(actorId, defaultValue);
-
-                    VersionVectors[actorId] = thisVersion > otherVersion ? thisVersion : otherVersion;
+                    VersionVectors[actorId] = Math.Max(thisVersion, otherVersion);
                 }
             }
 
@@ -146,12 +144,11 @@ namespace Nyris.Crdt.Sets
             lock (SetChangeLock)
             {
                 // default value for int is 0, so if key is not preset, lastObservedVersion will be assigned 0, which is intended
-                var versionVector = VersionVectors.GetValueOrDefault(actorPerformingAddition,
-                    new VersionVector<TActorId>(actorPerformingAddition, 0));
+                VersionVectors.TryGetValue(actorPerformingAddition, out var versionVector);
 
-                versionVector = versionVector.Next();
+                versionVector += 1;
 
-                var itemDot = new Dot<TActorId>(versionVector);
+                var itemDot = new Dot<TActorId>(actorPerformingAddition, versionVector);
 
                 Items.Add(new DottedItem<TActorId, TItem>(itemDot, item));
 
@@ -178,7 +175,7 @@ namespace Nyris.Crdt.Sets
             public HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
 
             [ProtoMember(2)]
-            public Dictionary<TActorId, VersionVector<TActorId>>? VersionVectors { get; set; }
+            public Dictionary<TActorId, uint>? VersionVectors { get; set; }
         }
 
         public sealed class

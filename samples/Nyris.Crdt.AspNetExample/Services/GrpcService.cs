@@ -46,7 +46,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                 traceId: request.TraceId,
                 cancellationToken: context.CancellationToken);
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(CreateImagesCollection));
-            return new CollectionIdMessage {Id = added ? id.ToString() : "", TraceId = request.TraceId};
+            return new CollectionIdMessage { Id = added ? id.ToString() : "", TraceId = request.TraceId };
         }
 
         /// <inheritdoc />
@@ -60,9 +60,9 @@ namespace Nyris.Crdt.AspNetExample.Services
                 new CollectionConfig
                 {
                     Name = id.ToString(),
-                    IndexNames = new[] {ImageIdIndex.IndexName},
+                    IndexNames = new[] { ImageIdIndex.IndexName },
                     ShardingConfig = request.NumShards > 0
-                        ? new ShardingConfig {NumShards = (ushort) request.NumShards}
+                        ? new ShardingConfig { NumShards = (ushort) request.NumShards }
                         : null
                 },
                 propagateToNodes: 3,
@@ -70,7 +70,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                 cancellationToken: context.CancellationToken);
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId,
                 nameof(CreateImagesCollectionPR));
-            return new CollectionIdMessage {Id = added ? id.ToString() : "", TraceId = request.TraceId};
+            return new CollectionIdMessage { Id = added ? id.ToString() : "", TraceId = request.TraceId };
         }
 
         /// <inheritdoc />
@@ -84,7 +84,7 @@ namespace Nyris.Crdt.AspNetExample.Services
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(GetCollectionInfo));
             return Task.FromResult(new Collection
-                {Size = (ulong) collection!.Values.Count(), Id = request.Id, TraceId = request.TraceId});
+                { Size = (ulong) collection!.Values.Count(), Id = request.Id, TraceId = request.TraceId });
         }
 
         /// <inheritdoc />
@@ -98,7 +98,7 @@ namespace Nyris.Crdt.AspNetExample.Services
             }
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(GetCollectionInfoPR));
-            return Task.FromResult(new Collection {Id = request.Id, Size = size, TraceId = request.TraceId});
+            return Task.FromResult(new Collection { Id = request.Id, Size = size, TraceId = request.TraceId });
         }
 
         /// <inheritdoc />
@@ -124,7 +124,7 @@ namespace Nyris.Crdt.AspNetExample.Services
                 traceId: request.TraceId,
                 cancellationToken: context.CancellationToken);
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(CreateImage));
-            return new Image(request.Image) {Guid = imageGuid.ToString()};
+            return new Image(request.Image) { Guid = imageGuid.ToString() };
         }
 
         /// <inheritdoc />
@@ -155,7 +155,7 @@ namespace Nyris.Crdt.AspNetExample.Services
 
             // else _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", traceId, nameof(CreateImagePR));
             return result.Value != default
-                ? new Image(request.Image) {Guid = imageGuid.ToString()}
+                ? new Image(request.Image) { Guid = imageGuid.ToString() }
                 : new Image();
         }
 
@@ -220,7 +220,7 @@ namespace Nyris.Crdt.AspNetExample.Services
             {
                 CollectionId = request.CollectionId,
                 TraceId = request.TraceId,
-                ImageUuid = {result.Value?.Value.Select(i => i.ToString())}
+                ImageUuid = { result.Value?.Value.Select(i => i.ToString()) }
             };
         }
 
@@ -244,7 +244,7 @@ namespace Nyris.Crdt.AspNetExample.Services
             }
 
             // else _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", traceId, nameof(DeleteImagePR));
-            return new BoolResponse {Value = result.Success};
+            return new BoolResponse { Value = result.Success };
         }
 
         /// <inheritdoc />
@@ -253,7 +253,7 @@ namespace Nyris.Crdt.AspNetExample.Services
         {
             await _context.ImageCollectionsRegistry.RemoveAsync(CollectionId.Parse(request.Id),
                 cancellationToken: context.CancellationToken);
-            return new BoolResponse {Value = true};
+            return new BoolResponse { Value = true };
         }
 
         /// <inheritdoc />
@@ -294,7 +294,7 @@ namespace Nyris.Crdt.AspNetExample.Services
 
             var id = Guid.NewGuid();
             var user = new User(id, request.FirstName, request.LastName);
-            await _context.UserObservedRemoveSet.AddAsync(user, _thisNodeId);
+            await _context.UserObservedRemoveSet.AddAsync(user);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} ending", request.TraceId, nameof(CreateUser));
 
@@ -349,7 +349,7 @@ namespace Nyris.Crdt.AspNetExample.Services
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(DeleteUser));
 
-            await _context.UserObservedRemoveSet.RemoveAsync(u => u.Id.ToString() == request.Id, _thisNodeId);
+            await _context.UserObservedRemoveSet.RemoveAsync(u => u.Id.ToString() == request.Id);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} ending", request.TraceId, nameof(DeleteUser));
 
@@ -365,7 +365,7 @@ namespace Nyris.Crdt.AspNetExample.Services
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(DeleteAllUsers));
 
-            await _context.UserObservedRemoveSet.RemoveAsync(_ => true, _thisNodeId);
+            await _context.UserObservedRemoveSet.RemoveAsync(_ => true);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} ending", request.TraceId, nameof(DeleteAllUsers));
 
