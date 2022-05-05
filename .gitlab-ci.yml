@@ -57,16 +57,6 @@ Version:
 
 Build:
   extends: .build
-  stage: build
-  artifacts:
-    untracked: false
-    when: on_success
-    expire_in: '3 days'
-    paths:
-      - nugets/
-    reports:
-      junit:
-        - TestResults/*.xml
   script:
     - v2-autobuild
     - v2-test test/Nyris.Crdt.Tests/Nyris.Crdt.Tests.csproj
@@ -74,6 +64,7 @@ Build:
     - v3-publish-app Release alpine-x64 samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
     - v2-publish-nuget src/Nyris.Crdt
     - v2-publish-nuget src/Nyris.Crdt.Distributed
+    - v2-publish-nuget src/Nyris.Crdt.Distributed.SourceGenerators
 
 Release NuGets:
   extends: .publish
