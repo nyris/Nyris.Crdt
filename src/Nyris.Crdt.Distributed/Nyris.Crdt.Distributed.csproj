@@ -5,6 +5,12 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <Title>Nyris.Crdt.Distributed</Title>
+        <Authors>Shafiq Ahmad</Authors>
+        <Description>This library contains different CRDTs that are meant to be used locally for in process purposes.</Description>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="Grpc.Net.Client" Version="2.36.0" />
         <PackageReference Include="Nyris.Extensions.Guids" Version="2.0.0" />

@@ -6,6 +6,12 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <Title>Nyris.Crdt</Title>
+        <Authors>Shafiq Ahmad</Authors>
+        <Description>This library contains different CRDTs that are meant to be used locally for in process purposes.</Description>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
         <PackageReference Include="Nyris.Contracts.Exceptions" Version="1.1.0" />
