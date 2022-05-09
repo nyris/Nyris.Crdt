@@ -9,23 +9,15 @@ namespace Nyris.Crdt.Distributed.Exceptions
     public class InitializationException : NyrisException
     {
         /// <inheritdoc />
-        public InitializationException() : base()
-        {
-        }
+        public InitializationException() : base() { }
 
         /// <inheritdoc />
-        public InitializationException(string message) : base(message)
-        {
-        }
+        public InitializationException(string message) : base(message) { }
 
         /// <inheritdoc />
-        public InitializationException(string message, Exception inner) : base(message, inner)
-        {
-        }
+        public InitializationException(string message, Exception inner) : base(message, inner) { }
 
         /// <inheritdoc />
-        public InitializationException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
+        protected InitializationException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

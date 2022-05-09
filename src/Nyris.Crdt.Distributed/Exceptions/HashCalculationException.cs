@@ -9,23 +9,17 @@ namespace Nyris.Crdt.Distributed.Exceptions
     public sealed class HashCalculationException : NyrisException
     {
         /// <inheritdoc />
-        public HashCalculationException() : base()
-        {
-        }
+        public HashCalculationException() : base() { }
 
         /// <inheritdoc />
-        public HashCalculationException(string message) : base(message)
-        {
-        }
+        public HashCalculationException(string message) : base(message) { }
 
         /// <inheritdoc />
-        public HashCalculationException(string message, NyrisException inner) : base(message, inner)
-        {
-        }
+        public HashCalculationException(string message, NyrisException inner) : base(message, inner) { }
 
         /// <inheritdoc />
-        public HashCalculationException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
+        private HashCalculationException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+
+        public HashCalculationException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

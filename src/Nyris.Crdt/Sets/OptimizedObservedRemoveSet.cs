@@ -35,7 +35,8 @@ namespace Nyris.Crdt.Sets
         }
 
         public static OptimizedObservedRemoveSet<TActorId, TItem> FromDto(
-            OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
+            OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto
+        )
             => new(optimizedObservedRemoveSetDto);
 
         /// <inheritdoc />
@@ -45,11 +46,11 @@ namespace Nyris.Crdt.Sets
             {
                 // ReSharper disable once NonReadonlyMemberInGetHashCode
                 var itemsHash = Items
-                    .OrderBy(i => i.Dot.Actor)
-                    .Aggregate(0, HashCode.Combine);
+                                .OrderBy(i => i.Dot.Actor)
+                                .Aggregate(0, HashCode.Combine);
                 var stateHash = VersionVectors
-                    .OrderBy(pair => pair.Key)
-                    .Aggregate(0, HashCode.Combine);
+                                .OrderBy(pair => pair.Key)
+                                .Aggregate(0, HashCode.Combine);
                 return HashCode.Combine(itemsHash, stateHash);
             }
         }
@@ -70,22 +71,22 @@ namespace Nyris.Crdt.Sets
                 if (m.Count == Items.Count
                     && Items.OrderBy(item => item.Dot.Actor).SequenceEqual(other.Items.OrderBy(item => item.Dot.Actor))
                     && VersionVectors.OrderBy(pair => pair.Key)
-                        .SequenceEqual(other.VersionVectors.OrderBy(pair => pair.Key)))
+                                     .SequenceEqual(other.VersionVectors.OrderBy(pair => pair.Key)))
                 {
                     return MergeResult.Identical;
                 }
 
                 // NOTE: Items for merge in current Node/Actor which "other" Node/Actor doesn't know about or has older version
                 var m1 = Items
-                    .Except(other.Items)
-                    .Where(i => !other.VersionVectors.TryGetValue(i.Dot.Actor, out var otherVersion)
-                                || i.Dot.Version > otherVersion);
+                         .Except(other.Items)
+                         .Where(i => !other.VersionVectors.TryGetValue(i.Dot.Actor, out var otherVersion)
+                                     || i.Dot.Version > otherVersion);
 
                 // NOTE: Items for merge in other Node which "current" Node doesn't know about or has older version, i.e m2 == -m1
                 var m2 = other.Items
-                    .Except(Items)
-                    .Where(i => !VersionVectors.TryGetValue(i.Dot.Actor, out var myVersion)
-                                || i.Dot.Version > myVersion);
+                              .Except(Items)
+                              .Where(i => !VersionVectors.TryGetValue(i.Dot.Actor, out var myVersion)
+                                          || i.Dot.Version > myVersion);
 
                 var u = m.Union(m1).Union(m2);
 
@@ -117,9 +118,9 @@ namespace Nyris.Crdt.Sets
                 return new OptimizedObservedRemoveSetDto
                 {
                     Items = Items
-                        // (isn't it the same type? transform seem unnecessary), if cloning, wouldn't the ctor work i.e new(Items)
-                        .Select(i => new DottedItem<TActorId, TItem>(i.Dot, i.Value))
-                        .ToHashSet(),
+                            // (isn't it the same type? transform seem unnecessary), if cloning, wouldn't the ctor work i.e new(Items)
+                            .Select(i => new DottedItem<TActorId, TItem>(i.Dot, i.Value))
+                            .ToHashSet(),
                     VersionVectors = VersionVectors
                         .ToDictionary(pair => pair.Key, pair => pair.Value)
                 };
@@ -182,8 +183,7 @@ namespace Nyris.Crdt.Sets
             Factory : ICRDTFactory<OptimizedObservedRemoveSet<TActorId, TItem>, OptimizedObservedRemoveSetDto>
         {
             /// <inheritdoc />
-            public OptimizedObservedRemoveSet<TActorId, TItem> Create(
-                OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto) => FromDto(optimizedObservedRemoveSetDto);
+            public OptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto dto) => FromDto(dto);
         }
     }
 }

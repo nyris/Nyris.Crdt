@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.ObjectPool;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Model;
 
@@ -141,7 +140,8 @@ namespace Nyris.Crdt.Distributed.Utils
         }
 
         public static ReadOnlySpan<byte> Combine<TKey, TItem, TActorId>(
-            IEnumerable<KeyValuePair<TKey, DottedItem<TActorId, TItem>>> items)
+            IEnumerable<KeyValuePair<TKey, DottedItem<TActorId, TItem>>> items
+        )
             where TKey : IHashable
             where TItem : IEquatable<TItem>, IHashable
             where TActorId : IEquatable<TActorId>, IHashable
@@ -166,7 +166,8 @@ namespace Nyris.Crdt.Distributed.Utils
         }
 
         public static ReadOnlySpan<byte> Combine<TKey, TItem, TTimeStamp>(
-            IEnumerable<KeyValuePair<TKey, TimeStampedItem<TItem, TTimeStamp>>> items)
+            IEnumerable<KeyValuePair<TKey, TimeStampedItem<TItem, TTimeStamp>>> items
+        )
             where TKey : IEquatable<TKey>
             where TItem : IHashable?
             where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
@@ -191,7 +192,8 @@ namespace Nyris.Crdt.Distributed.Utils
         }
 
         public static ReadOnlySpan<byte> Combine<TItem, TActorId>(
-            IEnumerable<DottedItem<TActorId, TItem>> items)
+            IEnumerable<DottedItem<TActorId, TItem>> items
+        )
             where TItem : IEquatable<TItem>
             where TActorId : IEquatable<TActorId>
         {
@@ -252,37 +254,31 @@ namespace Nyris.Crdt.Distributed.Utils
         }
 
         public static ReadOnlySpan<byte> CalculateHash<TK, TV>(KeyValuePair<TK, TV> pair)
-            where TK : notnull where TV : notnull
-        {
-            return Combine(CalculateHash(pair.Key), CalculateHash(pair.Value));
-        }
+            where TK : notnull where TV : notnull => Combine(CalculateHash(pair.Key), CalculateHash(pair.Value));
 
-        public static ReadOnlySpan<byte> CalculateHash<T>(T value) where T : notnull
+        public static ReadOnlySpan<byte> CalculateHash<T>(T value) where T : notnull => value switch
         {
-            return value switch
-            {
-                byte byteValue => new[] {byteValue},
-                sbyte sbyteValue => new[] {(byte) sbyteValue}, // overflow is fine
-                short shortValue => BitConverter.GetBytes(shortValue),
-                ushort ushortValue => BitConverter.GetBytes(ushortValue),
-                int intValue => BitConverter.GetBytes(intValue),
-                uint uintValue => BitConverter.GetBytes(uintValue),
-                long longValue => BitConverter.GetBytes(longValue),
-                ulong ulongValue => BitConverter.GetBytes(ulongValue),
-                float floatValue => BitConverter.GetBytes(floatValue),
-                double doubleValue => BitConverter.GetBytes(doubleValue),
-                decimal decimalValue => MemoryMarshal.Cast<int, byte>(decimal.GetBits(decimalValue)),
-                char charValue => BitConverter.GetBytes(charValue),
-                string stringValue => Encoding.UTF8.GetBytes(stringValue),
-                DateTime dateTime => BitConverter.GetBytes(dateTime.ToBinary()),
-                Guid guid => guid.ToByteArray(),
-                IHashable hashable => hashable.CalculateHash(),
-                IEnumerable enumerable => Combine(enumerable),
-                _ => throw new HashCalculationException(
-                    $"CalculateHash method was called on an unknown type {value.GetType()}. " +
-                    "If it is a custom type, consider implementing IHashable interface")
-            };
-        }
+            byte byteValue => new[] { byteValue },
+            sbyte sbyteValue => new[] { (byte) sbyteValue }, // overflow is fine
+            short shortValue => BitConverter.GetBytes(shortValue),
+            ushort ushortValue => BitConverter.GetBytes(ushortValue),
+            int intValue => BitConverter.GetBytes(intValue),
+            uint uintValue => BitConverter.GetBytes(uintValue),
+            long longValue => BitConverter.GetBytes(longValue),
+            ulong ulongValue => BitConverter.GetBytes(ulongValue),
+            float floatValue => BitConverter.GetBytes(floatValue),
+            double doubleValue => BitConverter.GetBytes(doubleValue),
+            decimal decimalValue => MemoryMarshal.Cast<int, byte>(decimal.GetBits(decimalValue)),
+            char charValue => BitConverter.GetBytes(charValue),
+            string stringValue => Encoding.UTF8.GetBytes(stringValue),
+            DateTime dateTime => BitConverter.GetBytes(dateTime.ToBinary()),
+            Guid guid => guid.ToByteArray(),
+            IHashable hashable => hashable.CalculateHash(),
+            IEnumerable enumerable => Combine(enumerable),
+            _ => throw new HashCalculationException(
+                                                    $"CalculateHash method was called on an unknown type {value.GetType()}. " +
+                                                    "If it is a custom type, consider implementing IHashable interface")
+        };
 
         private sealed class DoNothingOnReturnHashPoolPolicy : IPooledObjectPolicy<IncrementalHash>
         {

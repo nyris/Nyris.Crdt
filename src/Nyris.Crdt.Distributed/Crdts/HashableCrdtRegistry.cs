@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Model;
 using Nyris.Crdt.Sets;
@@ -50,8 +49,8 @@ namespace Nyris.Crdt.Distributed.Crdts
 
     public class HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
         : ICRDT<HashableCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.
-                HashableCrdtRegistryDto>,
-            IHashable
+              HashableCrdtRegistryDto>,
+          IHashable
         where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
         where TItemValue : class, ICRDT<TItemValueDto>, IHashable
@@ -97,7 +96,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             lock (_mergeLock)
             {
                 return HashingHelper.Combine(_keys.CalculateHash(),
-                    HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key)));
+                                             HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key)));
             }
         }
 

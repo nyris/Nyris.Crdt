@@ -9,15 +9,17 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
 {
     public sealed class AddressListDiscoveryStrategy : IDiscoveryStrategy
     {
-        private readonly List<Uri> _addresses;
+        private readonly IReadOnlyCollection<Uri> _addresses;
 
-        public AddressListDiscoveryStrategy(List<Uri> addresses)
+        public AddressListDiscoveryStrategy(IReadOnlyCollection<Uri> addresses)
         {
             _addresses = addresses;
         }
 
         /// <inheritdoc />
-        public async IAsyncEnumerable<NodeCandidate> GetNodeCandidates([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<NodeCandidate> GetNodeCandidates(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
             foreach (var nodeCandidate in _addresses.Select(uri => new NodeCandidate(uri, uri.ToString())))
             {

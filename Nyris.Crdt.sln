@@ -7,7 +7,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3ABFBA00-F00
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{6D56BBD2-9FB4-430E-9455-EBDA05333CD4}"
 	ProjectSection(SolutionItems) = preProject
-		.editorconfig = .editorconfig
 		.gitignore = .gitignore
 		.gitlab-ci.yml = .gitlab-ci.yml
 		docker-compose.yml = docker-compose.yml

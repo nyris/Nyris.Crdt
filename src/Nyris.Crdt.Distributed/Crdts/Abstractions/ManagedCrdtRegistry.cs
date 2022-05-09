@@ -29,8 +29,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     /// <typeparam name="TItemValueFactory"></typeparam>
     public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
         : ManagedCrdtRegistryBase<TItemKey, TItemValue, ManagedCrdtRegistry<TActorId, TItemKey, TItemValue,
-                TItemValueDto, TItemValueFactory>.RegistryDto>,
-            ICreateAndDeleteManagedCrdtsInside
+              TItemValueDto, TItemValueFactory>.RegistryDto>,
+          ICreateAndDeleteManagedCrdtsInside
         where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>, IHashable
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
         where TItemValue : ManagedCRDT<TItemValueDto>
@@ -44,10 +44,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly SemaphoreSlim _semaphore = new(1);
         private ManagedCrdtContext? _context;
 
-        protected ManagedCrdtRegistry(InstanceId id,
+        protected ManagedCrdtRegistry(
+            InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
             TItemValueFactory? factory = default,
-            ILogger? logger = null)
+            ILogger? logger = null
+        )
             : base(id, queueProvider: queueProvider, logger: logger)
         {
             _logger = logger;
@@ -64,7 +66,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<KeyValuePair<TItemKey, TItemValue>> EnumerateItems(
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
             foreach (var key in _keys.Value)
             {
@@ -81,23 +84,24 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         public ManagedCrdtContext ManagedCrdtContext
         {
             get => _context ?? throw new ManagedCrdtContextSetupException(
-                $"Managed CRDT of type {GetType()} was modified before Add method on a ManagedContext was called");
+                                                                          $"Managed CRDT of type {GetType()} was modified before Add method on a ManagedContext was called");
             set => _context = value;
         }
 
         /// <inheritdoc />
-        Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(InstanceId instanceId,
-            CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
+        Task ICreateAndDeleteManagedCrdtsInside.MarkForDeletionLocallyAsync(
+            InstanceId instanceId,
+            CancellationToken cancellationToken
+        ) => Task.CompletedTask;
 
-        public async Task<bool> TryAddAsync(TItemKey key,
+        public async Task<bool> TryAddAsync(
+            TItemKey key,
             TActorId actorId,
             TItemValue value,
             uint propagationToNodes = 0,
             string? traceId = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default
+        )
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
@@ -118,22 +122,24 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             }
 
             _logger?.LogDebug("TraceId: {TraceId}, item with key {ItemKey} added to registry, propagating",
-                traceId, key);
+                              traceId, key);
             await StateChangedAsync(propagateToNodes: propagationToNodes,
-                traceId: traceId,
-                cancellationToken: cancellationToken);
+                                    traceId: traceId,
+                                    cancellationToken: cancellationToken);
             _logger?.LogDebug("TraceId: {TraceId}, changes to registry propagated, end of {FuncName}",
-                traceId, nameof(TryAddAsync));
+                              traceId, nameof(TryAddAsync));
             return true;
         }
 
         public bool TryGetValue(TItemKey key, [MaybeNullWhen(false)] out TItemValue value)
             => _dictionary.TryGetValue(key, out value);
 
-        public async Task<TItemValue> GetOrCreateAsync(TItemKey key,
+        public async Task<TItemValue> GetOrCreateAsync(
+            TItemKey key,
             Func<(TActorId, TItemValue)> createFunc,
             uint propagateToNodes = 0,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default
+        )
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
@@ -161,9 +167,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return value;
         }
 
-        public async Task RemoveAsync(TItemKey key,
+        public async Task RemoveAsync(
+            TItemKey key,
             uint propagationToNodes = 0,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default
+        )
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
@@ -186,8 +194,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(RegistryDto other,
-            CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(
+            RegistryDto other,
+            CancellationToken cancellationToken = default
+        )
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
@@ -251,14 +261,17 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<RegistryDto> EnumerateDtoBatchesAsync(
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
             yield return await ToDtoAsync(cancellationToken);
         }
 
         /// <inheritdoc />
         public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_keys.CalculateHash(),
-            HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key).Select(pair => pair.Value)));
+                                                                                    HashingHelper.Combine(_dictionary
+                                                                                                          .OrderBy(pair => pair.Key)
+                                                                                                          .Select(pair => pair.Value)));
 
         [ProtoContract]
         public sealed class RegistryDto

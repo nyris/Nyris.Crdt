@@ -29,8 +29,10 @@ namespace Nyris.Crdt.Distributed.Exceptions
         }
 
         /// <inheritdoc />
-        public ManagedCrdtContextException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
+        private ManagedCrdtContextException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+
+        public ManagedCrdtContextException() { }
+
+        public ManagedCrdtContextException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

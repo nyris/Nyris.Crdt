@@ -9,24 +9,16 @@ namespace Nyris.Crdt.Distributed.Exceptions
     public sealed class GeneratedCodeExpectationsViolatedException : NyrisException
     {
         /// <inheritdoc />
-        public GeneratedCodeExpectationsViolatedException() : base()
-        {
-        }
+        public GeneratedCodeExpectationsViolatedException() : base() { }
 
         /// <inheritdoc />
-        public GeneratedCodeExpectationsViolatedException(string message) : base(message)
-        {
-        }
+        public GeneratedCodeExpectationsViolatedException(string message) : base(message) { }
 
         /// <inheritdoc />
-        public GeneratedCodeExpectationsViolatedException(string message, Exception inner) : base(message, inner)
-        {
-        }
+        public GeneratedCodeExpectationsViolatedException(string message, Exception inner) : base(message, inner) { }
 
         /// <inheritdoc />
-        public GeneratedCodeExpectationsViolatedException(SerializationInfo info, StreamingContext context) : base(info,
-            context)
-        {
-        }
+        private GeneratedCodeExpectationsViolatedException(SerializationInfo info, StreamingContext context) : base(info,
+                                                                                                                    context) { }
     }
 }

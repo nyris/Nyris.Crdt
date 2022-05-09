@@ -9,23 +9,17 @@ namespace Nyris.Crdt.Exceptions
     public sealed class AssumptionsViolatedException : NyrisException
     {
         /// <inheritdoc />
-        public AssumptionsViolatedException() : base()
-        {
-        }
+        public AssumptionsViolatedException() : base() { }
 
         /// <inheritdoc />
-        public AssumptionsViolatedException(string message) : base(message)
-        {
-        }
+        public AssumptionsViolatedException(string message) : base(message) { }
 
         /// <inheritdoc />
-        public AssumptionsViolatedException(string message, NyrisException inner) : base(message, inner)
-        {
-        }
+        public AssumptionsViolatedException(string message, NyrisException inner) : base(message, inner) { }
 
         /// <inheritdoc />
-        public AssumptionsViolatedException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
+        private AssumptionsViolatedException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+
+        public AssumptionsViolatedException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

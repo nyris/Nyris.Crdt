@@ -15,7 +15,8 @@ namespace Nyris.Crdt.Distributed
         }
 
         public ManagedCrdtsServicesBuilder WithKubernetesDiscovery(
-            Action<KubernetesDiscoveryPodSelectionOptions> configureOptions)
+            Action<KubernetesDiscoveryPodSelectionOptions> configureOptions
+        )
         {
             var options = new KubernetesDiscoveryPodSelectionOptions();
             configureOptions(options);
@@ -25,12 +26,12 @@ namespace Nyris.Crdt.Distributed
             return this;
         }
 
-        public ManagedCrdtsServicesBuilder WithAddressListDiscovery(List<Uri>? addresses)
+        public ManagedCrdtsServicesBuilder WithAddressListDiscovery(IReadOnlyCollection<Uri>? addresses)
         {
             if (addresses != null)
             {
                 _services.AddSingleton<IDiscoveryStrategy, AddressListDiscoveryStrategy>(_ =>
-                    new AddressListDiscoveryStrategy(addresses));
+                                                                                             new AddressListDiscoveryStrategy(addresses));
             }
 
             return this;

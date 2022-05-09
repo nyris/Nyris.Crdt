@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Model;
@@ -13,9 +12,11 @@ namespace Nyris.Crdt.Distributed.Crdts
     {
         private readonly SingleValue<string> _name;
 
-        public CollectionInfo(string name = "",
+        public CollectionInfo(
+            string name = "",
             IEnumerable<ShardId>? shardIds = null,
-            IEnumerable<string>? indexes = null)
+            IEnumerable<string>? indexes = null
+        )
         {
             _name = new SingleValue<string>(name);
             Shards = new();
@@ -45,8 +46,8 @@ namespace Nyris.Crdt.Distributed.Crdts
             Shards.MaybeMerge(dto.Shards);
 
             IndexNames = dto.IndexNames != null
-                ? HashableOptimizedObservedRemoveSet<NodeId, string>.FromDto(dto.IndexNames)
-                : new HashableOptimizedObservedRemoveSet<NodeId, string>();
+                             ? HashableOptimizedObservedRemoveSet<NodeId, string>.FromDto(dto.IndexNames)
+                             : new HashableOptimizedObservedRemoveSet<NodeId, string>();
         }
 
         public HashableOptimizedObservedRemoveSet<NodeId, string> IndexNames { get; }
@@ -62,15 +63,12 @@ namespace Nyris.Crdt.Distributed.Crdts
         public ulong StorageSize => Shards.Values.Aggregate((ulong) 0, (a, b) => a + b.StorageSize);
 
         /// <inheritdoc />
-        public MergeResult Merge(CollectionInfoDto other)
-        {
-            return _name.MaybeMerge(other.Name) ==
-                   MergeResult.ConflictSolved // use | instead of || to prevent short circuit
-                   | Shards.MaybeMerge(other.Shards) == MergeResult.ConflictSolved
-                   | IndexNames.MaybeMerge(other.IndexNames) == MergeResult.ConflictSolved
-                ? MergeResult.ConflictSolved
-                : MergeResult.NotUpdated;
-        }
+        public MergeResult Merge(CollectionInfoDto other) => _name.MaybeMerge(other.Name) ==
+                                                             MergeResult.ConflictSolved // use | instead of || to prevent short circuit
+                                                             | Shards.MaybeMerge(other.Shards) == MergeResult.ConflictSolved
+                                                             | IndexNames.MaybeMerge(other.IndexNames) == MergeResult.ConflictSolved
+                                                                 ? MergeResult.ConflictSolved
+                                                                 : MergeResult.NotUpdated;
 
         /// <inheritdoc />
         public CollectionInfoDto ToDto() => new()
@@ -93,11 +91,7 @@ namespace Nyris.Crdt.Distributed.Crdts
             public HashableCrdtRegistry<NodeId, ShardId, ShardSizes>.HashableCrdtRegistryDto? Shards { get; set; }
 
             [ProtoMember(3)]
-            public HashableOptimizedObservedRemoveSet<NodeId, string>.OptimizedObservedRemoveSetDto? IndexNames
-            {
-                get;
-                set;
-            }
+            public HashableOptimizedObservedRemoveSet<NodeId, string>.OptimizedObservedRemoveSetDto? IndexNames { get; set; }
         }
 
         public sealed class CollectionInfoFactory : ICRDTFactory<CollectionInfo, CollectionInfoDto>
@@ -110,9 +104,11 @@ namespace Nyris.Crdt.Distributed.Crdts
     [ProtoContract]
     public struct ShardSizes : IHashable, IEquatable<ShardSizes>
     {
-        [ProtoMember(1)] public ulong StorageSize;
+        [ProtoMember(1)]
+        public ulong StorageSize;
 
-        [ProtoMember(2)] public ulong Size;
+        [ProtoMember(2)]
+        public ulong Size;
 
         public ShardSizes(ulong size, ulong storageSize)
         {

@@ -11,14 +11,10 @@ namespace Nyris.Crdt.Distributed.Crdts
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
-        public HashableOptimizedObservedRemoveSet()
-        {
-        }
+        public HashableOptimizedObservedRemoveSet() { }
 
         private HashableOptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
-            : base(optimizedObservedRemoveSetDto)
-        {
-        }
+            : base(optimizedObservedRemoveSetDto) { }
 
         /// <inheritdoc />
         public ReadOnlySpan<byte> CalculateHash()
@@ -26,22 +22,21 @@ namespace Nyris.Crdt.Distributed.Crdts
             lock (SetChangeLock)
             {
                 return HashingHelper.Combine(
-                    HashingHelper.Combine(Items.OrderBy(item => item.Dot.Actor)),
-                    HashingHelper.Combine(VersionVectors.OrderBy(pair => pair.Key)));
+                                             HashingHelper.Combine(Items.OrderBy(item => item.Dot.Actor)),
+                                             HashingHelper.Combine(VersionVectors.OrderBy(pair => pair.Key)));
             }
         }
 
         public new static HashableOptimizedObservedRemoveSet<TActorId, TItem> FromDto(
-            OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
+            OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto
+        )
             => new(optimizedObservedRemoveSetDto);
 
         public new sealed class Factory : ICRDTFactory<HashableOptimizedObservedRemoveSet<TActorId, TItem>,
             OptimizedObservedRemoveSetDto>
         {
             /// <inheritdoc />
-            public HashableOptimizedObservedRemoveSet<TActorId, TItem> Create(
-                OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
-                => FromDto(optimizedObservedRemoveSetDto);
+            public HashableOptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto dto) => FromDto(dto);
         }
     }
 }

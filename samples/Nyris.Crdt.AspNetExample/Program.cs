@@ -1,4 +1,3 @@
-using System.Net;
 using Microsoft.Extensions.Hosting;
 using Nyris.Extensions.AspNetCore.Hosting;
 using OpenTelemetry.Trace;
@@ -20,7 +19,7 @@ namespace Nyris.Crdt.AspNetExample
                 .WithTelemetry(builder => builder
                     .WithSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(0.1)))
                     .WithActivitySource(EventBus.Telemetry.ActivitySourceName)
-                    )
+                )
                 .WithMetrics()
                 .AsBuilder();
     }

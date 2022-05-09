@@ -1,5 +1,4 @@
 using System;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Model;
 using Nyris.Model.Ids.SourceGenerators;
 using ProtoBuf;
@@ -13,7 +12,8 @@ namespace Nyris.Crdt.Distributed.Model
     [ProtoContract]
     public readonly partial struct NodeId : IHashable
     {
-        [ProtoMember(1)] private readonly string _id;
+        [ProtoMember(1)]
+        private readonly string _id;
 
         public ReadOnlySpan<byte> CalculateHash() => ToByteArray();
 

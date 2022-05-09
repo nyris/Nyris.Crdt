@@ -17,15 +17,17 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
         private readonly ILogger<KubernetesDiscoveryStrategy> _logger;
         private readonly bool _isInCluster;
 
-        public KubernetesDiscoveryStrategy(KubernetesDiscoveryPodSelectionOptions options,
-            ILogger<KubernetesDiscoveryStrategy> logger)
+        public KubernetesDiscoveryStrategy(
+            KubernetesDiscoveryPodSelectionOptions options,
+            ILogger<KubernetesDiscoveryStrategy> logger
+        )
         {
             _logger = logger;
             _options = options;
             _isInCluster = KubernetesClientConfiguration.IsInCluster();
 
             _logger.LogDebug("Initializing {DiscoveryStrategyName}. Namespaces: {ListOfNamespaces}",
-                nameof(KubernetesDiscoveryStrategy), string.Join(", ", options.Namespaces));
+                             nameof(KubernetesDiscoveryStrategy), string.Join(", ", options.Namespaces));
 
             if (!_isInCluster) return;
 
@@ -35,7 +37,9 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
 
         /// <param name="cancellationToken"></param>
         /// <inheritdoc />
-        public async IAsyncEnumerable<NodeCandidate> GetNodeCandidates([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<NodeCandidate> GetNodeCandidates(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
             _logger.LogDebug("Running {DiscoveryStrategyName}", nameof(KubernetesDiscoveryStrategy));
             if (!_isInCluster)
@@ -49,11 +53,11 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
             {
                 var podList = await _client.ListNamespacedPodAsync(@namespace, cancellationToken: cancellationToken);
                 _logger.LogDebug("Info about {PodNumber} pods retrieved from {Namespace} namespace: {PodNames}",
-                    podList.Items.Count, @namespace, string.Join("; ", podList.Items.Select(pod => pod.Name())));
+                                 podList.Items.Count, @namespace, string.Join("; ", podList.Items.Select(pod => pod.Name())));
                 pods.AddRange(podList.Items);
             }
 
-            _logger.LogDebug("Found {numberOfPods} pods", pods.Count);
+            _logger.LogDebug("Found {NumberOfPods} pods", pods.Count);
             foreach (var pod in pods)
             {
                 var podName = pod.Name();
@@ -68,7 +72,7 @@ namespace Nyris.Crdt.Distributed.Strategies.Discovery
                 if (!Uri.TryCreate($"http://{podIp}:{_options.Port}", UriKind.Absolute, out var baseAddress))
                 {
                     _logger.LogWarning("Couldn't parse URI for pod {PodName}, IP: {PodIP} - skipping it",
-                        podName, podIp);
+                                       podName, podIp);
                     continue;
                 }
 

@@ -13,8 +13,8 @@ namespace Nyris.Crdt.Distributed.Utils
 
         /// <inheritdoc />
         public NodeId ThisNodeId { get; } = Environment.GetEnvironmentVariable("NODE_NAME") is not null
-            ? new NodeId(Environment.GetEnvironmentVariable("NODE_NAME"))
-            : NodeId.GenerateNew();
+                                                ? new NodeId(Environment.GetEnvironmentVariable("NODE_NAME")!)
+                                                : NodeId.GenerateNew();
 
         public NodeInfo GetMyNodeInfo()
         {

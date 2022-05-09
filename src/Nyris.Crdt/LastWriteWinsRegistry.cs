@@ -13,7 +13,9 @@ namespace Nyris.Crdt
         where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
     {
         // ReSharper disable once MemberCanBePrivate.Global
+#pragma warning disable CA1051 // Do not declare visible instance fields
         protected readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> Items;
+#pragma warning restore CA1051 // Do not declare visible instance fields
         private readonly object _mergeLock = new();
 
         public LastWriteWinsRegistry()
@@ -54,16 +56,16 @@ namespace Nyris.Crdt
             lock (_mergeLock)
             {
                 item = Items.AddOrUpdate(key,
-                    _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
-                    (_, v) =>
-                    {
-                        if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
+                                         _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
+                                         (_, v) =>
+                                         {
+                                             if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
 
-                        v.Value = value;
-                        v.Deleted = false;
-                        v.TimeStamp = timeStamp;
-                        return v;
-                    });
+                                             v.Value = value;
+                                             v.Deleted = false;
+                                             v.TimeStamp = timeStamp;
+                                             return v;
+                                         });
 
                 return item.TimeStamp.CompareTo(timeStamp) == 0;
             }
@@ -74,15 +76,15 @@ namespace Nyris.Crdt
             lock (_mergeLock)
             {
                 item = Items.AddOrUpdate(key,
-                    _ => new TimeStampedItem<TValue, TTimeStamp>(default, timeStamp, false),
-                    (_, v) =>
-                    {
-                        if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
+                                         _ => new TimeStampedItem<TValue, TTimeStamp>(default!, timeStamp, false),
+                                         (_, v) =>
+                                         {
+                                             if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
 
-                        v.Deleted = true;
-                        v.TimeStamp = timeStamp;
-                        return v;
-                    });
+                                             v.Deleted = true;
+                                             v.TimeStamp = timeStamp;
+                                             return v;
+                                         });
 
                 return item.TimeStamp.CompareTo(timeStamp) == 0;
             }
@@ -120,8 +122,8 @@ namespace Nyris.Crdt
                     if (!iHave || myItem!.TimeStamp.CompareTo(otherItem!.TimeStamp) < 0)
                     {
                         Items.AddOrUpdate(key,
-                            _ => otherItem,
-                            (_, __) => otherItem);
+                                          _ => otherItem!,
+                                          (_, __) => otherItem!);
                     }
                 }
 

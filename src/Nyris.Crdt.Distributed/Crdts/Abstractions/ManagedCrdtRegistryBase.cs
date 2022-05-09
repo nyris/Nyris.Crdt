@@ -14,21 +14,20 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     public abstract class ManagedCrdtRegistryBase<TKey, TItem, TDto> : ManagedCRDT<TDto>
     {
         private readonly ConcurrentDictionary<string, IIndex<TKey, TItem>> _indexes = new();
-        private readonly ILogger? _logger;
 
         /// <inheritdoc />
-        protected ManagedCrdtRegistryBase(InstanceId instanceId,
+        protected ManagedCrdtRegistryBase(
+            InstanceId instanceId,
             IAsyncQueueProvider? queueProvider = null,
-            ILogger? logger = null) : base(instanceId, queueProvider: queueProvider, logger: logger)
-        {
-            _logger = logger;
-        }
+            ILogger? logger = null
+        ) : base(instanceId, queueProvider: queueProvider, logger: logger) { }
 
         public abstract ulong Size { get; }
         public abstract ulong StorageSize { get; }
 
         public abstract IAsyncEnumerable<KeyValuePair<TKey, TItem>> EnumerateItems(
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default
+        );
 
         public void RemoveIndex(IIndex<TKey, TItem> index) => RemoveIndex(index.UniqueName);
         public void RemoveIndex(string name) => _indexes.TryRemove(name, out _);
@@ -52,23 +51,20 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 return i.RemoveAsync(key, item, cancellationToken);
             }));
 
-        protected Task AddItemToIndexesAsync(TKey key, TItem item, CancellationToken cancellationToken = default)
-        {
-            return Task.WhenAll(_indexes.Values.Select(i =>
+        protected Task AddItemToIndexesAsync(TKey key, TItem item, CancellationToken cancellationToken = default) =>
+            Task.WhenAll(_indexes.Values.Select(i =>
             {
                 // _logger?.LogDebug("Adding {ItemKey} to {IndexName}", key, i.UniqueName);
                 return i.AddAsync(key, item, cancellationToken);
             }));
-        }
 
-        protected bool TryGetIndex<TIndex>(string indexName, [NotNullWhen(true)] out TIndex? value) where TIndex: IIndex<TKey, TItem>
+        protected bool TryGetIndex<TIndex>(string indexName, [NotNullWhen(true)] out TIndex? value) where TIndex : IIndex<TKey, TItem>
         {
             var result = _indexes.TryGetValue(indexName, out var tempValue);
 
             value = (TIndex?) tempValue;
 
             return result;
-
         }
     }
 }

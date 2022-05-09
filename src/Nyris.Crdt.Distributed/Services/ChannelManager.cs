@@ -64,12 +64,16 @@ namespace Nyris.Crdt.Distributed.Services
             private readonly ConcurrentDictionary<NodeId, TGrpcService> _grpcClients;
             private readonly NodeId _nodeId;
 
-            private static readonly int TolerateErrorsTimes = 3;
-            private int _failures = 0;
+            private const int TolerateErrorsTimes = 3;
+            private int _failures;
 
             /// <inheritdoc />
-            public FailureInterceptor(ConcurrentDictionary<NodeId, GrpcChannel> channels, ManagedCrdtContext context,
-                ConcurrentDictionary<NodeId, TGrpcService> grpcClients, NodeId nodeId)
+            public FailureInterceptor(
+                ConcurrentDictionary<NodeId, GrpcChannel> channels,
+                ManagedCrdtContext context,
+                ConcurrentDictionary<NodeId, TGrpcService> grpcClients,
+                NodeId nodeId
+            )
 
             {
                 _channels = channels;
@@ -79,17 +83,19 @@ namespace Nyris.Crdt.Distributed.Services
             }
 
             /// <inheritdoc />
-            public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(TRequest request,
+            public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
+                TRequest request,
                 ClientInterceptorContext<TRequest, TResponse> context,
-                AsyncUnaryCallContinuation<TRequest, TResponse> continuation)
+                AsyncUnaryCallContinuation<TRequest, TResponse> continuation
+            )
             {
                 var call = continuation(request, context);
 
                 return new AsyncUnaryCall<TResponse>(HandleResponse(call.ResponseAsync),
-                    call.ResponseHeadersAsync,
-                    call.GetStatus,
-                    call.GetTrailers,
-                    call.Dispose);
+                                                     call.ResponseHeadersAsync,
+                                                     call.GetStatus,
+                                                     call.GetTrailers,
+                                                     call.Dispose);
             }
 
             private async Task<TResponse> HandleResponse<TResponse>(Task<TResponse> responseTask)
@@ -117,6 +123,8 @@ namespace Nyris.Crdt.Distributed.Services
                 _ = _context.Nodes.RemoveAsync(i => i.Id == _nodeId);
                 _grpcClients.TryRemove(_nodeId, out _);
                 await (_channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask);
+
+                channel?.Dispose();
             }
         }
     }

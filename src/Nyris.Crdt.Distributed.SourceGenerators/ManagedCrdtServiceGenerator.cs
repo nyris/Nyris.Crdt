@@ -30,13 +30,13 @@ public class ManagedCrdtServiceGenerator : IIncrementalGenerator
     {
         var classCandidatesProvider =
             context.SyntaxProvider.CreateSyntaxProvider(
-                (syntaxNode, _) =>
-                    syntaxNode is ClassDeclarationSyntax { BaseList: { } },
-                (syntaxContext, _) => (ClassDeclarationSyntax) syntaxContext.Node);
+                                                        (syntaxNode, _) =>
+                                                            syntaxNode is ClassDeclarationSyntax { BaseList: { } },
+                                                        (syntaxContext, _) => (ClassDeclarationSyntax) syntaxContext.Node);
         var recordCandidatesProvider =
             context.SyntaxProvider.CreateSyntaxProvider(
-                (syntaxNode, _) => syntaxNode is RecordDeclarationSyntax { BaseList: { } },
-                (syntaxContext, _) => (RecordDeclarationSyntax) syntaxContext.Node);
+                                                        (syntaxNode, _) => syntaxNode is RecordDeclarationSyntax { BaseList: { } },
+                                                        (syntaxContext, _) => (RecordDeclarationSyntax) syntaxContext.Node);
 
 
         var candidates = classCandidatesProvider.Combine(recordCandidatesProvider.Collect());
@@ -46,8 +46,10 @@ public class ManagedCrdtServiceGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(candidatesWithCompilationProvider, Execute);
     }
 
-    private void Execute(SourceProductionContext context,
-        (Compilation compilation, ImmutableArray<(ClassDeclarationSyntax, ImmutableArray<RecordDeclarationSyntax>)> syntaxs) tuple)
+    private void Execute(
+        SourceProductionContext context,
+        (Compilation compilation, ImmutableArray<(ClassDeclarationSyntax, ImmutableArray<RecordDeclarationSyntax>)> syntaxs) tuple
+    )
     {
         var candidates = AnalyzeCandidatesForManagedCrdts(tuple);
         var (crdtInfos, operationInfos) = candidates;
@@ -57,31 +59,30 @@ public class ManagedCrdtServiceGenerator : IIncrementalGenerator
             var source = template.Render(new
             {
                 DtoInfos = crdtInfos
-                    .GroupBy(i => i.DtoTypeName)
-                    .Select(group => new DtoInfo(group.Key,
-                        group.Select(i => new TypeWithArguments(i.CrdtTypeName, i.AllArgumentsString)).ToList()))
-                    .ToList(),
+                           .GroupBy(i => i.DtoTypeName)
+                           .Select(group => new DtoInfo(group.Key,
+                                                        group.Select(i => new TypeWithArguments(i.CrdtTypeName, i.AllArgumentsString))
+                                                             .ToList()))
+                           .ToList(),
                 OperationInfos = operationInfos
             }, member => member.Name);
 
             context.AddSource(templateFileName.Replace("Template.sbntxt", ".g.cs"),
-                SourceText.From(source, Encoding.UTF8));
+                              SourceText.From(source, Encoding.UTF8));
         }
     }
 
-    private static IEnumerable<(Template, string)> EnumerateTemplates()
+    private static IEnumerable<(Template, string)> EnumerateTemplates() => new[]
     {
-        return new[]
-        {
-            "ManagedCrdtServiceTemplate.sbntxt",
-            "IManagedCrdtServiceTemplate.sbntxt",
-            "ServiceCollectionExtensionsTemplate.sbntxt"
-        }.Select(templateFileName => (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
-            templateFileName));
-    }
+        "ManagedCrdtServiceTemplate.sbntxt",
+        "IManagedCrdtServiceTemplate.sbntxt",
+        "ServiceCollectionExtensionsTemplate.sbntxt"
+    }.Select(templateFileName => (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
+                                  templateFileName));
 
-    private (HashSet<CrdtInfo>, ImmutableArray<RoutedOperationInfo>) AnalyzeCandidatesForManagedCrdts(
-        (Compilation compilation, ImmutableArray<(ClassDeclarationSyntax, ImmutableArray<RecordDeclarationSyntax>)> syntaxs) tuple)
+    private static (HashSet<CrdtInfo>, ImmutableArray<RoutedOperationInfo>) AnalyzeCandidatesForManagedCrdts(
+        (Compilation compilation, ImmutableArray<(ClassDeclarationSyntax, ImmutableArray<RecordDeclarationSyntax>)> syntaxs) tuple
+    )
     {
         var compilation = tuple.compilation;
         var crdtInfos = new HashSet<CrdtInfo>();
@@ -117,7 +118,7 @@ public class ManagedCrdtServiceGenerator : IIncrementalGenerator
 
                 // process user-defined crdts
                 var namedTypeSymbol = compilation.GetSemanticModel(candidateClass.SyntaxTree)
-                    .GetDeclaredSymbol(candidateClass);
+                                                 .GetDeclaredSymbol(candidateClass);
                 if (namedTypeSymbol == null)
                 {
                     return (crdtInfos, operationInfos);
@@ -149,9 +150,11 @@ public class ManagedCrdtServiceGenerator : IIncrementalGenerator
     /// <param name="crdtInfo"></param>
     /// <param name="operations"></param>
     /// <returns>True if symbol is a managedCrdt, false otherwise</returns>
-    private static bool TryGetCrdtInfo(ITypeSymbol symbol,
+    private static bool TryGetCrdtInfo(
+        ITypeSymbol symbol,
         out CrdtInfo crdtInfo,
-        out ImmutableArray<RoutedOperationInfo> operations)
+        out ImmutableArray<RoutedOperationInfo> operations
+    )
     {
         var current = symbol.BaseType;
         var operationInfos = Enumerable.Empty<RoutedOperationInfo>();
@@ -168,29 +171,29 @@ public class ManagedCrdtServiceGenerator : IIncrementalGenerator
                 // get type arguments of constructor
 
                 operationInfos = symbol.GetAttributes()
-                    .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
-                    .Select(attr =>
-                    {
-                        var operationConcreteType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
-                        var operationResponseConcreteType = attr.ConstructorArguments[1].Value as INamedTypeSymbol;
+                                       .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
+                                       .Select(attr =>
+                                       {
+                                           var operationConcreteType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
+                                           var operationResponseConcreteType = attr.ConstructorArguments[1].Value as INamedTypeSymbol;
 
-                        return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
-                            operationResponseConcreteType?.ToDisplayString(),
-                            keyType.ToDisplayString(),
-                            $"{symbol.ToDisplayString()}, {crdtTypeParams}");
-                    });
+                                           return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
+                                                                          operationResponseConcreteType?.ToDisplayString(),
+                                                                          keyType.ToDisplayString(),
+                                                                          $"{symbol.ToDisplayString()}, {crdtTypeParams}");
+                                       });
             }
 
             if (current.Name == ManagedCrdtTypeName)
             {
                 var allArgumentsString = string.Join(", ",
-                    current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
+                                                     current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
                 var dtoString = current.TypeArguments.Last().ToDisplayString();
 
                 crdtInfo = new CrdtInfo(
-                    CrdtTypeName: symbol.ToDisplayString(),
-                    AllArgumentsString: allArgumentsString,
-                    DtoTypeName: dtoString);
+                                        CrdtTypeName: symbol.ToDisplayString(),
+                                        AllArgumentsString: allArgumentsString,
+                                        DtoTypeName: dtoString);
                 operations = operationInfos.ToImmutableArray();
                 return true;
             }

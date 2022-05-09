@@ -7,6 +7,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Operations
     {
         public RequireOperationAttribute(Type operationType, Type responseType)
         {
+            OperationType = operationType;
+            ResponseType = responseType;
         }
+
+        public Type OperationType { get; }
+        public Type ResponseType { get; }
     }
 }

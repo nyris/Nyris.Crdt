@@ -16,7 +16,10 @@ namespace Nyris.Crdt
         [ProtoMember(3)]
         public bool Deleted { get; set; }
 
+        // NOTE: Disabling in Global didn't work for some reason
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         private TimeStampedItem()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             // parameterless constructor for Protobuf-NET
         }

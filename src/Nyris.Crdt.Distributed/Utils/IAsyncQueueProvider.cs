@@ -5,6 +5,6 @@ namespace Nyris.Crdt.Distributed.Utils
 {
     public interface IAsyncQueueProvider
     {
-        IAsyncQueue<DtoMessage<TDto>> GetQueue<TDto>(Type crdtType);
+        IAsyncScheduler<DtoMessage<TDto>> GetQueue<TDto>(Type crdtType);
     }
 }

@@ -16,10 +16,12 @@ public sealed class NodeSet : ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo
     private readonly NodeInfo _thisNodeInfo;
 
     /// <inheritdoc />
-    public NodeSet(InstanceId id,
+    public NodeSet(
+        InstanceId id,
         NodeInfo nodeInfo,
         IAsyncQueueProvider? queueProvider = null,
-        ILogger? logger = null) : base(id, nodeInfo.Id, queueProvider: queueProvider, logger: logger)
+        ILogger? logger = null
+    ) : base(id, nodeInfo.Id, queueProvider: queueProvider, logger: logger)
     {
         _thisNodeInfo = nodeInfo;
     }

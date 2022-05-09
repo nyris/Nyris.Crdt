@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Model;
 
@@ -22,7 +21,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Operations
 
             var hashStart = hash[0];
             var step = ushort.MaxValue / shards.Count;
-            return new[] {shards[(hashStart / step) % shards.Count]};
+            return new[] { shards[(hashStart / step) % shards.Count] };
         }
     }
 }

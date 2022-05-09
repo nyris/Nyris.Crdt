@@ -37,10 +37,12 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly SemaphoreSlim _semaphore = new(1);
         private readonly TActorId _thisNodeId;
 
-        protected ManagedOptimizedObservedRemoveSet(InstanceId id,
+        protected ManagedOptimizedObservedRemoveSet(
+            InstanceId id,
             TActorId thisNodeId,
             IAsyncQueueProvider? queueProvider = null,
-            ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
+            ILogger? logger = null
+        ) : base(id, queueProvider: queueProvider, logger: logger)
         {
             _thisNodeId = thisNodeId;
             _items = new();
@@ -60,8 +62,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             try
             {
                 return HashingHelper.Combine(
-                    HashingHelper.Combine(_items.OrderBy(i => i.Dot.Actor)),
-                    HashingHelper.Combine(_versionVectors.OrderBy(pair => pair.Key)));
+                                             HashingHelper.Combine(_items.OrderBy(i => i.Dot.Actor)),
+                                             HashingHelper.Combine(_versionVectors.OrderBy(pair => pair.Key)));
             }
             finally
             {
@@ -76,8 +78,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                 (other.VersionVectors is null || other.VersionVectors.Count == 0)) return MergeResult.NotUpdated;
 
             var otherItems = other.Items is null
-                ? new HashSet<DottedItem<TActorId, TItem>>()
-                : new HashSet<DottedItem<TActorId, TItem>>(other.Items);
+                                 ? new HashSet<DottedItem<TActorId, TItem>>()
+                                 : new HashSet<DottedItem<TActorId, TItem>>(other.Items);
 
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
@@ -88,9 +90,10 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 // NOTE: Keeps items from Other Node if Local Node has never seen those (i.e No VersionVector present) or they have newer Dot than Local Observed State
                 var newerOtherItems = otherItems.Where(i =>
-                        !(other.Tombstones is not null && other.Tombstones.ContainsKey(i.Dot)) &&
-                        (!_versionVectors.TryGetValue(i.Dot.Actor, out var exitingVersion) || i.Dot.Version > exitingVersion))
-                    .ToHashSet();
+                                                           !(other.Tombstones is not null && other.Tombstones.ContainsKey(i.Dot)) &&
+                                                           (!_versionVectors.TryGetValue(i.Dot.Actor, out var exitingVersion) ||
+                                                            i.Dot.Version > exitingVersion))
+                                                .ToHashSet();
 
                 var newerTombstones = other.Tombstones ?? new Dictionary<Dot<TActorId>, HashSet<TActorId>>();
 
@@ -181,7 +184,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<TDto> EnumerateDtoBatchesAsync(
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
             yield return
                 await ToDtoAsync(cancellationToken); // unfortunately making ORSet a delta Crdt is not an easy task

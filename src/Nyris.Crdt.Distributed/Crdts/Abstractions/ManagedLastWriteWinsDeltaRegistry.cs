@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Contracts.Exceptions;
-using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
@@ -28,20 +27,22 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private readonly SemaphoreSlim _semaphore = new(1, 1);
         private ConcurrentBag<TKey> _nextDto = new();
 
-        protected ManagedLastWriteWinsDeltaRegistry(InstanceId id,
+        protected ManagedLastWriteWinsDeltaRegistry(
+            InstanceId id,
             IAsyncQueueProvider? queueProvider = null,
-            ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger)
+            ILogger? logger = null
+        ) : base(id, queueProvider: queueProvider, logger: logger)
         {
             _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
         }
 
         public IReadOnlyDictionary<TKey, TValue> Value =>
             _items.Where(pair => !pair.Value.Deleted)
-                .ToDictionary(pair => pair.Key, pair => pair.Value.Value);
+                  .ToDictionary(pair => pair.Key, pair => pair.Value.Value);
 
         public IEnumerable<TValue> Values => _items.Values
-            .Where(v => !v.Deleted)
-            .Select(v => v.Value);
+                                                   .Where(v => !v.Deleted)
+                                                   .Select(v => v.Value);
 
         public bool IsEmpty => _items.IsEmpty;
 
@@ -66,28 +67,30 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             return true;
         }
 
-        public async Task<TimeStampedItem<TValue, TTimeStamp>> SetAsync(TKey key,
+        public async Task<TimeStampedItem<TValue, TTimeStamp>> SetAsync(
+            TKey key,
             TValue value,
             TTimeStamp timeStamp,
             uint propagateToNodes = 0,
             string? traceId = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default
+        )
         {
             var item = _items.AddOrUpdate(key,
-                _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
-                (__, v) =>
-                {
-                    // NOTE: If existing value was old then update
-                    if (v.TimeStamp.CompareTo(timeStamp) < 0)
-                    {
-                        _ = RemoveItemFromIndexes(key, v.Value, cancellationToken);
-                        v.Value = value;
-                        v.Deleted = false;
-                        v.TimeStamp = timeStamp;
-                    }
+                                          _ => new TimeStampedItem<TValue, TTimeStamp>(value, timeStamp, false),
+                                          (__, v) =>
+                                          {
+                                              // NOTE: If existing value was old then update
+                                              if (v.TimeStamp.CompareTo(timeStamp) < 0)
+                                              {
+                                                  _ = RemoveItemFromIndexes(key, v.Value, cancellationToken);
+                                                  v.Value = value;
+                                                  v.Deleted = false;
+                                                  v.TimeStamp = timeStamp;
+                                              }
 
-                    return v;
-                });
+                                              return v;
+                                          });
 
             if (item.TimeStamp.CompareTo(timeStamp) != 0) return item;
 
@@ -95,40 +98,45 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             await AddItemToIndexesAsync(key, item.Value, cancellationToken: cancellationToken);
             _nextDto.Add(key);
             await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId,
-                cancellationToken: cancellationToken);
+                                    cancellationToken: cancellationToken);
             return item;
         }
 
-        public async Task<TimeStampedItem<TValue, TTimeStamp>> RemoveAsync(TKey key, TTimeStamp timeStamp,
+        public async Task<TimeStampedItem<TValue, TTimeStamp>> RemoveAsync(
+            TKey key,
+            TTimeStamp timeStamp,
             uint propagateToNodes = 0,
             string? traceId = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default
+        )
         {
             // Due to nature of the set, we have to record delete attempts even if such item was not found.
             // Just imagine if item was created and then deleted, but updates were reordered.
             var item = _items.AddOrUpdate(key,
-                _ => new TimeStampedItem<TValue, TTimeStamp>(default!, timeStamp, true),
-                (_, v) =>
-                {
-                    if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
+                                          _ => new TimeStampedItem<TValue, TTimeStamp>(default!, timeStamp, true),
+                                          (_, v) =>
+                                          {
+                                              if (v.TimeStamp.CompareTo(timeStamp) >= 0) return v;
 
-                    v.Deleted = true;
-                    v.TimeStamp = timeStamp;
-                    return v;
-                });
+                                              v.Deleted = true;
+                                              v.TimeStamp = timeStamp;
+                                              return v;
+                                          });
 
             if (item.TimeStamp.CompareTo(timeStamp) != 0) return item;
 
             await RemoveItemFromIndexes(key, item.Value, cancellationToken);
             _nextDto.Add(key);
             await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId,
-                cancellationToken: cancellationToken);
+                                    cancellationToken: cancellationToken);
             return item;
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(LastWriteWinsDto other,
-            CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(
+            LastWriteWinsDto other,
+            CancellationToken cancellationToken = default
+        )
         {
             if (ReferenceEquals(other.Items, null) || other.Items.Count == 0) return MergeResult.NotUpdated;
 
@@ -157,7 +165,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// <inheritdoc />
         public override async Task<LastWriteWinsDto> ToDtoAsync(CancellationToken cancellationToken = default)
         {
-            if (_nextDto.Count == 0) return new LastWriteWinsDto();
+            if (_nextDto.IsEmpty) return new LastWriteWinsDto();
 
             var keys = Interlocked.Exchange(ref _nextDto, new ConcurrentBag<TKey>());
             var items = new Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>(keys.Count);
@@ -178,7 +186,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<LastWriteWinsDto> EnumerateDtoBatchesAsync(
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
             const int maxBatchSize = 10;
             foreach (var batch in _items.Batch(maxBatchSize))
@@ -190,7 +199,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
                     items.Add(key, item);
                 }
 
-                yield return new LastWriteWinsDto {Items = items};
+                yield return new LastWriteWinsDto { Items = items };
             }
         }
 
@@ -200,7 +209,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
         /// <inheritdoc />
         public override async IAsyncEnumerable<KeyValuePair<TKey, TValue>> EnumerateItems(
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
         {
             foreach (var (key, value) in _items.Where(i => !i.Value.Deleted))
             {
@@ -236,8 +246,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
 
                 _nextDto.Add(key);
                 _items.AddOrUpdate(key,
-                    _ => otherItem!,
-                    (_, _) => otherItem!);
+                                   _ => otherItem!,
+                                   (_, _) => otherItem!);
                 await AddItemToIndexesAsync(key, otherItem!.Value);
             }
 

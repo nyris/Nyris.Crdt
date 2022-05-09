@@ -29,10 +29,12 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly GrpcChannelOptions _grpcChannelOptions;
 
         /// <inheritdoc />
-        public DiscoveryService(ManagedCrdtContext context,
+        public DiscoveryService(
+            ManagedCrdtContext context,
             IEnumerable<IDiscoveryStrategy> strategies,
             ILogger<DiscoveryService<TGrpcService>> logger,
-            NodeInfo thisNode)
+            NodeInfo thisNode
+        )
         {
             _strategies = strategies.ToList();
             _logger = logger;
@@ -73,7 +75,7 @@ namespace Nyris.Crdt.Distributed.Services
             catch (Exception e)
             {
                 _logger.LogError(e, "Unhandled exception in {ServiceName}",
-                    nameof(DiscoveryService<TGrpcService>));
+                                 nameof(DiscoveryService<TGrpcService>));
             }
         }
 
@@ -91,7 +93,7 @@ namespace Nyris.Crdt.Distributed.Services
                 catch (Exception e)
                 {
                     _logger.LogError("Connecting to node {PodName} failed due to an exception: {ExceptionMessage}",
-                        name, e.ToString());
+                                     name, e.ToString());
                 }
             }
 
@@ -106,27 +108,28 @@ namespace Nyris.Crdt.Distributed.Services
             if (channel.CreateGrpcService<TGrpcService>() is not IDtoPassingGrpcService<NodeSet.NodeSetDto> proxy)
             {
                 throw new InitializationException(
-                    $"Internal error: specified {nameof(TGrpcService)} does not implement IProxy<NodeSet.Dto>");
+                                                  $"Internal error: specified {nameof(TGrpcService)} does not implement IProxy<NodeSet.Dto>");
             }
 
             var dto = await _context.Nodes.ToDtoAsync();
-            var msg = new DtoMessage<NodeSet.NodeSetDto>(_context.Nodes.TypeName,
-                _context.Nodes.InstanceId,
-                dto, ShortGuid.Encode(Guid.NewGuid()));
+            using var msg = new DtoMessage<NodeSet.NodeSetDto>(_context.Nodes.TypeName,
+                                                               _context.Nodes.InstanceId,
+                                                               dto, ShortGuid.Encode(Guid.NewGuid()));
             var response = await proxy.SendAsync(msg);
 
             _logger.LogDebug(
-                "Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
-                name, response.Items?.Count, response.VersionVectors?.Count);
+                             "Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
+                             name, response.Items?.Count, response.VersionVectors?.Count);
 
             await _context.MergeAsync<NodeSet, NodeSet.NodeSetDto>(response, _context.Nodes.InstanceId);
 
             _logger.LogDebug("State after merging: {NodeList}", string.Join(", ",
-                _context.Nodes.Value.Select(ni => $"{ni.Id}:{ni.Address}")));
+                                                                            _context.Nodes.Value.Select(ni => $"{ni.Id}:{ni.Address}")));
         }
 
         private async IAsyncEnumerable<NodeCandidate> GetAllUris(
-            [EnumeratorCancellation] CancellationToken cancellationToken)
+            [EnumeratorCancellation] CancellationToken cancellationToken
+        )
         {
             var set = new HashSet<NodeCandidate>();
 
@@ -138,8 +141,8 @@ namespace Nyris.Crdt.Distributed.Services
                     if (set.Contains(address)) continue;
 
                     _logger.LogInformation(
-                        "Strategy yielded candidate {NodeCandidateName} at address '{NodeCandidateAddress}'",
-                        address.Name, address.Address);
+                                           "Strategy yielded candidate {NodeCandidateName} at address '{NodeCandidateAddress}'",
+                                           address.Name, address.Address);
 
                     set.Add(address);
                     yield return address;
@@ -148,7 +151,7 @@ namespace Nyris.Crdt.Distributed.Services
 
             if (set.Count == 0)
                 _logger.LogWarning(
-                    "Discovery strategies yielded no node candidates. Did you add discovery strategies?");
+                                   "Discovery strategies yielded no node candidates. Did you add discovery strategies?");
         }
     }
 }
