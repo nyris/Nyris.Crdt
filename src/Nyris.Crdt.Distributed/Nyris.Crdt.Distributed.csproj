@@ -1,8 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
-        <LangVersion>9</LangVersion>
+        <TargetFramework>net6.0</TargetFramework>
+        <LangVersion>10</LangVersion>
         <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Title>Nyris.Crdt.Distributed</Title>
+        <Authors>Shafiq Ahmad</Authors>
+        <Description>This library contains different CRDTs that are meant to be used locally for in process purposes.</Description>
     </PropertyGroup>
 
     <ItemGroup>

@@ -1,4 +1,5 @@
 variables:
+  NUGET_PACKAGES: $CI_PROJECT_DIR/packages/
   DEPLOYMENT_NAME: sample-app
   GCP_IMAGE_NAME: eu.gcr.io/everybag-1273/nyris-distributed-prototype-sample-app
   GCP_BRANCH_IMAGE: $GCP_IMAGE_NAME:$CI_COMMIT_REF_SLUG
@@ -8,6 +9,7 @@ stages:
   - version
   - build
   - test
+  - publish
   - docker:build
   - docker:push
   - deploy
@@ -18,6 +20,13 @@ stages:
   tags:
     - builder
     - integration
+
+.publish:
+  extends: .base
+  stage: publish
+  needs:
+    - job: Build
+      artifacts: true
 
 Version:
   extends: .base
@@ -51,7 +60,27 @@ Build:
   script:
     - v2-autobuild
     - v2-test test/Nyris.Crdt.Tests/Nyris.Crdt.Tests.csproj
+    - v2-test test/Nyris.Crdt.Distributed.Test.Unit/Nyris.Crdt.Distributed.Test.Unit.csproj
     - v3-publish-app Release alpine-x64 samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
+    - v2-publish-nuget src/Nyris.Crdt
+    - v2-publish-nuget src/Nyris.Crdt.Distributed
+    - v2-publish-nuget src/Nyris.Crdt.Distributed.SourceGenerators
+
+Release NuGets:
+  extends: .publish
+  only:
+    - master
+  script:
+    - v3-push-nugets
+
+Unstable NuGets:
+  extends: .publish
+  when: manual
+  except:
+    - master
+    - tags
+  script:
+    - v3-push-nugets
 
 .dockerize:
   stage: docker:build

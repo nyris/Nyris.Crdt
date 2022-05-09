@@ -12,6 +12,7 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 
@@ -27,7 +28,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     /// <typeparam name="TItemValueDto"></typeparam>
     /// <typeparam name="TItemValueFactory"></typeparam>
     public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
-        : ManagedCrdtRegistryBase<TItemKey, TItemValue, ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.RegistryDto>,
+        : ManagedCrdtRegistryBase<TItemKey, TItemValue, ManagedCrdtRegistry<TActorId, TItemKey, TItemValue,
+                TItemValueDto, TItemValueFactory>.RegistryDto>,
             ICreateAndDeleteManagedCrdtsInside
         where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>, IHashable
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
@@ -55,7 +57,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override ulong Size => (ulong)_dictionary.Count;
+        public override ulong Size => (ulong) _dictionary.Count;
 
         /// <inheritdoc />
         public override ulong StorageSize => Size;
@@ -101,6 +103,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
                 if (_keys.Contains(key)) return false;
@@ -136,6 +139,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             TItemValue value;
             try
             {
@@ -165,6 +169,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
                 _keys.Remove(key);
@@ -181,12 +186,14 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override async Task<MergeResult> MergeAsync(RegistryDto other, CancellationToken cancellationToken = default)
+        public override async Task<MergeResult> MergeAsync(RegistryDto other,
+            CancellationToken cancellationToken = default)
         {
             if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
                 var keyResult = _keys.MaybeMerge(other.Keys);
@@ -227,6 +234,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
             {
                 throw new NyrisException("Deadlock");
             }
+
             try
             {
                 return new RegistryDto
@@ -242,14 +250,15 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         }
 
         /// <inheritdoc />
-        public override async IAsyncEnumerable<RegistryDto> EnumerateDtoBatchesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public override async IAsyncEnumerable<RegistryDto> EnumerateDtoBatchesAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             yield return await ToDtoAsync(cancellationToken);
         }
 
         /// <inheritdoc />
         public override ReadOnlySpan<byte> CalculateHash() => HashingHelper.Combine(_keys.CalculateHash(),
-            HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key)));
+            HashingHelper.Combine(_dictionary.OrderBy(pair => pair.Key).Select(pair => pair.Value)));
 
         [ProtoContract]
         public sealed class RegistryDto

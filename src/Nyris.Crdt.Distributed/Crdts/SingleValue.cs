@@ -1,6 +1,7 @@
 using System;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts
@@ -48,7 +49,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         }
 
         /// <inheritdoc />
-        public SingleValueDto ToDto() => new() { Value = _value, DateTime = _dateTime };
+        public SingleValueDto ToDto() => new() {Value = _value, DateTime = _dateTime};
 
         /// <inheritdoc />
         public ReadOnlySpan<byte> CalculateHash() => HashingHelper.CalculateHash(_value); // datetime is not important

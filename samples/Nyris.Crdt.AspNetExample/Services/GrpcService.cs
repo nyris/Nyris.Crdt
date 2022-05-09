@@ -34,7 +34,8 @@ namespace Nyris.Crdt.AspNetExample.Services
         }
 
         /// <inheritdoc />
-        public override async Task<CollectionIdMessage> CreateImagesCollection(Collection request, ServerCallContext context)
+        public override async Task<CollectionIdMessage> CreateImagesCollection(Collection request,
+            ServerCallContext context)
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(CreateImagesCollection));
             var id = string.IsNullOrEmpty(request.Id) ? CollectionId.New() : CollectionId.Parse(request.Id);
@@ -49,21 +50,26 @@ namespace Nyris.Crdt.AspNetExample.Services
         }
 
         /// <inheritdoc />
-        public override async Task<CollectionIdMessage> CreateImagesCollectionPR(ShardedCollection request, ServerCallContext context)
+        public override async Task<CollectionIdMessage> CreateImagesCollectionPR(ShardedCollection request,
+            ServerCallContext context)
         {
-            _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(CreateImagesCollectionPR));
+            _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId,
+                nameof(CreateImagesCollectionPR));
             var id = string.IsNullOrEmpty(request.Id) ? CollectionId.New() : CollectionId.Parse(request.Id);
             var added = await _context.PartiallyReplicatedImageCollectionsRegistry.TryAddCollectionAsync(id,
                 new CollectionConfig
                 {
                     Name = id.ToString(),
                     IndexNames = new[] { ImageIdIndex.IndexName },
-                    ShardingConfig = request.NumShards > 0 ? new ShardingConfig { NumShards = (ushort)request.NumShards } : null
+                    ShardingConfig = request.NumShards > 0
+                        ? new ShardingConfig { NumShards = (ushort) request.NumShards }
+                        : null
                 },
                 propagateToNodes: 3,
                 traceId: request.TraceId,
                 cancellationToken: context.CancellationToken);
-            _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(CreateImagesCollectionPR));
+            _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId,
+                nameof(CreateImagesCollectionPR));
             return new CollectionIdMessage { Id = added ? id.ToString() : "", TraceId = request.TraceId };
         }
 
@@ -75,11 +81,12 @@ namespace Nyris.Crdt.AspNetExample.Services
             {
                 ThrowNotFound($"Collection with id '{request.Id}' not found");
             }
-        
+
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(GetCollectionInfo));
-            return Task.FromResult(new Collection { Size = (ulong)collection!.Values.Count(), Id = request.Id, TraceId = request.TraceId });
+            return Task.FromResult(new Collection
+                { Size = (ulong) collection!.Values.Count(), Id = request.Id, TraceId = request.TraceId });
         }
-        
+
         /// <inheritdoc />
         public override Task<Collection> GetCollectionInfoPR(CollectionIdMessage request, ServerCallContext context)
         {
@@ -89,6 +96,7 @@ namespace Nyris.Crdt.AspNetExample.Services
             {
                 ThrowNotFound($"Collection with id '{request.Id}' not found");
             }
+
             _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", request.TraceId, nameof(GetCollectionInfoPR));
             return Task.FromResult(new Collection { Id = request.Id, Size = size, TraceId = request.TraceId });
         }
@@ -97,13 +105,17 @@ namespace Nyris.Crdt.AspNetExample.Services
         public override async Task<Image> CreateImage(CreateImageMessage request, ServerCallContext context)
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(CreateImage));
-            if (!_context.ImageCollectionsRegistry.TryGetValue(CollectionId.Parse(request.Image.CollectionId), out var collection))
+            if (!_context.ImageCollectionsRegistry.TryGetValue(CollectionId.Parse(request.Image.CollectionId),
+                    out var collection))
             {
                 ThrowNotFound($"Collection with id '{request.Image.CollectionId}' not found");
             }
 
-            var imageGuid = string.IsNullOrEmpty(request.Image.Guid) ? ImageGuid.New() : ImageGuid.Parse(request.Image.Guid);
-            var imageInfo = new ImageInfo(new Uri(request.Image.DownloadUri), Convert.ToHexString(request.Image.Id.Span));
+            var imageGuid = string.IsNullOrEmpty(request.Image.Guid)
+                ? ImageGuid.New()
+                : ImageGuid.Parse(request.Image.Guid);
+            var imageInfo = new ImageInfo(new Uri(request.Image.DownloadUri),
+                Convert.ToHexString(request.Image.Id.Span));
 
             await collection!.SetAsync(imageGuid,
                 imageInfo,
@@ -121,21 +133,26 @@ namespace Nyris.Crdt.AspNetExample.Services
             var traceId = string.IsNullOrWhiteSpace(request.TraceId) ? ShortGuid.NewGuid().ToString() : request.TraceId;
             // _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", traceId, nameof(CreateImagePR));
 
-            var imageGuid = string.IsNullOrEmpty(request.Image.Guid) ? ImageGuid.New() : ImageGuid.Parse(request.Image.Guid);
-            var imageInfo = new ImageInfo(new Uri(request.Image.DownloadUri), Convert.ToHexString(request.Image.Id.Span));
+            var imageGuid = string.IsNullOrEmpty(request.Image.Guid)
+                ? ImageGuid.New()
+                : ImageGuid.Parse(request.Image.Guid);
+            var imageInfo = new ImageInfo(new Uri(request.Image.DownloadUri),
+                Convert.ToHexString(request.Image.Id.Span));
 
             var result = await _context.PartiallyReplicatedImageCollectionsRegistry
                 .ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(
                     CollectionId.Parse(request.Image.CollectionId),
-                    new AddValueOperation<ImageGuid, ImageInfo, DateTime>(imageGuid, imageInfo, DateTime.UtcNow, request.PropagateToNodes),
+                    new AddValueOperation<ImageGuid, ImageInfo, DateTime>(imageGuid, imageInfo, DateTime.UtcNow,
+                        request.PropagateToNodes),
                     traceId: traceId,
                     cancellationToken: context.CancellationToken);
 
             if (!result.Success)
             {
                 _logger.LogError("TraceId {TraceId}: {FuncName} failed with message \"{Message}\"",
-                traceId, nameof(CreateImagePR), result.Message);
+                    traceId, nameof(CreateImagePR), result.Message);
             }
+
             // else _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", traceId, nameof(CreateImagePR));
             return result.Value != default
                 ? new Image(request.Image) { Guid = imageGuid.ToString() }
@@ -216,7 +233,8 @@ namespace Nyris.Crdt.AspNetExample.Services
             var result = await _context.PartiallyReplicatedImageCollectionsRegistry
                 .ApplyAsync<DeleteImageOperation, ValueResponse<bool>>(
                     CollectionId.Parse(request.CollectionId),
-                    new DeleteImageOperation(ImageGuid.Parse(request.ImageUuid), DateTime.UtcNow, request.PropagateToNodes),
+                    new DeleteImageOperation(ImageGuid.Parse(request.ImageUuid), DateTime.UtcNow,
+                        request.PropagateToNodes),
                     traceId: traceId);
 
             if (!result.Success)
@@ -224,12 +242,14 @@ namespace Nyris.Crdt.AspNetExample.Services
                 _logger.LogError("TraceId {TraceId}: {FuncName} failed with message \"{Message}\"",
                     traceId, nameof(CreateImagePR), result.Message);
             }
+
             // else _logger.LogDebug("TraceId {TraceId}: {FuncName} finished", traceId, nameof(DeleteImagePR));
             return new BoolResponse { Value = result.Success };
         }
 
         /// <inheritdoc />
-        public override async Task<BoolResponse> DeleteCollection(CollectionIdMessage request, ServerCallContext context)
+        public override async Task<BoolResponse> DeleteCollection(CollectionIdMessage request,
+            ServerCallContext context)
         {
             await _context.ImageCollectionsRegistry.RemoveAsync(CollectionId.Parse(request.Id),
                 cancellationToken: context.CancellationToken);
@@ -237,31 +257,36 @@ namespace Nyris.Crdt.AspNetExample.Services
         }
 
         /// <inheritdoc />
-        public override async Task<BoolResponse> DeleteCollectionPR(CollectionIdMessage request, ServerCallContext context)
+        public override async Task<BoolResponse> DeleteCollectionPR(CollectionIdMessage request,
+            ServerCallContext context)
         {
             return new BoolResponse
             {
-                Value = await _context.PartiallyReplicatedImageCollectionsRegistry.TryRemoveCollectionAsync(CollectionId.Parse(request.Id),
+                Value = await _context.PartiallyReplicatedImageCollectionsRegistry.TryRemoveCollectionAsync(
+                    CollectionId.Parse(request.Id),
                     cancellationToken: context.CancellationToken)
             };
         }
 
         /// <inheritdoc />
-        public override async Task<BoolResponse> ImagesCollectionExists(CollectionIdMessage request, ServerCallContext context) =>
+        public override async Task<BoolResponse> ImagesCollectionExists(CollectionIdMessage request,
+            ServerCallContext context) =>
             new()
             {
                 Value = _context.ImageCollectionsRegistry.TryGetValue(CollectionId.Parse(request.Id), out _)
             };
 
         /// <inheritdoc />
-        public override async Task<BoolResponse> ImagesCollectionExistsPR(CollectionIdMessage request, ServerCallContext context) =>
+        public override async Task<BoolResponse> ImagesCollectionExistsPR(CollectionIdMessage request,
+            ServerCallContext context) =>
             new()
             {
                 Value = _context.PartiallyReplicatedImageCollectionsRegistry
                     .CollectionExists(CollectionId.Parse(request.Id))
             };
 
-        private static void ThrowNotFound(string details) => throw new RpcException(new Status(StatusCode.NotFound, details));
+        private static void ThrowNotFound(string details) =>
+            throw new RpcException(new Status(StatusCode.NotFound, details));
 
         public override async Task<UserResponse> CreateUser(UserCreateRequest request, ServerCallContext context)
         {
@@ -269,7 +294,7 @@ namespace Nyris.Crdt.AspNetExample.Services
 
             var id = Guid.NewGuid();
             var user = new User(id, request.FirstName, request.LastName);
-            await _context.UserObservedRemoveSet.AddAsync(user, _thisNodeId);
+            await _context.UserObservedRemoveSet.AddAsync(user);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} ending", request.TraceId, nameof(CreateUser));
 
@@ -286,7 +311,8 @@ namespace Nyris.Crdt.AspNetExample.Services
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(GetUser));
 
-            var (id, firstName, lastName) = _context.UserObservedRemoveSet.Value.First(u => u.Id.ToString() == request.Id);
+            var (id, firstName, lastName) =
+                _context.UserObservedRemoveSet.Value.First(u => u.Id.ToString() == request.Id);
 
             _logger.LogDebug("TraceId {TraceId}: {FuncName} ending", request.TraceId, nameof(GetUser));
 
@@ -334,7 +360,8 @@ namespace Nyris.Crdt.AspNetExample.Services
             };
         }
 
-        public override async Task<UsersDeleteResponse> DeleteAllUsers(UsersDeleteRequest request, ServerCallContext context)
+        public override async Task<UsersDeleteResponse> DeleteAllUsers(UsersDeleteRequest request,
+            ServerCallContext context)
         {
             _logger.LogDebug("TraceId {TraceId}: {FuncName} starting", request.TraceId, nameof(DeleteAllUsers));
 

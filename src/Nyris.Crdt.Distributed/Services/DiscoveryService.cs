@@ -81,7 +81,7 @@ namespace Nyris.Crdt.Distributed.Services
         {
             _logger.LogDebug("{ServiceName} executing", nameof(DiscoveryService<TGrpcService>));
 
-            await _context.Nodes.AddAsync(_thisNode, _thisNode.Id);
+            await _context.Nodes.AddAsync(_thisNode);
             await foreach (var (address, name) in GetAllUris(cancellationToken))
             {
                 try
@@ -115,8 +115,9 @@ namespace Nyris.Crdt.Distributed.Services
                 dto, ShortGuid.Encode(Guid.NewGuid()));
             var response = await proxy.SendAsync(msg);
 
-            _logger.LogDebug("Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
-                name, response.Items?.Count, response.ObservedState?.Count);
+            _logger.LogDebug(
+                "Received a NodeSet dto from {NodeName} with {ItemCount} items and {NodeCount} known nodes",
+                name, response.Items?.Count, response.VersionVectors?.Count);
 
             await _context.MergeAsync<NodeSet, NodeSet.NodeSetDto>(response, _context.Nodes.InstanceId);
 
@@ -136,7 +137,8 @@ namespace Nyris.Crdt.Distributed.Services
                 {
                     if (set.Contains(address)) continue;
 
-                    _logger.LogInformation("Strategy yielded candidate {NodeCandidateName} at address '{NodeCandidateAddress}'",
+                    _logger.LogInformation(
+                        "Strategy yielded candidate {NodeCandidateName} at address '{NodeCandidateAddress}'",
                         address.Name, address.Address);
 
                     set.Add(address);
@@ -144,7 +146,7 @@ namespace Nyris.Crdt.Distributed.Services
                 }
             }
 
-            if (!set.Any())
+            if (set.Count == 0)
                 _logger.LogWarning(
                     "Discovery strategies yielded no node candidates. Did you add discovery strategies?");
         }

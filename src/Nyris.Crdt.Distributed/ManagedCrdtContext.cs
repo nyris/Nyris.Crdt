@@ -14,6 +14,7 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Model;
 using Nyris.Extensions.Guids;
 
 namespace Nyris.Crdt.Distributed
@@ -24,17 +25,21 @@ namespace Nyris.Crdt.Distributed
         private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashable> _sameManagedCrdts = new();
         private readonly ConcurrentDictionary<Type, HashSet<TypeNameAndInstanceId>> _typeToTypeNameMapping = new();
 
-        private readonly ConcurrentDictionary<TypeNameAndInstanceId, INodesWithReplicaProvider> _partiallyReplicated = new();
-        private readonly ConcurrentDictionary<TypeNameAndInstanceId, ICreateAndDeleteManagedCrdtsInside> _holders = new();
+        private readonly ConcurrentDictionary<TypeNameAndInstanceId, INodesWithReplicaProvider> _partiallyReplicated =
+            new();
+
+        private readonly ConcurrentDictionary<TypeNameAndInstanceId, ICreateAndDeleteManagedCrdtsInside> _holders =
+            new();
 
         protected readonly ILogger<ManagedCrdtContext>? Logger;
 
         internal NodeSet Nodes { get; }
 
-        protected ManagedCrdtContext(ILogger<ManagedCrdtContext>? logger = null, NodeSet? nodes = null)
+        protected ManagedCrdtContext(NodeInfo nodeInfo, ILogger<ManagedCrdtContext>? logger = null,
+            NodeSet? nodes = null)
         {
             Logger = logger;
-            Nodes = nodes ?? new(new InstanceId("nodes_internal"));
+            Nodes = nodes ?? new(new InstanceId("nodes_internal"), nodeInfo);
             Add<NodeSet, NodeSet.NodeSetDto>(Nodes);
         }
 
@@ -139,9 +144,10 @@ namespace Nyris.Crdt.Distributed
         {
             if (!TryGetCrdt<TCrdt, TDto>(instanceId, out var crdt))
             {
-                throw new ManagedCrdtContextSetupException($"TraceId {traceId}: Merging dto of type {typeof(TDto)} with id {instanceId} " +
-                                                           "failed. Check that you Add-ed appropriate managed crdt type and " +
-                                                           "that instanceId of that type is coordinated across servers");
+                throw new ManagedCrdtContextSetupException(
+                    $"TraceId {traceId}: Merging dto of type {typeof(TDto)} with id {instanceId} " +
+                    "failed. Check that you Add-ed appropriate managed crdt type and " +
+                    "that instanceId of that type is coordinated across servers");
             }
 
             var mergeResult = await crdt.MergeAsync(dto, cancellationToken);
@@ -154,6 +160,7 @@ namespace Nyris.Crdt.Distributed
                     traceId: traceId,
                     cancellationToken: cancellationToken);
             }
+
             return await crdt.ToDtoAsync(cancellationToken);
         }
 
@@ -184,7 +191,7 @@ namespace Nyris.Crdt.Distributed
                 TCollectionFactory>
             where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
             where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
-                IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
+            IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
             where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()
             where TCollectionOperationBase : Operation, ISelectShards
             where TCollectionOperationResponseBase : OperationResponse
@@ -201,10 +208,11 @@ namespace Nyris.Crdt.Distributed
                         TCollectionOperationResponseBase,
                         TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>(instanceId, out var crdt))
             {
-                throw new ManagedCrdtContextSetupException($"Applying operation of type {typeof(TCollectionOperationBase)} " +
-                                                           $"to crdt {typeof(TCrdt)} with id {instanceId} failed. " +
-                                                           "Check that you Add-ed appropriate partially replicated crdt type and " +
-                                                           "that instanceId of that type is coordinated across servers");
+                throw new ManagedCrdtContextSetupException(
+                    $"Applying operation of type {typeof(TCollectionOperationBase)} " +
+                    $"to crdt {typeof(TCrdt)} with id {instanceId} failed. " +
+                    "Check that you Add-ed appropriate partially replicated crdt type and " +
+                    "that instanceId of that type is coordinated across servers");
             }
 
             return crdt.ApplyAsync<TCollectionOperation, TCollectionOperationResponse>(key,
@@ -240,7 +248,7 @@ namespace Nyris.Crdt.Distributed
                 TCollectionFactory>
             where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
             where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
-                IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
+            IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
             where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()
             where TCollectionOperationBase : Operation, ISelectShards
             where TCollectionOperationResponseBase : OperationResponse
@@ -257,10 +265,11 @@ namespace Nyris.Crdt.Distributed
                         TCollectionOperationResponseBase,
                         TCollectionFactory>.PartiallyReplicatedCrdtRegistryDto>(instanceId, out var crdt))
             {
-                throw new ManagedCrdtContextSetupException($"Applying operation of type {typeof(TCollectionOperationBase)} " +
-                                                           $"to crdt {typeof(TCrdt)} with id {instanceId} failed. " +
-                                                           "Check that you Add-ed appropriate partially replicated crdt type and " +
-                                                           "that instanceId of that type is coordinated across servers");
+                throw new ManagedCrdtContextSetupException(
+                    $"Applying operation of type {typeof(TCollectionOperationBase)} " +
+                    $"to crdt {typeof(TCrdt)} with id {instanceId} failed. " +
+                    "Check that you Add-ed appropriate partially replicated crdt type and " +
+                    "that instanceId of that type is coordinated across servers");
             }
 
             return crdt.ApplyToSingleShardAsync<TCollectionOperation, TCollectionOperationResponse>(shardId,
@@ -281,11 +290,12 @@ namespace Nyris.Crdt.Distributed
         {
             if (!_sameManagedCrdts.TryGetValue(typeNameAndInstanceId, out var crdt))
             {
-                throw new ManagedCrdtContextSetupException($"Checking hash for Crdt named {typeNameAndInstanceId.TypeName} " +
-                                                           $"with id {typeNameAndInstanceId.InstanceId} failed - " +
-                                                           "Crdt not found in the managed context. Check that you " +
-                                                           "Add-ed appropriate managed crdt type and that instanceId " +
-                                                           "of that type is coordinated across servers");
+                throw new ManagedCrdtContextSetupException(
+                    $"Checking hash for Crdt named {typeNameAndInstanceId.TypeName} " +
+                    $"with id {typeNameAndInstanceId.InstanceId} failed - " +
+                    "Crdt not found in the managed context. Check that you " +
+                    "Add-ed appropriate managed crdt type and that instanceId " +
+                    "of that type is coordinated across servers");
             }
 
             return crdt.CalculateHash().SequenceEqual(hash);
@@ -304,8 +314,9 @@ namespace Nyris.Crdt.Distributed
 
             if (crdtObject is not IAsyncDtoBatchProvider<TDto> batchProvider)
             {
-                throw new ManagedCrdtContextSetupException($"Internal error: Crdt of type {crdtObject.GetType()} does " +
-                                                           "not implement IAsyncDtoBatchProvider. This should not happen.");
+                throw new ManagedCrdtContextSetupException(
+                    $"Internal error: Crdt of type {crdtObject.GetType()} does " +
+                    "not implement IAsyncDtoBatchProvider. This should not happen.");
             }
 
             await foreach (var dto in batchProvider.EnumerateDtoBatchesAsync(cancellationToken))
@@ -318,7 +329,8 @@ namespace Nyris.Crdt.Distributed
         {
             if (_partiallyReplicated.TryGetValue(nameAndInstanceId, out var nodesWithReplicasProvider))
             {
-                return nodesWithReplicasProvider.GetNodesThatShouldHaveReplicaOfCollection(nameAndInstanceId.InstanceId);
+                return nodesWithReplicasProvider
+                    .GetNodesThatShouldHaveReplicaOfCollection(nameAndInstanceId.InstanceId);
             }
 
             return Nodes.Value;

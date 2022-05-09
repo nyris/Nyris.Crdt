@@ -68,8 +68,7 @@ namespace Nyris.Crdt.Distributed.Services
             private int _failures = 0;
 
             /// <inheritdoc />
-            public FailureInterceptor(ConcurrentDictionary<NodeId, GrpcChannel> channels,
-                ManagedCrdtContext context,
+            public FailureInterceptor(ConcurrentDictionary<NodeId, GrpcChannel> channels, ManagedCrdtContext context,
                 ConcurrentDictionary<NodeId, TGrpcService> grpcClients, NodeId nodeId)
 
             {
@@ -120,5 +119,5 @@ namespace Nyris.Crdt.Distributed.Services
                 await (_channels.TryRemove(_nodeId, out var channel) ? channel.ShutdownAsync() : Task.CompletedTask);
             }
         }
-	}
+    }
 }

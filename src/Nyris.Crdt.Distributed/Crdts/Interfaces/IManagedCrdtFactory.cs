@@ -3,9 +3,15 @@ using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts.Interfaces
 {
-    public interface IManagedCRDTFactory<out TCRDT, in TDto>
-        where TCRDT : ManagedCRDT<TDto>
+    public interface IManagedCRDTFactory<out TCrdt, in TDto>
+        where TCrdt : ManagedCRDT<TDto>
     {
-        TCRDT Create(InstanceId instanceId);
+        TCrdt Create(InstanceId instanceId);
+    }
+
+    public interface INodeAwareManagedCrdtFactory<out TCrdt, in TDto>
+        where TCrdt : ManagedCRDT<TDto>
+    {
+        TCrdt Create(InstanceId instanceId, NodeInfo nodeInfo);
     }
 }

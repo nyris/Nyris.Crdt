@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
+using Nyris.Crdt.Model;
 using Nyris.Extensions.Guids;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions
@@ -20,8 +21,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
     ///     It is used without referencing the type directly (or project at all) in the SourceGenerator project as const string.
     /// </remarks>
     /// <typeparam name="TDto">It's a dto type, that is used as a data contract for grpc
-    /// communication. So it should be properly annotated with <see cref="ProtoContract"/>
-    /// and <see cref="ProtoMember"/>.</typeparam>
+    /// communication. So it should be properly annotated with <see cref="ProtoBuf.ProtoContractAttribute"/>
+    /// and <see cref="ProtoBuf.ProtoContractAttribute"/>.</typeparam>
     public abstract class ManagedCRDT<TDto>
         : IAsyncCRDT<TDto>, IAsyncDtoBatchProvider<TDto>, IHashable
     {
@@ -30,7 +31,6 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         private string? _typeName;
         private readonly ConcurrentBag<IReactToOtherCrdtChange> _dependentCrdts = new();
         private readonly ILogger? _logger;
-        private readonly NodeInfo? _thisNode;
 
         /// <summary>
         /// Constructor.
@@ -41,13 +41,11 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         /// distinguish which instance was updated. </param>
         /// <param name="queueProvider"></param>
         /// <param name="logger"></param>
-        /// <param name="thisNode"></param>
-        protected ManagedCRDT(InstanceId instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null, NodeInfo? thisNode = null)
+        protected ManagedCRDT(InstanceId instanceId, IAsyncQueueProvider? queueProvider = null, ILogger? logger = null)
         {
             _queue = (queueProvider ?? DefaultConfiguration.QueueProvider).GetQueue<TDto>(GetType());
             InstanceId = instanceId;
             _logger = logger;
-            _thisNode = thisNode;
         }
 
         internal string TypeName
@@ -75,15 +73,13 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions
         protected internal virtual async Task StateChangedAsync(uint propagateToNodes = 0,
             bool fromMerge = false,
             string? traceId = null,
-            CancellationToken cancellationToken = default, IEnumerable<NodeId>? targetNodes = null)
+            CancellationToken cancellationToken = default)
         {
             var dtoMessage = new DtoMessage<TDto>(TypeName,
                 InstanceId,
                 await ToDtoAsync(cancellationToken),
                 traceId ?? ShortGuid.Encode(Guid.NewGuid()),
-                propagateToNodes,
-                targetNodes,
-                _thisNode?.Id);
+                propagateToNodes);
 
             // _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
             var enqueueTask = _queue.EnqueueAsync(dtoMessage, cancellationToken);
