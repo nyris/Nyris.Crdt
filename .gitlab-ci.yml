@@ -54,6 +54,7 @@ Version:
     expire_in: 1 week
     paths:
       - publish/
+      - nugets/
 
 Build:
   extends: .build
