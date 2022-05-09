@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -10,189 +10,196 @@ using Microsoft.CodeAnalysis.Text;
 using Nyris.Crdt.Distributed.SourceGenerators.Model;
 using Scriban;
 
-namespace Nyris.Crdt.Distributed.SourceGenerators
+
+namespace Nyris.Crdt.Distributed.SourceGenerators;
+
+/// <summary>
+/// Some useful resources:
+///  - https://www.meziantou.net/working-with-types-in-a-roslyn-analyzer.htm
+/// </summary>
+[Generator]
+public class ManagedCrdtServiceGenerator : IIncrementalGenerator
 {
-    /// <summary>
-    /// Some useful resources:
-    ///  - https://www.meziantou.net/working-with-types-in-a-roslyn-analyzer.htm
-    /// </summary>
-    [Generator]
-    public class ManagedCrdtServiceGenerator : ISourceGenerator
+    // TODO: currently it does not seem possible to reference another project from source generator project, fix when possible
+    private const string ManagedCrdtTypeName = "ManagedCRDT";
+    private const string PartiallyReplicatedCrdtRegistryTypeName = "PartiallyReplicatedCRDTRegistry";
+
+    private static Lazy<IEnumerable<(Template, string)>> Templates { get; } = new(EnumerateTemplates);
+
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // TODO: currently it does not seem possible to reference another project from source generator project, fix when possible
-        private const string ManagedCRDTTypeName = "ManagedCRDT";
-        private const string PartiallyReplicatedCRDTRegistryTypeName = "PartiallyReplicatedCRDTRegistry";
-        private const string OperationBaseClassMetadataName = "Nyris.Crdt.Distributed.Crdts.Operations.Operation`1";
-        private const string OperationBaseClass = "Operation";
+        var classCandidatesProvider =
+            context.SyntaxProvider.CreateSyntaxProvider(
+                (syntaxNode, _) =>
+                    syntaxNode is ClassDeclarationSyntax { BaseList: { } },
+                (syntaxContext, _) => (ClassDeclarationSyntax) syntaxContext.Node);
+        var recordCandidatesProvider =
+            context.SyntaxProvider.CreateSyntaxProvider(
+                (syntaxNode, _) => syntaxNode is RecordDeclarationSyntax { BaseList: { } },
+                (syntaxContext, _) => (RecordDeclarationSyntax) syntaxContext.Node);
 
-        private readonly StringBuilder _log = new("/*");
 
-        private static Lazy<IEnumerable<(Template, string)>> Templates { get; } = new(EnumerateTemplates);
+        var candidates = classCandidatesProvider.Combine(recordCandidatesProvider.Collect());
 
-        /// <inheritdoc />
-        public void Initialize(GeneratorInitializationContext context)
+        var candidatesWithCompilationProvider = context.CompilationProvider.Combine(candidates.Collect());
+
+        context.RegisterSourceOutput(candidatesWithCompilationProvider, Execute);
+    }
+
+    private void Execute(SourceProductionContext context,
+        (Compilation compilation, ImmutableArray<(ClassDeclarationSyntax, ImmutableArray<RecordDeclarationSyntax>)> syntaxs) tuple)
+    {
+        var candidates = AnalyzeCandidatesForManagedCrdts(tuple);
+        var (crdtInfos, operationInfos) = candidates;
+
+        foreach (var (template, templateFileName) in Templates.Value)
         {
-            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
-        }
-
-        /// <inheritdoc />
-        public void Execute(GeneratorExecutionContext context)
-        {
-            if (context.SyntaxReceiver is not SyntaxReceiver receiver) return;
-
-            AnalyzeCandidatesForManagedCrdts(context,
-                receiver.ManagedCrdtCandidates,
-                receiver.OperationCandidates,
-                out var crdtInfos,
-                out var operationInfos);
-
-            foreach (var (template, templateFileName) in Templates.Value)
+            var source = template.Render(new
             {
-                var text = template.Render(new
-                {
-                    DtoInfos = crdtInfos
-                        .GroupBy(i => i.DtoTypeName)
-                        .Select(group => new DtoInfo(group.Key,
-                            group.Select(i => new TypeWithArguments(i.CrdtTypeName, i.AllArgumentsString)).ToList()))
-                        .ToList(),
-                    OperationInfos = operationInfos
-                }, member => member.Name);
-                var source = SourceText.From(text, Encoding.UTF8);
-                context.AddSource(templateFileName.Replace("Template.sbntxt", ".generated.cs"), source);
-            }
+                DtoInfos = crdtInfos
+                    .GroupBy(i => i.DtoTypeName)
+                    .Select(group => new DtoInfo(group.Key,
+                        group.Select(i => new TypeWithArguments(i.CrdtTypeName, i.AllArgumentsString)).ToList()))
+                    .ToList(),
+                OperationInfos = operationInfos
+            }, member => member.Name);
 
-            _log.AppendLine("*/");
-            // _log.Clear();
-            context.AddSource("Logs", SourceText.From(_log.ToString(), Encoding.UTF8));
+            context.AddSource(templateFileName.Replace("Template.sbntxt", ".g.cs"),
+                SourceText.From(source, Encoding.UTF8));
         }
+    }
 
-        private static IEnumerable<(Template, string)> EnumerateTemplates()
+    private static IEnumerable<(Template, string)> EnumerateTemplates()
+    {
+        return new[]
         {
-            foreach (var templateFileName in new[]
-                     {
-                         "ManagedCrdtServiceTemplate.sbntxt",
-                         "IManagedCrdtServiceTemplate.sbntxt",
-                         "ServiceCollectionExtensionsTemplate.sbntxt"
-                     })
-            {
-                yield return (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
-                    templateFileName);
-            }
-        }
+            "ManagedCrdtServiceTemplate.sbntxt",
+            "IManagedCrdtServiceTemplate.sbntxt",
+            "ServiceCollectionExtensionsTemplate.sbntxt"
+        }.Select(templateFileName => (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
+            templateFileName));
+    }
 
-        private void AnalyzeCandidatesForManagedCrdts(GeneratorExecutionContext context,
-            IEnumerable<ClassDeclarationSyntax> candidates,
-            IEnumerable<RecordDeclarationSyntax> operationCandidates,
-            out List<CrdtInfo> crdtInfos,
-            out HashSet<RoutedOperationInfo> operationInfos)
+    private (HashSet<CrdtInfo>, ImmutableArray<RoutedOperationInfo>) AnalyzeCandidatesForManagedCrdts(
+        (Compilation compilation, ImmutableArray<(ClassDeclarationSyntax, ImmutableArray<RecordDeclarationSyntax>)> syntaxs) tuple)
+    {
+        var compilation = tuple.compilation;
+        var crdtInfos = new HashSet<CrdtInfo>();
+        var operationInfos = new ImmutableArray<RoutedOperationInfo>();
+        var foundTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
+        foreach (var (classes, records) in tuple.syntaxs)
         {
-            crdtInfos = new List<CrdtInfo>();
-            operationInfos = new HashSet<RoutedOperationInfo>();
+            var candidateClasses = records.CastArray<TypeDeclarationSyntax>().Add(classes);
 
             // process predefined internal crdts
-            var nodeSet = context.Compilation.GetTypeByMetadataName("Nyris.Crdt.Distributed.Crdts.NodeSet");
-            if (!TryGetCrdtInfo(nodeSet, out var crdtInfo, out _))
+            var nodeSet = compilation.GetTypeByMetadataName("Nyris.Crdt.Distributed.Crdts.NodeSet");
+
+            foundTypes.Add(nodeSet);
+
+            if (TryGetCrdtInfo(nodeSet, out var internalCrdtInfo, out operationInfos) && internalCrdtInfo is not null)
             {
-                _log.AppendLine(
-                    "Something went wrong - could not get crdtInfo of a known class Nyris.Crdt.Distributed.Crdts.NodeSet");
+                crdtInfos.Add(internalCrdtInfo);
             }
 
-            crdtInfos.Add(crdtInfo);
-
-            // process user-defined crdts
-            foreach (var candidateClass in candidates)
+            foreach (var candidateClass in candidateClasses)
             {
-                _log.AppendLine("Analysing class: " + candidateClass.Identifier.ToFullString());
-                var namedTypeSymbol = context.Compilation.GetSemanticModel(candidateClass.SyntaxTree)
+                var classSemanticModel = compilation.GetSemanticModel(candidateClass.SyntaxTree);
+                var symbol = classSemanticModel.GetDeclaredSymbol(candidateClass);
+
+                if (symbol is null || foundTypes.Contains(symbol))
+                {
+                    // NOTE: Ignore Type already processed
+                    continue;
+                }
+
+                foundTypes.Add(symbol);
+
+                // process user-defined crdts
+                var namedTypeSymbol = compilation.GetSemanticModel(candidateClass.SyntaxTree)
                     .GetDeclaredSymbol(candidateClass);
                 if (namedTypeSymbol == null)
                 {
-                    _log.AppendLine("Something went wrong - semantic model did not produce an INamedTypeSymbol");
-                    continue;
+                    return (crdtInfos, operationInfos);
                 }
 
                 if (namedTypeSymbol.IsGenericType)
                 {
-                    _log.AppendLine("Class is generic - skipping");
-                    continue;
+                    return (crdtInfos, operationInfos);
                 }
 
-                if (!TryGetCrdtInfo(namedTypeSymbol, out crdtInfo, out var operations)) continue;
+                if (!TryGetCrdtInfo(namedTypeSymbol, out var crdtInfo, out var operations)) return (crdtInfos, operationInfos);
 
-                foreach (var operation in operations)
+                if (crdtInfo is not null && !crdtInfos.Contains(crdtInfo))
                 {
-                    operationInfos.Add(operation);
+                    crdtInfos.Add(crdtInfo);
                 }
 
-                crdtInfos.Add(crdtInfo);
+                operationInfos = Enumerable.Aggregate(operations, operationInfos, (current, operation) => current.Add(operation));
             }
         }
 
-        /// <summary>
-        /// Checks symbols inheritance chain and return required info if it is a descendent of ManagedCrdt
-        /// </summary>
-        /// <param name="symbol"></param>
-        /// <param name="crdtInfo"></param>
-        /// <param name="operations"></param>
-        /// <returns>True if symbol is a managedCrdt, false otherwise</returns>
-        private bool TryGetCrdtInfo(INamedTypeSymbol symbol,
-            [NotNullWhen(true)] out CrdtInfo crdtInfo,
-            out IEnumerable<RoutedOperationInfo> operations)
+        return (crdtInfos, operationInfos);
+    }
+
+    /// <summary>
+    /// Checks symbols inheritance chain and return required info if it is a descendent of ManagedCrdt
+    /// </summary>
+    /// <param name="symbol"></param>
+    /// <param name="crdtInfo"></param>
+    /// <param name="operations"></param>
+    /// <returns>True if symbol is a managedCrdt, false otherwise</returns>
+    private static bool TryGetCrdtInfo(ITypeSymbol symbol,
+        out CrdtInfo crdtInfo,
+        out ImmutableArray<RoutedOperationInfo> operations)
+    {
+        var current = symbol.BaseType;
+        var operationInfos = Enumerable.Empty<RoutedOperationInfo>();
+
+        while (current != null && current.ToDisplayString() != "object")
         {
-            var current = symbol.BaseType;
-            var operationInfos = (IEnumerable<RoutedOperationInfo>)ArraySegment<RoutedOperationInfo>.Empty;
-
-            while (current != null && current.ToDisplayString() != "object")
+            if (current.Name == PartiallyReplicatedCrdtRegistryTypeName)
             {
-                if (current.Name == PartiallyReplicatedCRDTRegistryTypeName)
-                {
-                    var keyType = current.TypeArguments[0];
+                var keyType = current.TypeArguments[0];
 
-                    _log.AppendLine(
-                        $"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
-                        "Generated gRPC service will include methods for applying its operations.");
+                var crdtTypeParams = string.Join(", ", current.TypeArguments.Select(s => s.ToDisplayString()));
 
-                    var crdtTypeParams = string.Join(", ", current.TypeArguments.Select(s => s.ToDisplayString()));
+                // get attributes of symbol
+                // get type arguments of constructor
 
-                    // get attributes of symbol
-                    // get type arguments of constructor
+                operationInfos = symbol.GetAttributes()
+                    .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
+                    .Select(attr =>
+                    {
+                        var operationConcreteType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
+                        var operationResponseConcreteType = attr.ConstructorArguments[1].Value as INamedTypeSymbol;
 
-                    operationInfos = symbol.GetAttributes()
-                        .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
-                        .Select(attr =>
-                        {
-                            var operationConcreteType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
-                            var operationResponseConcreteType = attr.ConstructorArguments[1].Value as INamedTypeSymbol;
-
-                            return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
-                                operationResponseConcreteType?.ToDisplayString(),
-                                keyType.ToDisplayString(),
-                                $"{symbol.ToDisplayString()}, {crdtTypeParams}");
-                        });
-                }
-
-                if (current.Name == ManagedCRDTTypeName)
-                {
-                    _log.AppendLine($"Class {symbol.Name} determined to be a ManagedCRDT. " +
-                                    "Generated gRPC service will include transport operations for it's dto");
-                    var allArgumentsString = string.Join(", ",
-                        current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
-                    var dtoString = current.TypeArguments.Last().ToDisplayString();
-
-                    crdtInfo = new CrdtInfo(
-                        CrdtTypeName: symbol.ToDisplayString(),
-                        AllArgumentsString: allArgumentsString,
-                        DtoTypeName: dtoString);
-                    operations = operationInfos;
-                    return true;
-                }
-
-                current = current.BaseType;
+                        return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
+                            operationResponseConcreteType?.ToDisplayString(),
+                            keyType.ToDisplayString(),
+                            $"{symbol.ToDisplayString()}, {crdtTypeParams}");
+                    });
             }
 
-            crdtInfo = null;
-            operations = operationInfos;
-            return false;
+            if (current.Name == ManagedCrdtTypeName)
+            {
+                var allArgumentsString = string.Join(", ",
+                    current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
+                var dtoString = current.TypeArguments.Last().ToDisplayString();
+
+                crdtInfo = new CrdtInfo(
+                    CrdtTypeName: symbol.ToDisplayString(),
+                    AllArgumentsString: allArgumentsString,
+                    DtoTypeName: dtoString);
+                operations = operationInfos.ToImmutableArray();
+                return true;
+            }
+
+            current = current.BaseType;
         }
+
+        crdtInfo = null;
+        operations = operationInfos.ToImmutableArray();
+        return false;
     }
 }
