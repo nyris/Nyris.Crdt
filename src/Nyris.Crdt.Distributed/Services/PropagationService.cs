@@ -1,8 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
@@ -10,6 +5,11 @@ using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Strategies.Propagation;
 using Nyris.Crdt.Distributed.Utils;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace Nyris.Crdt.Distributed.Services
 {
@@ -25,13 +25,15 @@ namespace Nyris.Crdt.Distributed.Services
         private readonly IHostApplicationLifetime _lifetime;
 
         /// <inheritdoc />
-        public PropagationService(ManagedCrdtContext context,
+        public PropagationService(
+            ManagedCrdtContext context,
             IPropagationStrategy propagationStrategy,
             IChannelManager channelManager,
             IAsyncQueueProvider queueProvider,
             NodeInfo thisNode,
             IHostApplicationLifetime lifetime,
-            ILogger<PropagationService<TCrdt, TDto>> logger)
+            ILogger<PropagationService<TCrdt, TDto>> logger
+        )
         {
             _context = context;
             _propagationStrategy = propagationStrategy;
@@ -47,7 +49,7 @@ namespace Nyris.Crdt.Distributed.Services
         {
             var queue = _queueProvider.GetQueue<TDto>(typeof(TCrdt));
             _logger.LogInformation("Consuming dto queue for crdt '{CrdtType}' with dto type '{DtoType}'",
-                typeof(TCrdt), typeof(TDto));
+                                   typeof(TCrdt), typeof(TDto));
 
             // Length of the array specifies how many tasks can be executed in parallel
             var tasks = new Task[4];
@@ -65,8 +67,10 @@ namespace Nyris.Crdt.Distributed.Services
                 // await first finished task, add new one in it's place
                 var nextTaskPlace = await completionBuffer.ReceiveAsync(stoppingToken);
                 tasks[nextTaskPlace] = ProcessDtoMessage(dto, stoppingToken).ContinueWith(
-                    _ => { completionBuffer.Post(nextTaskPlace); }, stoppingToken,
-                    TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Current);
+                                                                                          _ => { completionBuffer.Post(nextTaskPlace); },
+                                                                                          stoppingToken,
+                                                                                          TaskContinuationOptions.ExecuteSynchronously,
+                                                                                          TaskScheduler.Current);
             }
 
             _logger.LogError("Queue in {ServiceName} finished enumerating, which is unexpected", GetType().Name);
@@ -78,8 +82,8 @@ namespace Nyris.Crdt.Distributed.Services
             try
             {
                 var nodesWithReplica = _context
-                    .GetNodesThatHaveReplica(new TypeNameAndInstanceId(dto.TypeName, dto.InstanceId))
-                    .ToList();
+                                       .GetNodesThatHaveReplica(new TypeNameAndInstanceId(dto.TypeName, dto.InstanceId))
+                                       .ToList();
 
                 // _logger.LogDebug("TraceId: {TraceId}, context yielded the following nodes with replica: {Nodes}",
                 //     dto.TraceId, string.Join("; ", nodesWithReplica.Select(ni => $"{ni.Id}:{ni.Address}")));
@@ -98,10 +102,10 @@ namespace Nyris.Crdt.Distributed.Services
                     //     dto.TraceId, JsonConvert.SerializeObject(response));
 
                     await _context.MergeAsync<TCrdt, TDto>(response,
-                        dto.InstanceId,
-                        traceId: dto.TraceId,
-                        allowPropagation: false,
-                        cancellationToken: cancellationToken);
+                                                           dto.InstanceId,
+                                                           traceId: dto.TraceId,
+                                                           allowPropagation: false,
+                                                           cancellationToken: cancellationToken);
                 }
             }
             catch (Exception e)

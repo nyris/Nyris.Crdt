@@ -1,7 +1,7 @@
-using System;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Model;
 using ProtoBuf;
+using System;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {

@@ -18,8 +18,8 @@ namespace Nyris.Crdt.Sets
         private readonly Dictionary<TItem, DateTime> _removeSet = new();
 
         public HashSet<TItem> Set => _addSet.Keys
-            .Where(item => !_removeSet.ContainsKey(item) || _addSet[item] >= _removeSet[item])
-            .ToHashSet();
+                                            .Where(item => !_removeSet.ContainsKey(item) || _addSet[item] >= _removeSet[item])
+                                            .ToHashSet();
 
         public void Merge(LastWriterWinsSet<TItem> other)
         {

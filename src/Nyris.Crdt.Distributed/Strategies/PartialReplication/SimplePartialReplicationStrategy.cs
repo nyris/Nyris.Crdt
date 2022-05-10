@@ -1,7 +1,7 @@
+using Nyris.Crdt.Distributed.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Strategies.PartialReplication
 {

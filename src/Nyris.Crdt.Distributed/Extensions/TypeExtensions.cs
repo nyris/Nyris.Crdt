@@ -12,7 +12,7 @@ namespace Nyris.Crdt.Distributed.Extensions
             if (generic.IsInterface)
             {
                 return toCheck.GetInterfaces()
-                    .Any(x => generic == (x.IsGenericType ? x.GetGenericTypeDefinition() : x));
+                              .Any(x => generic == (x.IsGenericType ? x.GetGenericTypeDefinition() : x));
             }
 
             while (toCheck != null && toCheck != typeof(object))

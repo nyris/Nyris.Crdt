@@ -1,7 +1,7 @@
-﻿using System;
+﻿using Nyris.Crdt.Model;
+using System;
 using System.Security.Cryptography;
 using System.Text;
-using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Test.Unit.Helpers;
 

@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
+using System.Collections.Generic;
 
 namespace Nyris.Crdt.Distributed.Test.Unit.Helpers;
 

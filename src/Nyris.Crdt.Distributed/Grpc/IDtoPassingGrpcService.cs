@@ -1,9 +1,9 @@
+using Nyris.Crdt.Distributed.Model;
+using ProtoBuf.Grpc;
 using System.Collections.Generic;
 using System.ServiceModel;
 using System.Threading;
 using System.Threading.Tasks;
-using Nyris.Crdt.Distributed.Model;
-using ProtoBuf.Grpc;
 
 namespace Nyris.Crdt.Distributed.Grpc
 {
@@ -16,6 +16,4 @@ namespace Nyris.Crdt.Distributed.Grpc
         [OperationContract]
         IAsyncEnumerable<TDto> EnumerateCrdtAsync(IAsyncEnumerable<TDto> dtos, CallContext context = default);
     }
-
-
 }

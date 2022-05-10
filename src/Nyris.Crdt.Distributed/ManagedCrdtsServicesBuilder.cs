@@ -1,40 +1,39 @@
-using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Nyris.Crdt.Distributed.Strategies.Discovery;
+using System;
+using System.Collections.Generic;
 
-namespace Nyris.Crdt.Distributed
+namespace Nyris.Crdt.Distributed;
+
+public sealed class ManagedCrdtsServicesBuilder
 {
-    public sealed class ManagedCrdtsServicesBuilder
+    private readonly IServiceCollection _services;
+
+    public ManagedCrdtsServicesBuilder(IServiceCollection services)
     {
-        private readonly IServiceCollection _services;
+        _services = services;
+    }
 
-        public ManagedCrdtsServicesBuilder(IServiceCollection services)
+    public ManagedCrdtsServicesBuilder WithKubernetesDiscovery(
+        Action<KubernetesDiscoveryPodSelectionOptions> configureOptions
+    )
+    {
+        var options = new KubernetesDiscoveryPodSelectionOptions();
+        configureOptions(options);
+
+        _services.AddSingleton(options);
+        _services.AddSingleton<IDiscoveryStrategy, KubernetesDiscoveryStrategy>();
+        return this;
+    }
+
+    public ManagedCrdtsServicesBuilder WithAddressListDiscovery(IReadOnlyCollection<Uri>? addresses)
+    {
+        if (addresses != null)
         {
-            _services = services;
+            _services.AddSingleton<IDiscoveryStrategy, AddressListDiscoveryStrategy>(_ =>
+                                                                                         new AddressListDiscoveryStrategy(addresses));
         }
 
-        public ManagedCrdtsServicesBuilder WithKubernetesDiscovery(
-            Action<KubernetesDiscoveryPodSelectionOptions> configureOptions
-        )
-        {
-            var options = new KubernetesDiscoveryPodSelectionOptions();
-            configureOptions(options);
-
-            _services.AddSingleton(options);
-            _services.AddSingleton<IDiscoveryStrategy, KubernetesDiscoveryStrategy>();
-            return this;
-        }
-
-        public ManagedCrdtsServicesBuilder WithAddressListDiscovery(IReadOnlyCollection<Uri>? addresses)
-        {
-            if (addresses != null)
-            {
-                _services.AddSingleton<IDiscoveryStrategy, AddressListDiscoveryStrategy>(_ =>
-                                                                                             new AddressListDiscoveryStrategy(addresses));
-            }
-
-            return this;
-        }
+        return this;
     }
 }

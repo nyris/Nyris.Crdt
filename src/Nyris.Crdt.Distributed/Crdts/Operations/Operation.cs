@@ -1,4 +1,3 @@
-namespace Nyris.Crdt.Distributed.Crdts.Operations
-{
-    public abstract record Operation;
-}
+namespace Nyris.Crdt.Distributed.Crdts.Operations;
+
+public abstract record Operation;

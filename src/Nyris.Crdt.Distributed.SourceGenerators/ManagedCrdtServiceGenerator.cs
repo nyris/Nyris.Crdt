@@ -1,14 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Nyris.Crdt.Distributed.SourceGenerators.Model;
 using Scriban;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Text;
 
 namespace Nyris.Crdt.Distributed.SourceGenerators
 {
@@ -41,20 +41,21 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             if (context.SyntaxReceiver is not SyntaxReceiver receiver) return;
 
             AnalyzeCandidatesForManagedCrdts(context,
-                receiver.ManagedCrdtCandidates,
-                receiver.OperationCandidates,
-                out var crdtInfos,
-                out var operationInfos);
+                                             receiver.ManagedCrdtCandidates,
+                                             receiver.OperationCandidates,
+                                             out var crdtInfos,
+                                             out var operationInfos);
 
             foreach (var (template, templateFileName) in Templates.Value)
             {
                 var text = template.Render(new
                 {
                     DtoInfos = crdtInfos
-                        .GroupBy(i => i.DtoTypeName)
-                        .Select(group => new DtoInfo(group.Key,
-                            group.Select(i => new TypeWithArguments(i.CrdtTypeName, i.AllArgumentsString)).ToList()))
-                        .ToList(),
+                               .GroupBy(i => i.DtoTypeName)
+                               .Select(group => new DtoInfo(group.Key,
+                                                            group.Select(i => new TypeWithArguments(i.CrdtTypeName, i.AllArgumentsString))
+                                                                 .ToList()))
+                               .ToList(),
                     OperationInfos = operationInfos
                 }, member => member.Name);
                 var source = SourceText.From(text, Encoding.UTF8);
@@ -76,15 +77,17 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                      })
             {
                 yield return (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
-                    templateFileName);
+                              templateFileName);
             }
         }
 
-        private void AnalyzeCandidatesForManagedCrdts(GeneratorExecutionContext context,
+        private void AnalyzeCandidatesForManagedCrdts(
+            GeneratorExecutionContext context,
             IEnumerable<ClassDeclarationSyntax> candidates,
             IEnumerable<RecordDeclarationSyntax> operationCandidates,
             out List<CrdtInfo> crdtInfos,
-            out HashSet<RoutedOperationInfo> operationInfos)
+            out HashSet<RoutedOperationInfo> operationInfos
+        )
         {
             crdtInfos = new List<CrdtInfo>();
             operationInfos = new HashSet<RoutedOperationInfo>();
@@ -94,7 +97,7 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             if (!TryGetCrdtInfo(nodeSet, out var crdtInfo, out _))
             {
                 _log.AppendLine(
-                    "Something went wrong - could not get crdtInfo of a known class Nyris.Crdt.Distributed.Crdts.NodeSet");
+                                "Something went wrong - could not get crdtInfo of a known class Nyris.Crdt.Distributed.Crdts.NodeSet");
             }
 
             crdtInfos.Add(crdtInfo);
@@ -104,7 +107,7 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             {
                 _log.AppendLine("Analysing class: " + candidateClass.Identifier.ToFullString());
                 var namedTypeSymbol = context.Compilation.GetSemanticModel(candidateClass.SyntaxTree)
-                    .GetDeclaredSymbol(candidateClass);
+                                             .GetDeclaredSymbol(candidateClass);
                 if (namedTypeSymbol == null)
                 {
                     _log.AppendLine("Something went wrong - semantic model did not produce an INamedTypeSymbol");
@@ -135,12 +138,14 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
         /// <param name="crdtInfo"></param>
         /// <param name="operations"></param>
         /// <returns>True if symbol is a managedCrdt, false otherwise</returns>
-        private bool TryGetCrdtInfo(INamedTypeSymbol symbol,
+        private bool TryGetCrdtInfo(
+            INamedTypeSymbol symbol,
             [NotNullWhen(true)] out CrdtInfo crdtInfo,
-            out IEnumerable<RoutedOperationInfo> operations)
+            out IEnumerable<RoutedOperationInfo> operations
+        )
         {
             var current = symbol.BaseType;
-            var operationInfos = (IEnumerable<RoutedOperationInfo>)ArraySegment<RoutedOperationInfo>.Empty;
+            var operationInfos = (IEnumerable<RoutedOperationInfo>) ArraySegment<RoutedOperationInfo>.Empty;
 
             while (current != null && current.ToDisplayString() != "object")
             {
@@ -149,8 +154,8 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                     var keyType = current.TypeArguments[0];
 
                     _log.AppendLine(
-                        $"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
-                        "Generated gRPC service will include methods for applying its operations.");
+                                    $"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
+                                    "Generated gRPC service will include methods for applying its operations.");
 
                     var crdtTypeParams = string.Join(", ", current.TypeArguments.Select(s => s.ToDisplayString()));
 
@@ -158,17 +163,17 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                     // get type arguments of constructor
 
                     operationInfos = symbol.GetAttributes()
-                        .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
-                        .Select(attr =>
-                        {
-                            var operationConcreteType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
-                            var operationResponseConcreteType = attr.ConstructorArguments[1].Value as INamedTypeSymbol;
+                                           .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
+                                           .Select(attr =>
+                                           {
+                                               var operationConcreteType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
+                                               var operationResponseConcreteType = attr.ConstructorArguments[1].Value as INamedTypeSymbol;
 
-                            return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
-                                operationResponseConcreteType?.ToDisplayString(),
-                                keyType.ToDisplayString(),
-                                $"{symbol.ToDisplayString()}, {crdtTypeParams}");
-                        });
+                                               return new RoutedOperationInfo(operationConcreteType?.ToDisplayString(),
+                                                                              operationResponseConcreteType?.ToDisplayString(),
+                                                                              keyType.ToDisplayString(),
+                                                                              $"{symbol.ToDisplayString()}, {crdtTypeParams}");
+                                           });
                 }
 
                 if (current.Name == ManagedCRDTTypeName)
@@ -176,13 +181,13 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                     _log.AppendLine($"Class {symbol.Name} determined to be a ManagedCRDT. " +
                                     "Generated gRPC service will include transport operations for it's dto");
                     var allArgumentsString = string.Join(", ",
-                        current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
+                                                         current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
                     var dtoString = current.TypeArguments.Last().ToDisplayString();
 
                     crdtInfo = new CrdtInfo(
-                        CrdtTypeName: symbol.ToDisplayString(),
-                        AllArgumentsString: allArgumentsString,
-                        DtoTypeName: dtoString);
+                                            CrdtTypeName: symbol.ToDisplayString(),
+                                            AllArgumentsString: allArgumentsString,
+                                            DtoTypeName: dtoString);
                     operations = operationInfos;
                     return true;
                 }

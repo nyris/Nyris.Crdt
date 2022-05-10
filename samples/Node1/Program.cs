@@ -1,10 +1,9 @@
-﻿namespace Node1
+﻿namespace Node1;
+
+internal static class Program
 {
-    internal static class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
-        {
-            Nyris.Crdt.AspNetExample.Program.Main(args);
-        }
+        Nyris.Crdt.AspNetExample.Program.Main(args);
     }
 }

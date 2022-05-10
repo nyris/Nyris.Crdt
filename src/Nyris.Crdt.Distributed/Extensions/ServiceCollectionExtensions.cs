@@ -11,9 +11,11 @@ namespace Nyris.Crdt.Distributed.Extensions
 {
     public static partial class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddInternals<TGrpcService>(this IServiceCollection services,
+        public static IServiceCollection AddInternals<TGrpcService>(
+            this IServiceCollection services,
             INodeInfoProvider? nodeInfoProvider = null,
-            IAsyncQueueProvider? queueProvider = null)
+            IAsyncQueueProvider? queueProvider = null
+        )
             where TGrpcService : class
         {
             services.AddSingleton<IChannelManager, ChannelManager<TGrpcService>>();

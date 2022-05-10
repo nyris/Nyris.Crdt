@@ -1,8 +1,8 @@
+using Nyris.Contracts.Exceptions;
+using ProtoBuf;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Nyris.Contracts.Exceptions;
-using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Model
 {

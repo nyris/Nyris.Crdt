@@ -1,105 +1,104 @@
-using System;
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Model.Converters;
 using Nyris.Crdt.Model;
 using ProtoBuf;
+using System;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
-namespace Nyris.Crdt.AspNetExample
+namespace Nyris.Crdt.AspNetExample;
+
+/// <summary>
+/// Encapsulates Guid
+/// </summary>
+[JsonConverter(typeof(InternalIdJsonConverter<ImageGuid, Factory>))]
+[TypeConverter(typeof(InternalIdTypeConverter<ImageGuid, Factory>))]
+[ProtoContract]
+public readonly struct ImageGuid : IEquatable<ImageGuid>, IFormattable, IComparable<ImageGuid>, IAs<Guid>, IHashable
 {
     /// <summary>
-    /// Encapsulates Guid
+    /// Converts guid into NodeId.
     /// </summary>
-    [JsonConverter(typeof(InternalIdJsonConverter<ImageGuid, Factory>))]
-    [TypeConverter(typeof(InternalIdTypeConverter<ImageGuid, Factory>))]
-    [ProtoContract]
-    public readonly struct ImageGuid : IEquatable<ImageGuid>, IFormattable, IComparable<ImageGuid>, IAs<Guid>, IHashable
+    /// <param name="id"></param>
+    /// <returns></returns>
+    [ProtoConverter]
+    public static ImageGuid FromGuid(Guid id) => new(id);
+
+    /// <summary>
+    /// Generates new random Id.
+    /// </summary>
+    /// <returns></returns>
+    public static ImageGuid New() => new(Guid.NewGuid());
+
+    /// <summary>
+    /// Converts the string representation of an NodeId to the equivalent NodeId structure.
+    /// </summary>
+    /// <param name="input">input – The string to convert.</param>
+    /// <returns></returns>
+    public static ImageGuid Parse(string input) => new(Guid.Parse(input));
+
+    /// <summary>
+    /// A read-only instance of the NodeId structure, that can represent default or uninitialized value.
+    /// </summary>
+    public static readonly ImageGuid Empty = new(Guid.Empty);
+
+    /// <summary>
+    /// Converts the string representation of an NodeId to the equivalent NodeId structure.
+    /// </summary>
+    /// <param name="input">A string containing the NodeId to convert</param>
+    /// <param name="imageGuid">An NodeId instance to contain the parsed value. If the method returns true,
+    /// result contains a valid NodeId. If the method returns false, result equals Empty.</param>
+    /// <returns>true if the parse operation was successful; otherwise, false.</returns>
+    public static bool TryParse(string input, [NotNullWhen(true)] out ImageGuid imageGuid)
     {
-        /// <summary>
-        /// Converts guid into NodeId.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        [ProtoConverter]
-        public static ImageGuid FromGuid(Guid id) => new(id);
-
-        /// <summary>
-        /// Generates new random Id.
-        /// </summary>
-        /// <returns></returns>
-        public static ImageGuid New() => new(Guid.NewGuid());
-
-        /// <summary>
-        /// Converts the string representation of an NodeId to the equivalent NodeId structure.
-        /// </summary>
-        /// <param name="input">input – The string to convert.</param>
-        /// <returns></returns>
-        public static ImageGuid Parse(string input) => new(Guid.Parse(input));
-
-        /// <summary>
-        /// A read-only instance of the NodeId structure, that can represent default or uninitialized value.
-        /// </summary>
-        public static readonly ImageGuid Empty = new(Guid.Empty);
-
-        /// <summary>
-        /// Converts the string representation of an NodeId to the equivalent NodeId structure.
-        /// </summary>
-        /// <param name="input">A string containing the NodeId to convert</param>
-        /// <param name="imageGuid">An NodeId instance to contain the parsed value. If the method returns true,
-        /// result contains a valid NodeId. If the method returns false, result equals Empty.</param>
-        /// <returns>true if the parse operation was successful; otherwise, false.</returns>
-        public static bool TryParse(string input, [NotNullWhen(true)] out ImageGuid imageGuid)
+        if (Guid.TryParse(input, out var guid))
         {
-            if (Guid.TryParse(input, out var guid))
-            {
-                imageGuid = FromGuid(guid);
-                return true;
-            }
-
-            imageGuid = Empty;
-            return false;
+            imageGuid = FromGuid(guid);
+            return true;
         }
 
-        [ProtoMember(1)] private readonly Guid _id;
+        imageGuid = Empty;
+        return false;
+    }
 
-        private ImageGuid(Guid id)
-        {
-            _id = id;
-        }
+    [ProtoMember(1)] private readonly Guid _id;
 
-        /// <inheritdoc />
-        public Guid Value => _id;
+    private ImageGuid(Guid id)
+    {
+        _id = id;
+    }
 
-        /// <inheritdoc />
-        public bool Equals(ImageGuid other) => _id.Equals(other._id);
+    /// <inheritdoc />
+    public Guid Value => _id;
 
-        /// <inheritdoc />
-        public override bool Equals(object? obj) => obj is ImageGuid other && Equals(other);
+    /// <inheritdoc />
+    public bool Equals(ImageGuid other) => _id.Equals(other._id);
 
-        /// <inheritdoc />
-        public override int GetHashCode() => _id.GetHashCode();
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => obj is ImageGuid other && Equals(other);
 
-        /// <inheritdoc />
-        public string ToString(string? format, IFormatProvider? formatProvider) => _id.ToString(format, formatProvider);
+    /// <inheritdoc />
+    public override int GetHashCode() => _id.GetHashCode();
 
-        /// <inheritdoc />
-        public override string ToString() => _id.ToString("N");
+    /// <inheritdoc />
+    public string ToString(string? format, IFormatProvider? formatProvider) => _id.ToString(format, formatProvider);
 
-        /// <inheritdoc />
-        public ReadOnlySpan<byte> CalculateHash() => _id.ToByteArray();
+    /// <inheritdoc />
+    public override string ToString() => _id.ToString("N");
 
-        /// <inheritdoc />
-        public int CompareTo(ImageGuid other) => _id.CompareTo(other._id);
+    /// <inheritdoc />
+    public ReadOnlySpan<byte> CalculateHash() => _id.ToByteArray();
 
-        public static bool operator ==(ImageGuid left, ImageGuid right) => left.Equals(right);
+    /// <inheritdoc />
+    public int CompareTo(ImageGuid other) => _id.CompareTo(other._id);
 
-        public static bool operator !=(ImageGuid left, ImageGuid right) => !(left == right);
+    public static bool operator ==(ImageGuid left, ImageGuid right) => left.Equals(right);
 
-        private class Factory : IFactory<ImageGuid>
-        {
-            ImageGuid IFactory<ImageGuid>.Empty => Empty;
-            ImageGuid IFactory<ImageGuid>.Parse(string value) => ImageGuid.Parse(value);
-        }
+    public static bool operator !=(ImageGuid left, ImageGuid right) => !(left == right);
+
+    private class Factory : IFactory<ImageGuid>
+    {
+        ImageGuid IFactory<ImageGuid>.Empty => Empty;
+        ImageGuid IFactory<ImageGuid>.Parse(string value) => ImageGuid.Parse(value);
     }
 }

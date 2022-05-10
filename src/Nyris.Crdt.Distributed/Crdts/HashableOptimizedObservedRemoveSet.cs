@@ -1,42 +1,41 @@
-using System;
-using System.Linq;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Model;
 using Nyris.Crdt.Sets;
+using System;
+using System.Linq;
 
-namespace Nyris.Crdt.Distributed.Crdts
+namespace Nyris.Crdt.Distributed.Crdts;
+
+public sealed class
+    HashableOptimizedObservedRemoveSet<TActorId, TItem> : OptimizedObservedRemoveSet<TActorId, TItem>, IHashable
+    where TItem : IEquatable<TItem>
+    where TActorId : IEquatable<TActorId>, IComparable<TActorId>
 {
-    public sealed class
-        HashableOptimizedObservedRemoveSet<TActorId, TItem> : OptimizedObservedRemoveSet<TActorId, TItem>, IHashable
-        where TItem : IEquatable<TItem>
-        where TActorId : IEquatable<TActorId>, IComparable<TActorId>
+    public HashableOptimizedObservedRemoveSet() { }
+
+    private HashableOptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
+        : base(optimizedObservedRemoveSetDto) { }
+
+    /// <inheritdoc />
+    public ReadOnlySpan<byte> CalculateHash()
     {
-        public HashableOptimizedObservedRemoveSet() { }
+        lock (SetChangeLock)
+        {
+            return HashingHelper.Combine(
+                                         HashingHelper.Combine(Items.OrderBy(item => item.Dot.Actor)),
+                                         HashingHelper.Combine(VersionVectors.OrderBy(pair => pair.Key)));
+        }
+    }
 
-        private HashableOptimizedObservedRemoveSet(OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto)
-            : base(optimizedObservedRemoveSetDto) { }
+    public new static HashableOptimizedObservedRemoveSet<TActorId, TItem> FromDto(
+        OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto
+    )
+        => new(optimizedObservedRemoveSetDto);
 
+    public new sealed class Factory : ICRDTFactory<HashableOptimizedObservedRemoveSet<TActorId, TItem>,
+        OptimizedObservedRemoveSetDto>
+    {
         /// <inheritdoc />
-        public ReadOnlySpan<byte> CalculateHash()
-        {
-            lock (SetChangeLock)
-            {
-                return HashingHelper.Combine(
-                                             HashingHelper.Combine(Items.OrderBy(item => item.Dot.Actor)),
-                                             HashingHelper.Combine(VersionVectors.OrderBy(pair => pair.Key)));
-            }
-        }
-
-        public new static HashableOptimizedObservedRemoveSet<TActorId, TItem> FromDto(
-            OptimizedObservedRemoveSetDto optimizedObservedRemoveSetDto
-        )
-            => new(optimizedObservedRemoveSetDto);
-
-        public new sealed class Factory : ICRDTFactory<HashableOptimizedObservedRemoveSet<TActorId, TItem>,
-            OptimizedObservedRemoveSetDto>
-        {
-            /// <inheritdoc />
-            public HashableOptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto dto) => FromDto(dto);
-        }
+        public HashableOptimizedObservedRemoveSet<TActorId, TItem> Create(OptimizedObservedRemoveSetDto dto) => FromDto(dto);
     }
 }

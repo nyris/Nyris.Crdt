@@ -1,9 +1,9 @@
-using System.ServiceModel;
-using System.Threading;
-using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Model;
+using System.ServiceModel;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Nyris.Crdt.Distributed.Grpc
 {

@@ -1,10 +1,9 @@
-using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Model;
+using System.Collections.Generic;
 
-namespace Nyris.Crdt.Distributed.Strategies.Consistency
+namespace Nyris.Crdt.Distributed.Strategies.Consistency;
+
+public interface IConsistencyCheckTargetsSelectionStrategy
 {
-    public interface IConsistencyCheckTargetsSelectionStrategy
-    {
-        IEnumerable<NodeId> GetTargetNodes(IEnumerable<NodeInfo> nodes, NodeId thisNodeId);
-    }
+    IEnumerable<NodeId> GetTargetNodes(IEnumerable<NodeInfo> nodes, NodeId thisNodeId);
 }

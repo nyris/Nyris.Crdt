@@ -1,23 +1,22 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.AspNetExample.Controllers
+namespace Nyris.Crdt.AspNetExample.Controllers;
+
+[ApiController]
+[Route("/")]
+public class HomeController : ControllerBase
 {
-    [ApiController]
-    [Route("/")]
-    public class HomeController: ControllerBase
+    private readonly NodeId _thisNodeId;
+
+    public HomeController(NodeInfo nodeInfo)
     {
-        private readonly NodeId _thisNodeId;
+        _thisNodeId = nodeInfo.Id;
+    }
 
-        public HomeController(NodeInfo nodeInfo)
-        {
-            _thisNodeId = nodeInfo.Id;
-        }
-
-        [HttpGet]
-        public IActionResult Index()
-        {
-            return Ok(_thisNodeId);
-        }
+    [HttpGet]
+    public IActionResult Index()
+    {
+        return Ok(_thisNodeId);
     }
 }

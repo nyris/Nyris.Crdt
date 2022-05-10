@@ -1,7 +1,7 @@
-using System;
-using System.Linq;
 using Nyris.Crdt.Distributed.Utils;
 using Nyris.Crdt.Model;
+using System;
+using System.Linq;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {

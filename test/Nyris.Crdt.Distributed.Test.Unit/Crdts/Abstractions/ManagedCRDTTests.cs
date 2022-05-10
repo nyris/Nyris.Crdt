@@ -1,7 +1,7 @@
-﻿using System.Threading.Tasks;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Test.Unit.Helpers;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Nyris.Crdt.Distributed.Test.Unit.Crdts.Abstractions;
@@ -18,7 +18,7 @@ public class ManagedCRDTTests
     [Fact]
     public void Gets_TypeName()
     {
-         _managedCrdt.GetType().Should().Be(typeof(MockUserCRDT));
+        _managedCrdt.GetType().Should().Be(typeof(MockUserCRDT));
     }
 
     [Fact]
@@ -26,6 +26,6 @@ public class ManagedCRDTTests
     {
         await _managedCrdt.StateChangedAsync();
 
-		_managedCrdt.ToDtoAsyncCalls.Should().Be(1);
-	}
+        _managedCrdt.ToDtoAsyncCalls.Should().Be(1);
+    }
 }

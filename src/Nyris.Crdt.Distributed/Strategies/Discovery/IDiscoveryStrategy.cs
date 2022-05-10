@@ -1,11 +1,10 @@
+using Nyris.Crdt.Distributed.Model;
 using System.Collections.Generic;
 using System.Threading;
-using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed.Strategies.Discovery
+namespace Nyris.Crdt.Distributed.Strategies.Discovery;
+
+public interface IDiscoveryStrategy
 {
-    public interface IDiscoveryStrategy
-    {
-        IAsyncEnumerable<NodeCandidate> GetNodeCandidates(CancellationToken cancellationToken = default);
-    }
+    IAsyncEnumerable<NodeCandidate> GetNodeCandidates(CancellationToken cancellationToken = default);
 }

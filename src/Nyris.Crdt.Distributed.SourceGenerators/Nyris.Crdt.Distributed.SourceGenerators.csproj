@@ -3,6 +3,7 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
         <LangVersion>9</LangVersion>
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -12,6 +13,7 @@
     <ItemGroup>
         <!-- In order to add most packages, see https://github.com/dotnet/roslyn/discussions/47517-->
         <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+        <PackageReference Include="Nyris.CodeAnalysis.CSharp.CodeStyle" Version="0.5.1" />
         <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
         <PackageReference Include="Scriban" Version="3.2.1" IncludeAssets="Build" />
         <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3">

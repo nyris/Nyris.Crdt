@@ -1,6 +1,6 @@
+using Nyris.Contracts.Exceptions;
 using System;
 using System.Runtime.Serialization;
-using Nyris.Contracts.Exceptions;
 
 namespace Nyris.Crdt.Distributed.Exceptions
 {

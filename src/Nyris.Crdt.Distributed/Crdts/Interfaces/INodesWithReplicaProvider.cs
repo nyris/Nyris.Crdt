@@ -1,10 +1,9 @@
-using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Model;
+using System.Collections.Generic;
 
-namespace Nyris.Crdt.Distributed.Crdts.Interfaces
+namespace Nyris.Crdt.Distributed.Crdts.Interfaces;
+
+internal interface INodesWithReplicaProvider
 {
-    internal interface INodesWithReplicaProvider
-    {
-        IList<NodeInfo> GetNodesThatShouldHaveReplicaOfCollection(InstanceId instanceId);
-    }
+    IList<NodeInfo> GetNodesThatShouldHaveReplicaOfCollection(InstanceId instanceId);
 }

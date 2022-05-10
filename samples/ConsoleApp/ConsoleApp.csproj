@@ -15,9 +15,4 @@
         <PackageReference Include="System.Linq.Async" Version="5.0.0" />
     </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="../Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj" />
-        <ProjectReference Include="../../src/Nyris.Crdt.Distributed/Nyris.Crdt.Distributed.csproj" />
-    </ItemGroup>
-
 </Project>
