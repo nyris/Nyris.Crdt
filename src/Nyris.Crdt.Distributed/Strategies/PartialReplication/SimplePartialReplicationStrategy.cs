@@ -1,24 +1,26 @@
+using Nyris.Crdt.Distributed.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Strategies.PartialReplication
 {
     public sealed class SimplePartialReplicationStrategy : IPartialReplicationStrategy
     {
         /// <inheritdoc />
-        public IDictionary<TKey, IList<NodeInfo>> GetDistribution<TKey>(IReadOnlyDictionary<TKey, ulong> collectionSizes,
-            IEnumerable<NodeInfo> nodes)
+        public IDictionary<TKey, IList<NodeInfo>> GetDistribution<TKey>(
+            IReadOnlyDictionary<TKey, ulong> collectionSizes,
+            IEnumerable<NodeInfo> nodes
+        )
             where TKey : IEquatable<TKey>, IComparable<TKey>
         {
             var result = new Dictionary<TKey, IList<NodeInfo>>(collectionSizes.Count);
-            var orderedNodes= nodes.OrderBy(nodeInfo => nodeInfo.Id).ToList();
+            var orderedNodes = nodes.OrderBy(nodeInfo => nodeInfo.Id).ToList();
             var orderedKeys = collectionSizes
-                .OrderByDescending(pair => Chunkify(pair.Value))
-                .ThenBy(pair => pair.Key)
-                .Select(pair => pair.Key)
-                .ToList();
+                              .OrderByDescending(pair => Chunkify(pair.Value))
+                              .ThenBy(pair => pair.Key)
+                              .Select(pair => pair.Key)
+                              .ToList();
 
             var count = 0;
             while (count < orderedKeys.Count)
@@ -45,13 +47,10 @@ namespace Nyris.Crdt.Distributed.Strategies.PartialReplication
             return result;
         }
 
-        private ulong Chunkify(ulong size)
+        private static ulong Chunkify(ulong size) => size switch
         {
-            return size switch
-            {
-                < 1000 => 0,
-                _ => (ulong)Math.Log10(size)
-            };
-        }
+            < 1000 => 0,
+            _ => (ulong) Math.Log10(size)
+        };
     }
 }

@@ -1,8 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net6.0</TargetFramework>
+        <LangVersion>10</LangVersion>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
@@ -11,11 +13,6 @@
         <PackageReference Include="protobuf-net.Grpc" Version="1.0.152" />
         <PackageReference Include="protobuf-net.Grpc.ClientFactory" Version="1.0.152" />
         <PackageReference Include="System.Linq.Async" Version="5.0.0" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="../Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj" />
-        <ProjectReference Include="../../src/Nyris.Crdt.Distributed/Nyris.Crdt.Distributed.csproj" />
     </ItemGroup>
 
 </Project>

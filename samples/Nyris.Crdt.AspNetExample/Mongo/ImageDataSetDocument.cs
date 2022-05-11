@@ -1,14 +1,13 @@
-﻿using System;
-using MongoDB.Bson.Serialization.Attributes;
+﻿using MongoDB.Bson.Serialization.Attributes;
+using System;
 
-namespace Nyris.Crdt.AspNetExample.Mongo
+namespace Nyris.Crdt.AspNetExample.Mongo;
+
+public sealed class ImageDataSetDocument : ImageDocument
 {
-    public sealed class ImageDataSetDocument : ImageDocument
-    {
-        [BsonElement("iid")]
-        public string ImageId { get; set; }
+    [BsonElement("iid")]
+    public string ImageId { get; set; }
 
-        [BsonElement("d")]
-        public Uri DownloadUrl { get; set; }
-    }
+    [BsonElement("d")]
+    public Uri DownloadUrl { get; set; }
 }

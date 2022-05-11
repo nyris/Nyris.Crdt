@@ -1,11 +1,10 @@
+using Nyris.Crdt.Distributed.Model;
 using System.Threading;
 using System.Threading.Tasks;
-using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed.Crdts.Interfaces
+namespace Nyris.Crdt.Distributed.Crdts.Interfaces;
+
+internal interface IReactToOtherCrdtChange
 {
-    internal interface IReactToOtherCrdtChange
-    {
-        Task HandleChangeInAnotherCrdtAsync(InstanceId instanceId, CancellationToken cancellationToken = default);
-    }
+    Task HandleChangeInAnotherCrdtAsync(InstanceId instanceId, CancellationToken cancellationToken = default);
 }

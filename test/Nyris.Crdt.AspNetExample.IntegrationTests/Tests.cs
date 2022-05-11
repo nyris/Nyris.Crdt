@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Google.Protobuf;
 using Grpc.Net.Client;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Extensions.Guids;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
@@ -262,7 +262,7 @@ public class Tests : IDisposable
         {
             TraceId = traceId,
             NumShards = numShards
-        }, deadline:DateTime.UtcNow.AddSeconds(5));
+        }, deadline: DateTime.UtcNow.AddSeconds(5));
         response.Id.Should().NotBeEmpty();
 
         var exists = await _clientB.ImagesCollectionExistsPRAsync(response);
@@ -503,7 +503,8 @@ public class Tests : IDisposable
         return ids;
     }
 
-    private static async Task<IList<Image>> AddRandomImagesPartiallyReplicatedAsync(Api.ApiClient client, string collectionId, int n, string traceId)
+    private static async Task<IList<Image>> AddRandomImagesPartiallyReplicatedAsync(Api.ApiClient client, string collectionId, int n,
+        string traceId)
     {
         var ids = new List<Image>(n);
         var imageIdBuffer = new byte[32];

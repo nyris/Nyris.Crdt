@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.AspNetExample.Events;
 using Nyris.Crdt.AspNetExample.Mongo;
@@ -7,49 +5,51 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.EventBus.Subscribers;
+using System;
+using System.Threading.Tasks;
 
-namespace Nyris.Crdt.AspNetExample.EventHandlers
+namespace Nyris.Crdt.AspNetExample.EventHandlers;
+
+internal sealed class ImageDataSetEventHandler : ImageEventHandler<ImageDataSetEvent>
 {
-    internal sealed class ImageDataSetEventHandler : ImageEventHandler<ImageDataSetEvent>
+    private readonly MyContext _context;
+    private readonly NodeId _thisNodeId;
+    private static Uri EmptyUri = new Uri("about:blank");
+
+    /// <inheritdoc />
+    public ImageDataSetEventHandler(ILogger<ImageDataSetEventHandler> logger, MyContext context, NodeInfo thisNode,
+        MongoContext mongoContext)
+        : base(logger, mongoContext)
     {
-        private readonly MyContext _context;
-        private readonly NodeId _thisNodeId;
-        private static Uri EmptyUri = new Uri("about:blank");
+        _context = context;
+        _thisNodeId = thisNode.Id;
+    }
 
-        /// <inheritdoc />
-        public ImageDataSetEventHandler(ILogger<ImageDataSetEventHandler> logger, MyContext context, NodeInfo thisNode, MongoContext mongoContext)
-            : base(logger, mongoContext)
+    /// <inheritdoc />
+    public override HandlerType HandlerType => HandlerType.Consumer;
+
+    /// <inheritdoc />
+    protected override async Task TryHandleAsync(ImageDataSetEvent message, DateTime createdAt)
+    {
+        var collectionId = CollectionId.FromGuid(message.IndexId);
+
+        if (!_context.PartiallyReplicatedImageCollectionsRegistry.CollectionExists(collectionId))
         {
-            _context = context;
-            _thisNodeId = thisNode.Id;
-        }
-
-        /// <inheritdoc />
-        public override HandlerType HandlerType => HandlerType.Consumer;
-
-        /// <inheritdoc />
-        protected override async Task TryHandleAsync(ImageDataSetEvent message, DateTime createdAt)
-        {
-            var collectionId = CollectionId.FromGuid(message.IndexId);
-
-            if (!_context.PartiallyReplicatedImageCollectionsRegistry.CollectionExists(collectionId))
-            {
-                await _context.PartiallyReplicatedImageCollectionsRegistry
-                    .TryAddCollectionAsync(collectionId, new CollectionConfig
-                    {
-                        Name = collectionId.ToString(),
-                        IndexNames = new[] { ImageIdIndex.IndexName },
-                        ShardingConfig = new ShardingConfig { NumShards = 2 }
-                    }, 2);
-            }
-
-            var imageInfo = new ImageInfo(message.DownloadUrl ?? EmptyUri, message.ImageId);
-            var operation = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(ImageGuid.FromGuid(message.ImageUuid),
-                imageInfo, DateTime.UtcNow, 1);
             await _context.PartiallyReplicatedImageCollectionsRegistry
-                .ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(
-                    collectionId,
-                    operation);
+                .TryAddCollectionAsync(collectionId, new CollectionConfig
+                {
+                    Name = collectionId.ToString(),
+                    IndexNames = new[] { ImageIdIndex.IndexName },
+                    ShardingConfig = new ShardingConfig { NumShards = 2 }
+                }, 2);
         }
+
+        var imageInfo = new ImageInfo(message.DownloadUrl ?? EmptyUri, message.ImageId);
+        var operation = new AddValueOperation<ImageGuid, ImageInfo, DateTime>(ImageGuid.FromGuid(message.ImageUuid),
+            imageInfo, DateTime.UtcNow, 1);
+        await _context.PartiallyReplicatedImageCollectionsRegistry
+            .ApplyAsync<AddValueOperation<ImageGuid, ImageInfo, DateTime>, ValueResponse<ImageInfo>>(
+                collectionId,
+                operation);
     }
 }

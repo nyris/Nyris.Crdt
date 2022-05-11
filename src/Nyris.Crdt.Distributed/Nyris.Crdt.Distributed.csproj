@@ -13,6 +13,7 @@
 
     <ItemGroup>
         <PackageReference Include="Grpc.Net.Client" Version="2.36.0" />
+        <PackageReference Include="Nyris.CodeAnalysis.CSharp.CodeStyle" Version="0.5.1" />
         <PackageReference Include="Nyris.Extensions.Guids" Version="2.0.0" />
         <PackageReference Include="Nyris.Model.Ids.SourceGenerators" Version="2.0.0" />
         <PackageReference Include="protobuf-net" Version="2.4.6" />

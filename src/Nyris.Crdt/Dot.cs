@@ -1,5 +1,5 @@
-using System;
 using ProtoBuf;
+using System;
 
 namespace Nyris.Crdt;
 
@@ -38,6 +38,9 @@ public readonly struct Dot<TActorId> : IEquatable<Dot<TActorId>>
 
     public bool GreaterThan(Dot<TActorId> other) => Actor.Equals(other.Actor) && Version > other.Version;
     public bool LessThan(Dot<TActorId> other) => Actor.Equals(other.Actor) && Version < other.Version;
+
+    /// <inheritdoc cref="uint.CompareTo(uint)"/>
+    public int CompareTo(Dot<TActorId> other) => Actor.Equals(other.Actor) ? Version.CompareTo(other.Version) : -1;
 
     public override int GetHashCode() => HashCode.Combine(Version, Actor.GetHashCode());
 

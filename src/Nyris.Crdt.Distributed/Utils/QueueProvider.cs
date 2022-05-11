@@ -1,6 +1,6 @@
+using Nyris.Crdt.Distributed.Model;
 using System;
 using System.Collections.Concurrent;
-using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.Distributed.Utils
 {
@@ -15,10 +15,7 @@ namespace Nyris.Crdt.Distributed.Utils
             _queueCapacity = queueCapacity;
         }
 
-        public IAsyncQueue<DtoMessage<TDto>> GetQueue<TDto>(Type crdtType)
-        {
-            return (IAsyncQueue<DtoMessage<TDto>>) _queueDictionary
-                .GetOrAdd(crdtType, _ => new AsyncQueue<DtoMessage<TDto>>(_queueCapacity));
-        }
+        public IAsyncScheduler<DtoMessage<TDto>> GetQueue<TDto>(Type crdtType) => (IAsyncScheduler<DtoMessage<TDto>>) _queueDictionary
+            .GetOrAdd(crdtType, _ => new AsyncScheduler<DtoMessage<TDto>>(_queueCapacity));
     }
 }

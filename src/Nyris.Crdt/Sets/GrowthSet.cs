@@ -58,8 +58,8 @@ namespace Nyris.Crdt.Sets
             {
                 other._counters.TryGetValue(nodeId, out var otherValue);
                 _counters.AddOrUpdate(nodeId,
-                    _ => otherValue,
-                    (_, value) => Math.Max(value, otherValue));
+                                      _ => otherValue,
+                                      (_, value) => Math.Max(value, otherValue));
             }
         }
     }

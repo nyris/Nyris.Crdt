@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Moq;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
@@ -10,6 +7,9 @@ using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Model;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Nyris.Crdt.Tests;
 

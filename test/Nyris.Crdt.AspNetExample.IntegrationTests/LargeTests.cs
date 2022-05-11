@@ -1,14 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Google.Protobuf;
 using Grpc.Net.Client;
 using Nyris.Common;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Extensions.Guids;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -38,6 +38,7 @@ public sealed class LargeTests
     }
 
     private int _counter;
+
     private Api.ApiClient RandomClient => (Interlocked.Increment(ref _counter) % 3) switch
     {
         0 => _clientA,
@@ -105,6 +106,7 @@ public sealed class LargeTests
                                    _testOutputHelper.WriteLine($"{c} out of {numImages} images created, " +
                                                                $"{outputStep / timePassed.TotalSeconds:.#} img/s");
                                }
+
                                return image;
                            }, batchSize: 20))
         {

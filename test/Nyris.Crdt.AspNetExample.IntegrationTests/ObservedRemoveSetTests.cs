@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Grpc.Net.Client;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Crdt.GrpcServiceSample.IntegrationTests.Utils;
 using Nyris.Extensions.Guids;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -124,9 +124,7 @@ public class ObservedRemoveSetTests : IDisposable
     /// <para />
     /// </summary>
     [Fact(Skip = "TODO")]
-    public void Propagates_Redundant_Removed_Delta()
-    {
-    }
+    public void Propagates_Redundant_Removed_Delta() { }
 
     /// <summary>
     /// Test to verify that A Node does not send Delta back to it's origin while propagating Delta
@@ -137,9 +135,7 @@ public class ObservedRemoveSetTests : IDisposable
     /// <para />
     /// </summary>
     [Fact(Skip = "TODO")]
-    public void Propagating_Delta_Should_Avoid_Cycles()
-    {
-    }
+    public void Propagating_Delta_Should_Avoid_Cycles() { }
 
     public void Dispose()
     {

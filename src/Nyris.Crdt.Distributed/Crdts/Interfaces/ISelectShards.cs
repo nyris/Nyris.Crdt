@@ -1,10 +1,9 @@
-using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Model;
+using System.Collections.Generic;
 
-namespace Nyris.Crdt.Distributed.Crdts.Interfaces
+namespace Nyris.Crdt.Distributed.Crdts.Interfaces;
+
+public interface ISelectShards
 {
-    public interface ISelectShards
-    {
-        IEnumerable<ShardId> GetShards(IEnumerable<ShardId> shardIds);
-    }
+    IEnumerable<ShardId> GetShards(IEnumerable<ShardId> shardIds);
 }

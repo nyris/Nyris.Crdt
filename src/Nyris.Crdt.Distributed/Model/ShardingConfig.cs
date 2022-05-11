@@ -1,7 +1,6 @@
-﻿namespace Nyris.Crdt.Distributed.Model
+﻿namespace Nyris.Crdt.Distributed.Model;
+
+public class ShardingConfig
 {
-    public class ShardingConfig
-    {
-        public ushort NumShards { get; init; }
-    }
+    public ushort NumShards { get; init; }
 }

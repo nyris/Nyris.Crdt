@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Model;
+using System.Collections.Generic;
 
 namespace Nyris.Crdt.Distributed.Strategies.Propagation
 {

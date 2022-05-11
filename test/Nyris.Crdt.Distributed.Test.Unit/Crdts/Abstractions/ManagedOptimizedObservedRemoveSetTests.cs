@@ -1,14 +1,14 @@
-﻿using System;
+﻿using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Distributed.Test.Unit.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Moq;
-using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Test.Unit.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -30,8 +30,9 @@ public class ManagedOptimizedObservedRemoveSetTests
         _testOutput = testOutput;
         var managedCrdtMock =
             new Mock<MockManagedOptimizedObservedRemoveSet>(new InstanceId("mock-user-or-set-crdt-id"),
-                NodeId.GenerateNew(),
-                It.IsAny<IQueryProvider>(), It.IsAny<ILogger>()) { CallBase = true };
+                    NodeId.GenerateNew(),
+                    It.IsAny<IQueryProvider>(), It.IsAny<ILogger>())
+                { CallBase = true };
         _managedCrdt = managedCrdtMock.Object;
 
         managedCrdtMock.Setup(x => x.StateChangedAsync(

@@ -2,8 +2,14 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
+        <LangVersion>10</LangVersion>
         <Nullable>enable</Nullable>
     </PropertyGroup>
+
+    <!-- <PropertyGroup> -->
+    <!--     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles> -->
+    <!--     <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath> -->
+    <!-- </PropertyGroup> -->
 
     <ItemGroup>
         <Protobuf Include="Protos\api.proto" GrpcServices="Server" />

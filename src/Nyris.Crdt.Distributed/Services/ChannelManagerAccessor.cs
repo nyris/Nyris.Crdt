@@ -1,7 +1,6 @@
-namespace Nyris.Crdt.Distributed.Services
+namespace Nyris.Crdt.Distributed.Services;
+
+internal static class ChannelManagerAccessor
 {
-    internal static class ChannelManagerAccessor
-    {
-        public static IChannelManager? Manager { get; set; }
-    }
+    public static IChannelManager? Manager { get; set; }
 }

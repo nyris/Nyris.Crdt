@@ -1,9 +1,8 @@
 using System;
 
-namespace Nyris.Crdt.Model
+namespace Nyris.Crdt.Model;
+
+public interface IHashable
 {
-    public interface IHashable
-    {
-        ReadOnlySpan<byte> CalculateHash();
-    }
+    ReadOnlySpan<byte> CalculateHash();
 }

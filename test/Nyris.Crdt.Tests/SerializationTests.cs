@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using FluentAssertions;
 using Nyris.Crdt.AspNetExample;
 using Nyris.Crdt.Distributed.Crdts;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using Xunit;
 
 namespace Nyris.Crdt.Tests;

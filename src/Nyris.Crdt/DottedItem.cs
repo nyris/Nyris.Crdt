@@ -1,5 +1,5 @@
-using System;
 using ProtoBuf;
+using System;
 
 namespace Nyris.Crdt;
 
@@ -38,9 +38,13 @@ public readonly struct DottedItem<TActorId, TItem> : IEquatable<DottedItem<TActo
 
     public override int GetHashCode() => HashCode.Combine(Value.GetHashCode(), Dot.GetHashCode());
 
-    public static bool operator ==(DottedItem<TActorId, TItem> left,
-        DottedItem<TActorId, TItem> right) => left.Equals(right);
+    public static bool operator ==(
+        DottedItem<TActorId, TItem> left,
+        DottedItem<TActorId, TItem> right
+    ) => left.Equals(right);
 
-    public static bool operator !=(DottedItem<TActorId, TItem> left,
-        DottedItem<TActorId, TItem> right) => !left.Equals(right);
+    public static bool operator !=(
+        DottedItem<TActorId, TItem> left,
+        DottedItem<TActorId, TItem> right
+    ) => !left.Equals(right);
 }
