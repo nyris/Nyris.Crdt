@@ -12,13 +12,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Grpc.Net.Client" Version="2.36.0" />
+        <PackageReference Include="Grpc.Net.Client" Version="2.45.0" />
         <PackageReference Include="Nyris.CodeAnalysis.CSharp.CodeStyle" Version="0.5.1" />
         <PackageReference Include="Nyris.Extensions.Guids" Version="2.0.0" />
         <PackageReference Include="Nyris.Model.Ids.SourceGenerators" Version="2.0.0" />
-        <PackageReference Include="protobuf-net" Version="2.4.6" />
+        <PackageReference Include="protobuf-net" Version="3.1.4" />
         <PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="1.0.152" />
         <PackageReference Include="KubernetesClient" Version="5.0.10" />
+        <PackageReference Include="System.ServiceModel.Primitives" Version="4.5.3" />
     </ItemGroup>
 
     <ItemGroup>
