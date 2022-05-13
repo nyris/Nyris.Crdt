@@ -6,7 +6,7 @@ using Nyris.Crdt.Distributed.SourceGenerators.Model;
 using Scriban;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 
@@ -17,32 +17,42 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
     ///  - https://www.meziantou.net/working-with-types-in-a-roslyn-analyzer.htm
     /// </summary>
     [Generator]
-    public class ManagedCrdtServiceGenerator : ISourceGenerator
+    public class ManagedCrdtServiceGenerator : IIncrementalGenerator
     {
         // TODO: currently it does not seem possible to reference another project from source generator project, fix when possible
-        private const string ManagedCRDTTypeName = "ManagedCRDT";
-        private const string PartiallyReplicatedCRDTRegistryTypeName = "PartiallyReplicatedCRDTRegistry";
-        private const string OperationBaseClassMetadataName = "Nyris.Crdt.Distributed.Crdts.Operations.Operation`1";
-        private const string OperationBaseClass = "Operation";
-
-        private readonly StringBuilder _log = new("/*");
+        private const string ManagedCrdtTypeName = "ManagedCRDT";
+        private const string PartiallyReplicatedCrdtRegistryTypeName = "PartiallyReplicatedCRDTRegistry";
 
         private static Lazy<IEnumerable<(Template, string)>> Templates { get; } = new(EnumerateTemplates);
 
-        /// <inheritdoc />
-        public void Initialize(GeneratorInitializationContext context)
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-            context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
+            var classDeclarationsProvider =
+                context.SyntaxProvider.CreateSyntaxProvider((node, _) => node is ClassDeclarationSyntax { BaseList: { } },
+                                                            (syntaxContext, _) => (ClassDeclarationSyntax) syntaxContext.Node);
+            var recordDeclarationsProvider =
+                context.SyntaxProvider.CreateSyntaxProvider((node, _) => node is RecordDeclarationSyntax { BaseList: { } },
+                                                            (syntaxContext, _) => (RecordDeclarationSyntax) syntaxContext.Node);
+
+            var classAndCompilationProvider =
+                context.CompilationProvider.Combine(classDeclarationsProvider.Collect().Combine(recordDeclarationsProvider.Collect()));
+
+            context.RegisterSourceOutput(classAndCompilationProvider, Execute);
         }
 
-        /// <inheritdoc />
-        public void Execute(GeneratorExecutionContext context)
+        private void Execute(
+            SourceProductionContext context,
+            (Compilation compilation, (ImmutableArray<ClassDeclarationSyntax> syntaxClasses, ImmutableArray<RecordDeclarationSyntax>
+                syntaxRecords) syntaxes)
+                syntaxTuple
+        )
         {
-            if (context.SyntaxReceiver is not SyntaxReceiver receiver) return;
+            var (compilation, syntaxes) = syntaxTuple;
+            var (syntaxClasses, syntaxRecords) = syntaxes;
 
-            AnalyzeCandidatesForManagedCrdts(context,
-                                             receiver.ManagedCrdtCandidates,
-                                             receiver.OperationCandidates,
+            AnalyzeCandidatesForManagedCrdts(compilation,
+                                             syntaxClasses,
+                                             syntaxRecords,
                                              out var crdtInfos,
                                              out var operationInfos);
 
@@ -58,32 +68,25 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                                .ToList(),
                     OperationInfos = operationInfos
                 }, member => member.Name);
+
                 var source = SourceText.From(text, Encoding.UTF8);
+
                 context.AddSource(templateFileName.Replace("Template.sbntxt", ".generated.cs"), source);
             }
-
-            _log.AppendLine("*/");
-            // _log.Clear();
-            context.AddSource("Logs", SourceText.From(_log.ToString(), Encoding.UTF8));
         }
 
-        private static IEnumerable<(Template, string)> EnumerateTemplates()
+        private static IEnumerable<(Template, string)> EnumerateTemplates() => new[]
         {
-            foreach (var templateFileName in new[]
-                     {
-                         "ManagedCrdtServiceTemplate.sbntxt",
-                         "IManagedCrdtServiceTemplate.sbntxt",
-                         "ServiceCollectionExtensionsTemplate.sbntxt"
-                     })
-            {
-                yield return (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
-                              templateFileName);
-            }
-        }
+            "ManagedCrdtServiceTemplate.sbntxt",
+            "IManagedCrdtServiceTemplate.sbntxt",
+            "ServiceCollectionExtensionsTemplate.sbntxt"
+        }.Select(templateFileName => (Template.Parse(EmbeddedResource.GetContent(templateFileName), templateFileName),
+                                      templateFileName));
 
         private void AnalyzeCandidatesForManagedCrdts(
-            GeneratorExecutionContext context,
+            Compilation compilation,
             IEnumerable<ClassDeclarationSyntax> candidates,
+            // NOTE: Should eventually support Records for CRDT Contaxes
             IEnumerable<RecordDeclarationSyntax> operationCandidates,
             out List<CrdtInfo> crdtInfos,
             out HashSet<RoutedOperationInfo> operationInfos
@@ -93,30 +96,33 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             operationInfos = new HashSet<RoutedOperationInfo>();
 
             // process predefined internal crdts
-            var nodeSet = context.Compilation.GetTypeByMetadataName("Nyris.Crdt.Distributed.Crdts.NodeSet");
-            if (!TryGetCrdtInfo(nodeSet, out var crdtInfo, out _))
+            var nodeSet = compilation.GetTypeByMetadataName("Nyris.Crdt.Distributed.Crdts.NodeSet");
+            if (nodeSet is null || !TryGetCrdtInfo(nodeSet, out var crdtInfo, out _))
             {
-                _log.AppendLine(
-                                "Something went wrong - could not get crdtInfo of a known class Nyris.Crdt.Distributed.Crdts.NodeSet");
+                throw new MissingMemberException(
+                                                 "Something went wrong - could not get crdtInfo of a known class Nyris.Crdt.Distributed.Crdts.NodeSet");
             }
 
-            crdtInfos.Add(crdtInfo);
+            if (crdtInfo is not null)
+            {
+                crdtInfos.Add(crdtInfo);
+            }
 
             // process user-defined crdts
             foreach (var candidateClass in candidates)
             {
-                _log.AppendLine("Analysing class: " + candidateClass.Identifier.ToFullString());
-                var namedTypeSymbol = context.Compilation.GetSemanticModel(candidateClass.SyntaxTree)
-                                             .GetDeclaredSymbol(candidateClass);
+                // _log.AppendLine("Analyzing class: " + candidateClass.Identifier.ToFullString());
+                var namedTypeSymbol = compilation.GetSemanticModel(candidateClass.SyntaxTree)
+                                                 .GetDeclaredSymbol(candidateClass);
                 if (namedTypeSymbol == null)
                 {
-                    _log.AppendLine("Something went wrong - semantic model did not produce an INamedTypeSymbol");
+                    // _log.AppendLine("Something went wrong - semantic model did not produce an INamedTypeSymbol");
                     continue;
                 }
 
                 if (namedTypeSymbol.IsGenericType)
                 {
-                    _log.AppendLine("Class is generic - skipping");
+                    // _log.AppendLine("Class is generic - skipping");
                     continue;
                 }
 
@@ -127,7 +133,10 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                     operationInfos.Add(operation);
                 }
 
-                crdtInfos.Add(crdtInfo);
+                if (crdtInfo is not null)
+                {
+                    crdtInfos.Add(crdtInfo);
+                }
             }
         }
 
@@ -138,30 +147,29 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
         /// <param name="crdtInfo"></param>
         /// <param name="operations"></param>
         /// <returns>True if symbol is a managedCrdt, false otherwise</returns>
-        private bool TryGetCrdtInfo(
-            INamedTypeSymbol symbol,
-            [NotNullWhen(true)] out CrdtInfo crdtInfo,
-            out IEnumerable<RoutedOperationInfo> operations
+        private static bool TryGetCrdtInfo(
+            ITypeSymbol symbol,
+            out CrdtInfo? crdtInfo,
+            out ImmutableArray<RoutedOperationInfo> operations
         )
         {
             var current = symbol.BaseType;
-            var operationInfos = (IEnumerable<RoutedOperationInfo>) ArraySegment<RoutedOperationInfo>.Empty;
+            var operationInfos = new List<RoutedOperationInfo>();
 
             while (current != null && current.ToDisplayString() != "object")
             {
-                if (current.Name == PartiallyReplicatedCRDTRegistryTypeName)
+                if (current.Name == PartiallyReplicatedCrdtRegistryTypeName)
                 {
                     var keyType = current.TypeArguments[0];
 
-                    _log.AppendLine(
-                                    $"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
-                                    "Generated gRPC service will include methods for applying its operations.");
+                    // _log.AppendLine(
+                    //     $"Class {symbol.Name} determined to be a {PartiallyReplicatedCRDTRegistryTypeName}. " +
+                    //     "Generated gRPC service will include methods for applying its operations.");
 
                     var crdtTypeParams = string.Join(", ", current.TypeArguments.Select(s => s.ToDisplayString()));
 
                     // get attributes of symbol
                     // get type arguments of constructor
-
                     operationInfos = symbol.GetAttributes()
                                            .Where(ad => ad.AttributeClass?.Name == "RequireOperationAttribute")
                                            .Select(attr =>
@@ -173,13 +181,13 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                                                                               operationResponseConcreteType?.ToDisplayString(),
                                                                               keyType.ToDisplayString(),
                                                                               $"{symbol.ToDisplayString()}, {crdtTypeParams}");
-                                           });
+                                           }).ToList();
                 }
 
-                if (current.Name == ManagedCRDTTypeName)
+                if (current.Name == ManagedCrdtTypeName)
                 {
-                    _log.AppendLine($"Class {symbol.Name} determined to be a ManagedCRDT. " +
-                                    "Generated gRPC service will include transport operations for it's dto");
+                    // _log.AppendLine($"Class {symbol.Name} determined to be a ManagedCRDT. " +
+                    //                 "Generated gRPC service will include transport operations for it's dto");
                     var allArgumentsString = string.Join(", ",
                                                          current.TypeArguments.Select(typeSymbol => typeSymbol.ToDisplayString()));
                     var dtoString = current.TypeArguments.Last().ToDisplayString();
@@ -188,7 +196,7 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
                                             CrdtTypeName: symbol.ToDisplayString(),
                                             AllArgumentsString: allArgumentsString,
                                             DtoTypeName: dtoString);
-                    operations = operationInfos;
+                    operations = operationInfos.ToImmutableArray();
                     return true;
                 }
 
@@ -196,7 +204,7 @@ namespace Nyris.Crdt.Distributed.SourceGenerators
             }
 
             crdtInfo = null;
-            operations = operationInfos;
+            operations = operationInfos.ToImmutableArray();
             return false;
         }
     }

@@ -1,24 +1,16 @@
 namespace Nyris.Crdt.Distributed.SourceGenerators.Model
 {
-    public sealed record RoutedOperationInfo
+    public sealed record RoutedOperationInfo(string? OperationType, string? OperationResponseType, string KeyType, string CrdtTypeParams)
     {
-        public readonly string OperationType;
-        public readonly string OperationResponseType;
+        public readonly string? OperationType = OperationType;
+        public readonly string? OperationResponseType = OperationResponseType;
 
         /// <summary>
         /// Routed operation is passed between nodes when PartiallyReplicatedRegistry does not have a collection locally
         /// Key here is a key of that registry, used to identify a collection
         /// </summary>
-        public readonly string KeyType;
+        public readonly string KeyType = KeyType;
 
-        public readonly string CrdtTypeParams;
-
-        public RoutedOperationInfo(string operationType, string operationResponseType, string keyType, string crdtTypeParams)
-        {
-            OperationType = operationType;
-            OperationResponseType = operationResponseType;
-            KeyType = keyType;
-            CrdtTypeParams = crdtTypeParams;
-        }
+        public readonly string CrdtTypeParams = CrdtTypeParams;
     }
 }
