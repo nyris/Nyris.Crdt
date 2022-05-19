@@ -22,6 +22,8 @@
         <PackageReference Include="Nyris.Extensions.AspNetCore.Hosting" Version="3.5.0" />
         <PackageReference Include="Nyris.EventBus.AspNetCore" Version="0.15.0" />
         <PackageReference Include="Nyris.Model.Ids" Version="1.4.2" />
+        <!-- <PackageReference Include="Nyris.Crdt.Distributed" Version="0.1.0-unstable.146" /> -->
+        <!-- <PackageReference Include="Nyris.Crdt.Distributed.SourceGenerators" Version="0.1.0-unstable.146" /> -->
     </ItemGroup>
 
     <!-- Open Telemetry -->

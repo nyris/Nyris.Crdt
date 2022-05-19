@@ -27,7 +27,7 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
     where TDto : ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
 {
     private readonly HashSet<DottedItem<TActorId, TItem>> _items;
-    private HashSet<DottedItem<TActorId, TItem>> _delta;
+    private TDto _delta;
 
     private readonly Dictionary<TActorId, uint> _versionVectors;
 
@@ -37,6 +37,8 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
     private readonly SemaphoreSlim _semaphore = new(1);
     private readonly TActorId _thisNodeId;
 
+    private readonly TDto _defaultDelta;
+
     protected ManagedOptimizedObservedRemoveSet(
         InstanceId id,
         TActorId thisNodeId,
@@ -45,10 +47,17 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
     ) : base(id, queueProvider: queueProvider, logger: logger)
     {
         _thisNodeId = thisNodeId;
-        _items = new();
-        _delta = new();
-        _versionVectors = new();
-        _tombstones = new();
+        _items = new HashSet<DottedItem<TActorId, TItem>>();
+        _defaultDelta = new TDto
+        {
+            Items = new HashSet<DottedItem<TActorId, TItem>>(),
+            Tombstones = new Dictionary<Dot<TActorId>, HashSet<TActorId>>(),
+            VersionVectors = new Dictionary<TActorId, uint>(),
+            SourceId = thisNodeId
+        };
+        _delta = _defaultDelta;
+        _versionVectors = new Dictionary<TActorId, uint>();
+        _tombstones = new Dictionary<Dot<TActorId>, HashSet<TActorId>>();
     }
 
     /// <inheritdoc />
@@ -61,6 +70,7 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
 
         try
         {
+            // TODO: Hash of set should suffice only with VersionVectors, content of Items should be irrelevant
             return HashingHelper.Combine(
                                          HashingHelper.Combine(_items.OrderBy(i => i.Dot.Actor)),
                                          HashingHelper.Combine(_versionVectors.OrderBy(pair => pair.Key)));
@@ -88,6 +98,10 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
 
         try
         {
+            // NOTE: Destroy current delta and create new one on every merge
+            // in case of failure we can always recreate it (but will have to wait for some other operation to happen to trigger `Merge`)
+            _delta = _defaultDelta;
+
             // NOTE: Keeps items from Other Node if Local Node has never seen those (i.e No VersionVector present) or they have newer Dot than Local Observed State
             var newerOtherItems = otherItems.Where(i =>
                                                        !(other.Tombstones is not null && other.Tombstones.ContainsKey(i.Dot)) &&
@@ -115,7 +129,6 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
             }
 
             _items.UnionWith(newerOtherItems);
-            _delta = _items.ToHashSet();
 
             // observed state is a element-wise max of two vectors.
             foreach (var (actorId, otherVersion) in other.VersionVectors)
@@ -134,23 +147,29 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
 
             foreach (var (dot, actorIds) in newerTombstones)
             {
-                // NOTE: Update existing tombstone for given Dot (i.e pair.Key)
-                if (_tombstones.TryGetValue(dot, out var observedByActors))
-                {
-                    observedByActors.UnionWith(actorIds);
-                }
-                else
-                {
-                    observedByActors = actorIds;
-                    _tombstones.Add(dot, observedByActors);
-                }
+                var observedByActors = _tombstones.GetValueOrDefault(dot, new HashSet<TActorId>());
 
-                // NOTE: Delete Tombstones which every known Node has already seen.
-                if (allKnownNodes.SetEquals(observedByActors.OrderBy(id => id)))
+                var tombstoneWasKnownByAll = allKnownNodes.SetEquals(actorIds.OrderBy(id => id));
+
+                // NOTE: Delete Tombstones which every known Node has already seen
+                if (tombstoneWasKnownByAll)
                 {
                     _tombstones.Remove(dot);
                 }
+                else
+                {
+                    observedByActors.UnionWith(actorIds);
+                    // NOTE: We have processed this tombstone, when we deleted items based on this
+                    observedByActors.Add(_thisNodeId);
+                    // NOTE: Add/Update with Updated info of Nodes who have observed the give tombstone
+                    _tombstones[dot] = observedByActors;
+                }
             }
+
+            // TODO: Calculate deltas for each Node
+            _delta.Items?.UnionWith(newerOtherItems);
+            _delta.VersionVectors = _versionVectors;
+            _delta.Tombstones = _tombstones;
         }
         finally
         {
@@ -171,9 +190,10 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         {
             return new TDto
             {
-                Items = _delta,
-                VersionVectors = _versionVectors,
-                Tombstones = _tombstones
+                Items = _delta.Items?.ToHashSet(),
+                VersionVectors = _delta.VersionVectors?.ToDictionary(pair => pair.Key, pair => pair.Value),
+                Tombstones = _delta.Tombstones?.ToDictionary(pair => pair.Key, pair => pair.Value),
+                SourceId = _thisNodeId
             };
         }
         finally
@@ -227,12 +247,16 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
             var newItem = new DottedItem<TActorId, TItem>(new Dot<TActorId>(_thisNodeId, version), item);
 
             _items.Add(newItem);
-            _delta.Add(newItem);
+
 
             // notice that i.Actor.Equals(_thisNodeId) means that there may be multiple copies of item
             // stored at the same time. This is by design
             _items.RemoveWhere(i => i.Value.Equals(item) && i.Dot.Version < version);
             _versionVectors[_thisNodeId] = version;
+
+            _delta.Items?.Add(newItem);
+            _delta.VersionVectors = _versionVectors;
+            _delta.Tombstones = _tombstones;
         }
         finally
         {
@@ -258,7 +282,6 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
             if (itemsToBeRemoved.Count > 0)
             {
                 _items.ExceptWith(itemsToBeRemoved);
-                _delta.ExceptWith(itemsToBeRemoved);
 
                 foreach (var dottedItem in itemsToBeRemoved)
                 {
@@ -271,6 +294,10 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
                         _tombstones.Add(dottedItem.Dot, new HashSet<TActorId> { _thisNodeId });
                     }
                 }
+
+                _delta.Items?.ExceptWith(itemsToBeRemoved);
+                _delta.VersionVectors = _versionVectors;
+                _delta.Tombstones = _tombstones;
             }
         }
         finally
@@ -286,6 +313,6 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         public abstract HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
         public abstract Dictionary<TActorId, uint>? VersionVectors { get; set; }
         public abstract Dictionary<Dot<TActorId>, HashSet<TActorId>>? Tombstones { get; set; }
-        public abstract NodeId? SourceId { get; set; }
+        public abstract TActorId? SourceId { get; set; }
     }
 }

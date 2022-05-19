@@ -7,10 +7,12 @@ namespace Nyris.Crdt.AspNetExample.Controllers;
 [Route("/")]
 public class HomeController : ControllerBase
 {
+    private readonly MyContext _context;
     private readonly NodeId _thisNodeId;
 
-    public HomeController(NodeInfo nodeInfo)
+    public HomeController(NodeInfo nodeInfo, MyContext context)
     {
+        _context = context;
         _thisNodeId = nodeInfo.Id;
     }
 
@@ -18,5 +20,12 @@ public class HomeController : ControllerBase
     public IActionResult Index()
     {
         return Ok(_thisNodeId);
+    }
+
+
+    [HttpGet("nodes")]
+    public IActionResult GetAllNodes()
+    {
+        return Ok(_context.Nodes.Value);
     }
 }

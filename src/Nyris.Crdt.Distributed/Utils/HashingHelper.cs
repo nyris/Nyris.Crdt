@@ -109,7 +109,7 @@ internal static class HashingHelper
             foreach (var (key, item) in items)
             {
                 sha1.AppendData(CalculateHash(key));
-                sha1.AppendData(BitConverter.GetBytes(item));
+                sha1.AppendData(CalculateHash(item));
             }
 
             return sha1.GetHashAndReset();
