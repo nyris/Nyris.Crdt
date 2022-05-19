@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
@@ -55,7 +56,7 @@ public sealed class NodeSet : ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo
         public override Dictionary<Dot<NodeId>, HashSet<NodeId>>? Tombstones { get; set; }
 
         [ProtoMember(4)]
-        public override NodeId? SourceId { get; set; }
+        public override NodeId SourceId { get; set; }
     }
 
     private sealed class Factory : INodeAwareManagedCrdtFactory<NodeSet, NodeSetDto>

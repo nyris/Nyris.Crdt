@@ -63,7 +63,8 @@ public sealed class SerializationTests
             VersionVectors = new Dictionary<NodeId, uint>
             {
                 { id, 2 }
-            }
+            },
+            SourceId = id
         });
     }
 

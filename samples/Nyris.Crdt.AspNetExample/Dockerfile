@@ -13,11 +13,9 @@ COPY ["src/Nyris.Crdt.Distributed.SourceGenerators/Nyris.Crdt.Distributed.Source
 RUN dotnet restore "samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj"
 COPY . .
 WORKDIR "/src/samples/Nyris.Crdt.AspNetExample"
-RUN rm -rf "Generated"
 RUN dotnet build "Nyris.Crdt.AspNetExample.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN rm -rf "Generated"
 RUN dotnet publish "Nyris.Crdt.AspNetExample.csproj" -c Release -o /app/publish
 
 FROM base AS final

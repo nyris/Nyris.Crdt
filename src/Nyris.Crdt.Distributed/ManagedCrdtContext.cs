@@ -33,7 +33,7 @@ namespace Nyris.Crdt.Distributed
 
         protected readonly ILogger<ManagedCrdtContext>? Logger;
 
-        internal NodeSet Nodes { get; }
+        public NodeSet Nodes { get; }
 
         protected ManagedCrdtContext(
             NodeInfo nodeInfo,

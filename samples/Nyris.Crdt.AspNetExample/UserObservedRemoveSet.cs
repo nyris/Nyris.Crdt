@@ -28,7 +28,7 @@ public sealed class
         public override Dictionary<Dot<NodeId>, HashSet<NodeId>>? Tombstones { get; set; }
 
         [ProtoMember(4)]
-        public override NodeId? SourceId { get; set; }
+        public override NodeId SourceId { get; set; }
     }
 
     public sealed class Factory : INodeAwareManagedCrdtFactory<UserObservedRemoveSet, UserSetDto>

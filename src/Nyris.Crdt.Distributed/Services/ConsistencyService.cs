@@ -20,7 +20,7 @@ internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
     private readonly IChannelManager _channelManager;
     private readonly IConsistencyCheckTargetsSelectionStrategy _strategy;
     private readonly NodeId _thisNodeId;
-    private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(20);
+    private readonly TimeSpan _delayBetweenChecks = TimeSpan.FromSeconds(5);
 
     private readonly ILogger<ConsistencyService<TCrdt, TDto>> _logger;
 
