@@ -5,15 +5,18 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 using System.Collections.Generic;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.AspNetExample;
 
 public sealed class
     UserObservedRemoveSet : ManagedOptimizedObservedRemoveSet<NodeId, User, UserObservedRemoveSet.UserSetDto>
 {
-    public UserObservedRemoveSet(InstanceId id, NodeInfo nodeInfo, IAsyncQueueProvider? queueProvider = null,
+    public UserObservedRemoveSet(InstanceId id, NodeInfo nodeInfo,
+        ICrdtMetricsRegistry? metricsRegistry = null,
+        IAsyncQueueProvider? queueProvider = null,
         ILogger? logger = null) :
-        base(id, nodeInfo.Id, queueProvider, logger) { }
+        base(id, nodeInfo.Id, queueProvider, logger, metricsRegistry) { }
 
     [ProtoContract]
     public sealed class UserSetDto : OrSetDto
@@ -35,16 +38,18 @@ public sealed class
     {
         private readonly IAsyncQueueProvider? _queueProvider;
         private readonly ILogger? _logger;
+        private readonly ICrdtMetricsRegistry? _metricsRegistry;
 
         public Factory() { }
 
-        public Factory(IAsyncQueueProvider? queueProvider = null, ILogger? logger = null)
+        public Factory(IAsyncQueueProvider? queueProvider = null, ILogger? logger = null, ICrdtMetricsRegistry? metricsRegistry = null)
         {
             _queueProvider = queueProvider;
             _logger = logger;
+            _metricsRegistry = metricsRegistry;
         }
 
         public UserObservedRemoveSet Create(InstanceId instanceId, NodeInfo nodeInfo) =>
-            new(instanceId, nodeInfo, _queueProvider, _logger);
+            new(instanceId, nodeInfo, _metricsRegistry, _queueProvider, _logger);
     }
 }

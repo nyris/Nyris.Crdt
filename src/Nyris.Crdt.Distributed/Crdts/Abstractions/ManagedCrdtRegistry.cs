@@ -15,6 +15,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 
@@ -37,6 +38,7 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
     where TItemValueFactory : IManagedCRDTFactory<TItemValue, TItemValueDto>, new()
 {
     private readonly ILogger? _logger;
+    private readonly ICrdtMetricsRegistry? _metricsRegistry;
     private readonly TItemValueFactory _factory;
 
     private readonly HashableOptimizedObservedRemoveSet<TActorId, TItemKey> _keys;
@@ -48,14 +50,16 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
         InstanceId id,
         IAsyncQueueProvider? queueProvider = null,
         TItemValueFactory? factory = default,
-        ILogger? logger = null
+        ILogger? logger = null,
+        ICrdtMetricsRegistry? metricsRegistry = null
     )
         : base(id, queueProvider: queueProvider, logger: logger)
     {
         _logger = logger;
+        _metricsRegistry = metricsRegistry;
         _keys = new HashableOptimizedObservedRemoveSet<TActorId, TItemKey>();
         _dictionary = new ConcurrentDictionary<TItemKey, TItemValue>();
-        _factory = factory ?? new();
+        _factory = factory ?? new TItemValueFactory();
     }
 
     /// <inheritdoc />
@@ -118,6 +122,8 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
         }
         finally
         {
+            _metricsRegistry?.CollectCollectionSize(_dictionary.Count, TypeName);
+
             _semaphore.Release();
         }
 
@@ -160,6 +166,8 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
         }
         finally
         {
+            _metricsRegistry?.CollectCollectionSize(_dictionary.Count, TypeName);
+
             _semaphore.Release();
         }
 
@@ -188,6 +196,8 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
         }
         finally
         {
+            _metricsRegistry?.CollectCollectionSize(_dictionary.Count, TypeName);
+
             _semaphore.Release();
             await StateChangedAsync(propagateToNodes: propagationToNodes, cancellationToken: cancellationToken);
         }
@@ -203,6 +213,8 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
         {
             throw new NyrisException("Deadlock");
         }
+
+        _metricsRegistry?.RecordMergeTrigger(TypeName);
 
         try
         {
@@ -234,6 +246,8 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
         }
         finally
         {
+            _metricsRegistry?.CollectCollectionSize(_dictionary.Count, TypeName);
+
             _semaphore.Release();
         }
     }
@@ -255,6 +269,8 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
         }
         finally
         {
+            _metricsRegistry?.CollectDtoSize(_dictionary.Count, TypeName);
+
             _semaphore.Release();
         }
     }

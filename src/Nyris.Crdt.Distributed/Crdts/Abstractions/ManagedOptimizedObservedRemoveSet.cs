@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 
@@ -36,6 +37,7 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
     private readonly Dictionary<Dot<TActorId>, HashSet<TActorId>> _tombstones;
     private readonly SemaphoreSlim _semaphore = new(1);
     private readonly TActorId _thisNodeId;
+    private readonly ICrdtMetricsRegistry? _metricsRegistry;
 
     private readonly TDto _defaultDelta;
 
@@ -43,10 +45,12 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         InstanceId id,
         TActorId thisNodeId,
         IAsyncQueueProvider? queueProvider = null,
-        ILogger? logger = null
+        ILogger? logger = null,
+        ICrdtMetricsRegistry? metricsRegistry = null
     ) : base(id, queueProvider: queueProvider, logger: logger)
     {
         _thisNodeId = thisNodeId;
+        _metricsRegistry = metricsRegistry;
         _items = new HashSet<DottedItem<TActorId, TItem>>();
         _defaultDelta = new TDto
         {
@@ -98,6 +102,7 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
 
         try
         {
+            _metricsRegistry?.RecordMergeTrigger(TypeName);
             // NOTE: Destroy current delta and create new one on every merge
             // in case of failure we can always recreate it (but will have to wait for some other operation to happen to trigger `Merge`)
             _delta = _defaultDelta;
@@ -174,6 +179,8 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         finally
         {
             _semaphore.Release();
+
+            _metricsRegistry?.CollectCollectionSize(_items.Count, _tombstones.Count, TypeName);
         }
 
         return MergeResult.ConflictSolved;
@@ -198,6 +205,7 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         }
         finally
         {
+            _metricsRegistry?.CollectDtoSize(_delta.Items?.Count, _delta.Tombstones?.Count, TypeName);
             _semaphore.Release();
         }
     }
@@ -260,6 +268,8 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         }
         finally
         {
+            _metricsRegistry?.CollectCollectionSize(_items.Count, _tombstones.Count, TypeName);
+
             _semaphore.Release();
         }
 
@@ -302,6 +312,8 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         }
         finally
         {
+            _metricsRegistry?.CollectCollectionSize(_items.Count, _tombstones.Count, TypeName);
+
             _semaphore.Release();
         }
 
