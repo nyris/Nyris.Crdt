@@ -13,6 +13,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 
@@ -23,6 +24,7 @@ public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp
     where TKey : IEquatable<TKey>, IComparable<TKey>
     where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
 {
+    private readonly ICrdtMetricsRegistry? _metricsRegistry;
     private readonly ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>> _items;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private ConcurrentBag<TKey> _nextDto = new();
@@ -30,9 +32,11 @@ public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp
     protected ManagedLastWriteWinsDeltaRegistry(
         InstanceId id,
         IAsyncQueueProvider? queueProvider = null,
-        ILogger? logger = null
+        ILogger? logger = null,
+        ICrdtMetricsRegistry? metricsRegistry = null
     ) : base(id, queueProvider: queueProvider, logger: logger)
     {
+        _metricsRegistry = metricsRegistry;
         _items = new ConcurrentDictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>();
     }
 
@@ -99,6 +103,9 @@ public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp
         _nextDto.Add(key);
         await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId,
                                 cancellationToken: cancellationToken);
+
+        _metricsRegistry?.CollectCollectionSize(_items.Count, TypeName);
+
         return item;
     }
 
@@ -129,6 +136,9 @@ public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp
         _nextDto.Add(key);
         await StateChangedAsync(propagateToNodes: propagateToNodes, traceId: traceId,
                                 cancellationToken: cancellationToken);
+
+        _metricsRegistry?.CollectCollectionSize(_items.Count, TypeName);
+
         return item;
     }
 
@@ -152,6 +162,8 @@ public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp
             {
                 conflictSolved |= await CheckKeyForConflictAsync(key, other);
             }
+
+            _metricsRegistry?.CollectCollectionSize(_items.Count, TypeName);
 
             return conflictSolved ? MergeResult.ConflictSolved : MergeResult.NotUpdated;
         }
@@ -177,6 +189,8 @@ public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp
                 items.Add(key, item);
             }
         }
+
+        _metricsRegistry?.CollectDtoSize(items.Count, TypeName);
 
         return new LastWriteWinsDto
         {

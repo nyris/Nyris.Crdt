@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nyris.Crdt.Distributed.Strategies.Discovery;
 using System;
 using System.Collections.Generic;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.Distributed;
 
@@ -33,6 +34,13 @@ public sealed class ManagedCrdtsServicesBuilder
             _services.AddSingleton<IDiscoveryStrategy, AddressListDiscoveryStrategy>(_ =>
                                                                                          new AddressListDiscoveryStrategy(addresses));
         }
+
+        return this;
+    }
+
+    public ManagedCrdtsServicesBuilder WithMetrics()
+    {
+        _services.AddSingleton<ICrdtMetricsRegistry, CrdtMetricsRegistry>();
 
         return this;
     }

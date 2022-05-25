@@ -4,6 +4,7 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using System;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.AspNetExample;
 
@@ -12,7 +13,8 @@ public sealed class ImageInfoLwwCollection : ManagedLastWriteWinsDeltaRegistry<I
     /// <inheritdoc />
     public ImageInfoLwwCollection(InstanceId id,
         IAsyncQueueProvider? queueProvider = null,
-        ILogger? logger = null) : base(id, queueProvider: queueProvider, logger: logger) { }
+        ILogger? logger = null, ICrdtMetricsRegistry? metricsRegistry = null) : base(id, queueProvider: queueProvider, logger: logger,
+        metricsRegistry: metricsRegistry) { }
 
     public sealed class ImageInfoLwwCollectionFactory : IManagedCRDTFactory<ImageInfoLwwCollection, LastWriteWinsDto>
     {

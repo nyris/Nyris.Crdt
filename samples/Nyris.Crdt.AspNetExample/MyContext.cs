@@ -1,12 +1,14 @@
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed;
+using Nyris.Crdt.Distributed.Metrics;
 using Nyris.Crdt.Distributed.Model;
 
 namespace Nyris.Crdt.AspNetExample
 {
     public sealed class MyContext : ManagedCrdtContext
     {
-        public MyContext(NodeInfo nodeInfo, ILogger<MyContext> logger, ILoggerFactory loggerFactory) :
+        public MyContext(NodeInfo nodeInfo, ILogger<MyContext> logger, ILoggerFactory loggerFactory,
+            ICrdtMetricsRegistry? metricsRegistry) :
             base(nodeInfo, logger)
         {
             DefaultConfiguration.ResponseCombinator = new ResponseCombinator(
@@ -16,14 +18,17 @@ namespace Nyris.Crdt.AspNetExample
                 .ImageInfoLwwCollectionWithSerializableOperationsFactory(
                     logger: loggerFactory.CreateLogger<ImageInfoLwwCollectionWithSerializableOperations>());
 
-            PartiallyReplicatedImageCollectionsRegistry = new(new InstanceId("partially-replicated"),
+            PartiallyReplicatedImageCollectionsRegistry = new PartiallyReplicatedImageInfoCollectionsRegistry(
+                new InstanceId("partially-replicated"),
                 logger: loggerFactory.CreateLogger<PartiallyReplicatedImageInfoCollectionsRegistry>(),
-                factory: imageInfoCollectionFactory);
-            ImageCollectionsRegistry = new(new InstanceId("sample-collections-registry"),
-                logger: loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>());
+                factory: imageInfoCollectionFactory,
+                metricsRegistry: metricsRegistry);
+            ImageCollectionsRegistry = new ImageInfoCollectionsRegistry(new InstanceId("sample-collections-registry"),
+                logger: loggerFactory.CreateLogger<ImageInfoCollectionsRegistry>(), metricsRegistry: metricsRegistry);
 
             UserObservedRemoveSet = new UserObservedRemoveSet(new InstanceId("users-or-set-collection"),
                 nodeInfo,
+                metricsRegistry,
                 logger: loggerFactory.CreateLogger<UserObservedRemoveSet>());
 
             Add<ImageInfoCollectionsRegistry, ImageInfoCollectionsRegistry.RegistryDto>(ImageCollectionsRegistry);

@@ -16,6 +16,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.Distributed
 {
@@ -38,11 +39,12 @@ namespace Nyris.Crdt.Distributed
         protected ManagedCrdtContext(
             NodeInfo nodeInfo,
             ILogger<ManagedCrdtContext>? logger = null,
-            NodeSet? nodes = null
+            NodeSet? nodes = null,
+            ICrdtMetricsRegistry? metricsRegistry = null
         )
         {
             Logger = logger;
-            Nodes = nodes ?? new(new InstanceId("nodes_internal"), nodeInfo);
+            Nodes = nodes ?? new NodeSet(new InstanceId("nodes_internal"), nodeInfo, metricsRegistry: metricsRegistry);
             Add<NodeSet, NodeSet.NodeSetDto>(Nodes);
         }
 

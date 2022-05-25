@@ -23,6 +23,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 
@@ -81,6 +82,7 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
 
     private ManagedCrdtContext? _context;
     private readonly IChannelManager? _channelManager;
+    private readonly ICrdtMetricsRegistry? _metricsRegistry;
 
     private IDictionary<ShardId, IList<NodeInfo>> _desiredDistribution;
 
@@ -114,7 +116,8 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
         INodeInfoProvider? nodeInfoProvider = null,
         IAsyncQueueProvider? queueProvider = null,
         IChannelManager? channelManager = null,
-        TCollectionFactory? factory = default
+        TCollectionFactory? factory = default,
+        ICrdtMetricsRegistry? metricsRegistry = null
     ) : base(instanceId, queueProvider: queueProvider, logger: logger)
     {
         _logger = logger;
@@ -129,6 +132,7 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
         _desiredDistribution = new Dictionary<ShardId, IList<NodeInfo>>();
         _factory = factory ?? new TCollectionFactory();
         _channelManager = channelManager;
+        _metricsRegistry = metricsRegistry;
         _refreshShardSizesTask = RefreshShardSizesAsync(_cts.Token);
     }
 
@@ -196,9 +200,12 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
                            .Range(0, config.ShardingConfig?.NumShards ?? 1)
                            .Select(_ => ShardId.GenerateNew());
 
-            result = _collectionInfos.TryAdd(_thisNode.Id, key, new CollectionInfo(name: config.Name,
-                                                                                   shardIds: shardIds,
-                                                                                   indexes: config.IndexNames));
+            var collectionInfo = new CollectionInfo(name: config.Name,
+                                                    shardIds: shardIds,
+                                                    indexes: config.IndexNames);
+            result = _collectionInfos.TryAdd(_thisNode.Id, key, collectionInfo);
+
+            _metricsRegistry?.CollectCollectionSize((int?) collectionInfo.Size, TypeName);
         }
         finally
         {
@@ -371,6 +378,8 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
             throw new NyrisException("Deadlock");
         }
 
+        _metricsRegistry?.RecordMergeTrigger(TypeName);
+
         var conflict = false;
         var infosMerge = MergeResult.Identical;
         try
@@ -403,9 +412,13 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
 
         try
         {
+            var hashableCrdtRegistryDto = _collectionInfos.ToDto();
+
+            _metricsRegistry?.CollectDtoSize(hashableCrdtRegistryDto.Dict?.Count, TypeName);
+
             return new PartiallyReplicatedCrdtRegistryDto
             {
-                CollectionInfos = _collectionInfos.ToDto(),
+                CollectionInfos = hashableCrdtRegistryDto,
                 CurrentState = _currentState.ToDto()
             };
         }
@@ -648,6 +661,8 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
                 && nodes.Contains(_thisNode.Id)
                 && _collections.TryGetValue(shardId, out var collection))
             {
+                _metricsRegistry?.CollectCollectionSize((int?) collection.Size, TypeName);
+
                 await SetShardSizeAsync(shardId,
                                         collection.Size,
                                         collection.StorageSize,

@@ -1,4 +1,3 @@
-using System;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
@@ -9,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.Distributed.Crdts;
 
@@ -21,8 +21,9 @@ public sealed class NodeSet : ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo
         InstanceId id,
         NodeInfo nodeInfo,
         IAsyncQueueProvider? queueProvider = null,
-        ILogger? logger = null
-    ) : base(id, nodeInfo.Id, queueProvider: queueProvider, logger: logger)
+        ILogger? logger = null,
+        ICrdtMetricsRegistry? metricsRegistry = null
+    ) : base(id, nodeInfo.Id, queueProvider: queueProvider, logger: logger, metricsRegistry: metricsRegistry)
     {
         _thisNodeInfo = nodeInfo;
     }

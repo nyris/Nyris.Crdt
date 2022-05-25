@@ -8,6 +8,7 @@ using Nyris.Crdt.Distributed.Strategies.PartialReplication;
 using Nyris.Crdt.Distributed.Utils;
 using System;
 using System.Collections.Generic;
+using Nyris.Crdt.Distributed.Metrics;
 
 namespace Nyris.Crdt.AspNetExample;
 
@@ -32,12 +33,14 @@ public sealed class PartiallyReplicatedImageInfoCollectionsRegistry
         INodeInfoProvider? nodeInfoProvider = null,
         IAsyncQueueProvider? queueProvider = null,
         IChannelManager? channelManager = null,
-        ImageInfoLwwCollectionWithSerializableOperations.ImageInfoLwwCollectionWithSerializableOperationsFactory? factory = null)
+        ImageInfoLwwCollectionWithSerializableOperations.ImageInfoLwwCollectionWithSerializableOperationsFactory? factory = null,
+        ICrdtMetricsRegistry? metricsRegistry = null)
         : base(instanceId,
             logger: logger,
             partialReplicationStrategy: partialReplicationStrategy,
             nodeInfoProvider: nodeInfoProvider,
             queueProvider: queueProvider,
             channelManager: channelManager,
-            factory: factory) { }
+            factory: factory,
+            metricsRegistry: metricsRegistry) { }
 }
