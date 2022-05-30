@@ -38,8 +38,13 @@ public sealed class ManagedCrdtsServicesBuilder
         return this;
     }
 
-    public ManagedCrdtsServicesBuilder WithMetrics()
+    public ManagedCrdtsServicesBuilder WithMetrics(Action<MetricsOptions>? configureOptions = null)
     {
+        var options = new MetricsOptions();
+
+        configureOptions?.Invoke(options);
+
+        _services.AddSingleton(options);
         _services.AddSingleton<ICrdtMetricsRegistry, CrdtMetricsRegistry>();
 
         return this;

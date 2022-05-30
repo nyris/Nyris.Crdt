@@ -18,12 +18,12 @@ public class CrdtMetricsRegistry : ICrdtMetricsRegistry
     private readonly CounterOptions _mergeTriggersOptions;
     private readonly string _nodeName;
 
-    public CrdtMetricsRegistry(IMetrics? metrics, NodeInfo nodeInfo)
+    public CrdtMetricsRegistry(MetricsOptions options, IMetrics? metrics, NodeInfo nodeInfo)
     {
         _metrics = metrics;
         _nodeName = nodeInfo.Id.ToString();
 
-        const string context = "crdt_app";
+        var context = options.MetricsPrefix;
 
         _dtoItemSizeOptions = new GaugeOptions
         {

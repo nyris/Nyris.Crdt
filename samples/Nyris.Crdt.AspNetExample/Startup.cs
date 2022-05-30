@@ -37,7 +37,7 @@ public class Startup
         services.AddManagedCrdts<MyContext>()
             .WithKubernetesDiscovery(options => { options.Namespaces = new[] { "distributed-prototype-test" }; })
             .WithAddressListDiscovery(Configuration.GetSection("ManualDiscovery").Get<List<Uri>>())
-            .WithMetrics();
+            .WithMetrics(options => { options.MetricsPrefix = "demo_app"; });
 
         if (Configuration.GetValue<bool>("EnableRabbitMq"))
         {
