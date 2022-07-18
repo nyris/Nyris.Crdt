@@ -6,6 +6,8 @@ using System.Linq;
 
 namespace Nyris.Crdt.Sets;
 
+// TODO: this has some concurrency related edge cases which must be addressed
+
 /// <summary>
 /// Optimized Observed-Remove Set is a CRDT proposed by Annette Bieniusa & Co: https://softech.cs.uni-kl.de/homepage/staff/AnnetteBieniusa/paper/techrep2012-semantics.pdf
 /// It allows set of actors to add and remove elements unlimited number of times.
