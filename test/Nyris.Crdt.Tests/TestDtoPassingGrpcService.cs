@@ -28,7 +28,7 @@ public class TestDtoPassingGrpcService<TCRDT, TDto> : IDtoPassingGrpcService<TDt
             cancellationToken: cancellationToken);
 
     /// <inheritdoc />
-    public async Task<byte[]> GetHashAsync(TypeNameAndInstanceId nameAndInstanceId, CancellationToken cancellationToken = default)
+    public async Task<byte[]> GetHashAsync(PrimitiveWrapper<InstanceId> instanceId, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
     }

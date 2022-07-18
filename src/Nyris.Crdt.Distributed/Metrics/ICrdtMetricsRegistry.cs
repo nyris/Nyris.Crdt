@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Nyris.Crdt.Distributed.Metrics;
+﻿namespace Nyris.Crdt.Distributed.Metrics;
 
 public interface ICrdtMetricsRegistry
 {

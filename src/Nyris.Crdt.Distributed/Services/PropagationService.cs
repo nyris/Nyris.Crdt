@@ -82,7 +82,7 @@ namespace Nyris.Crdt.Distributed.Services
             try
             {
                 var nodesWithReplica = _context
-                                       .GetNodesThatHaveReplica(new TypeNameAndInstanceId(dto.TypeName, dto.InstanceId))
+                                       .GetNodesThatHaveReplica(dto.InstanceId)
                                        .ToList();
 
                 // _logger.LogDebug("TraceId: {TraceId}, context yielded the following nodes with replica: {Nodes}",

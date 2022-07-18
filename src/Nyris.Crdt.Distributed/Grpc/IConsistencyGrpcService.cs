@@ -9,5 +9,5 @@ namespace Nyris.Crdt.Distributed.Grpc;
 public interface IConsistencyGrpcService
 {
     [OperationContract]
-    Task<byte[]> GetHashAsync(TypeNameAndInstanceId nameAndInstanceId, CancellationToken cancellationToken = default);
+    Task<byte[]> GetHashAsync(PrimitiveWrapper<InstanceId> instanceId, CancellationToken cancellationToken = default);
 }
