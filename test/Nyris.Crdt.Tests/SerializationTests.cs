@@ -52,7 +52,7 @@ public sealed class SerializationTests
 
         TypeSerializable(new NodeSet.NodeSetDto
         {
-            Items = new HashSet<DottedItem<NodeId, NodeInfo>>
+            Items = new HashSet<DottedItemWithActor<NodeId, NodeInfo>>
             {
                 new(new Dot<NodeId>(id, 1), nodeInfo)
             },

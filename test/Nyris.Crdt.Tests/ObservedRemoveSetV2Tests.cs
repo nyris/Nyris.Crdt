@@ -152,8 +152,12 @@ public sealed class ObservedRemoveSetV2Tests
         _output.WriteLine($"Merge done in {DateTime.Now - start}");
 
         start = DateTime.Now;
-        set1.Values.SetEquals(expectedValues.Values).Should().BeTrue();
-        set2.Values.SetEquals(expectedValues.Values).Should().BeTrue();
+        set1.Values.SetEquals(expectedValues.Values).Should().BeTrue(
+            $"expected {expectedValues.Count} items, but this were not found: " +
+            $"{string.Join(";", expectedValues.Values.Except(set1.Values))}");
+        set2.Values.SetEquals(expectedValues.Values).Should().BeTrue(
+            $"expected {expectedValues.Count} items, but this were not found: " +
+            $"{string.Join(";", expectedValues.Values.Except(set2.Values))}");
         _output.WriteLine($"Assertions done in {DateTime.Now - start}");
     }
 
@@ -278,7 +282,9 @@ public sealed class ObservedRemoveSetV2Tests
 
         foreach (var set in sets)
         {
-            set.Values.SetEquals(expectedValues).Should().BeTrue();
+            set.Values.SetEquals(expectedValues).Should().BeTrue(
+                $"expected {expectedValues.Count} items, but this were not found: " +
+                $"{string.Join(";", expectedValues.Except(set.Values))}");
         }
     }
 
@@ -358,7 +364,7 @@ public sealed class ObservedRemoveSetV2Tests
         }
     }
 
-    private async Task AddAndRemoveContinuouslyAsync<TActorId, TItem>(IActoredSet<TActorId, TItem> set,
+    private async Task AddAndRemoveContinuouslyAsync<TActorId, TItem>(OptimizedObservedRemoveSetV2<TActorId, TItem> set,
         IReadOnlyCollection<TItem> items,
         TActorId actorId,
         TimeSpan duration,

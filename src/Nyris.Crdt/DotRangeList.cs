@@ -7,16 +7,32 @@ using System.Threading;
 namespace Nyris.Crdt
 {
     [DebuggerDisplay("{string.Join(\", \", _ranges)}")]
-    public sealed class DotRanges
+    public sealed class DotRangeList
     {
         private readonly List<DotRange> _ranges = new();
         private readonly ReaderWriterLockSlim _lock = new();
 
-        public DotRanges()
+        public DotRangeList()
         {
         }
 
-        public DotRanges(IEnumerable<DotRange> ranges)
+        public int Count
+        {
+            get
+            {
+                _lock.EnterReadLock();
+                try
+                {
+                    return _ranges.Count;
+                }
+                finally
+                {
+                    _lock.ExitReadLock();
+                }
+            }
+        }
+
+        public DotRangeList(IEnumerable<DotRange> ranges)
         {
             _ranges = ranges as List<DotRange> ?? ranges.ToList();
             Debug.Assert(_ranges.IsDisjointAndInIncreasingOrder());

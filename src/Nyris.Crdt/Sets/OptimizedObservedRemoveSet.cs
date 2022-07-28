@@ -20,7 +20,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
     where TItem : IEquatable<TItem>
     where TActorId : IEquatable<TActorId>
 {
-    protected HashSet<DottedItem<TActorId, TItem>> Items;
+    protected HashSet<DottedItemWithActor<TActorId, TItem>> Items;
     protected readonly Dictionary<TActorId, uint> VersionVectors;
     protected readonly object SetChangeLock = new();
 
@@ -62,7 +62,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
     {
         if (ReferenceEquals(other.VersionVectors, null) || other.VersionVectors.Count == 0)
             return MergeResult.NotUpdated;
-        other.Items ??= new HashSet<DottedItem<TActorId, TItem>>();
+        other.Items ??= new HashSet<DottedItemWithActor<TActorId, TItem>>();
 
         lock (SetChangeLock)
         {
@@ -121,7 +121,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
             {
                 Items = Items
                         // (isn't it the same type? transform seem unnecessary), if cloning, wouldn't the ctor work i.e new(Items)
-                        .Select(i => new DottedItem<TActorId, TItem>(i.Dot, i.Value))
+                        .Select(i => new DottedItemWithActor<TActorId, TItem>(i.Dot, i.Value))
                         .ToHashSet(),
                 VersionVectors = VersionVectors
                     .ToDictionary(pair => pair.Key, pair => pair.Value)
@@ -153,7 +153,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
 
             var itemDot = new Dot<TActorId>(actorPerformingAddition, versionVector);
 
-            Items.Add(new DottedItem<TActorId, TItem>(itemDot, item));
+            Items.Add(new DottedItemWithActor<TActorId, TItem>(itemDot, item));
 
             // notice that i.Actor.Equals(actorPerformingAddition) means that there may be multiple copies of item
             // stored at the same time. This is by design
@@ -175,7 +175,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
     public sealed class OptimizedObservedRemoveSetDto
     {
         [ProtoMember(1)]
-        public HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
+        public HashSet<DottedItemWithActor<TActorId, TItem>>? Items { get; set; }
 
         [ProtoMember(2)]
         public Dictionary<TActorId, uint>? VersionVectors { get; set; }

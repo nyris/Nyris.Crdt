@@ -1,35 +1,22 @@
 using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Nyris.Crdt.Exceptions;
 
 namespace Nyris.Crdt
 {
-    public static class DotRangesExtensions
-    {
-        public static bool IsDisjointAndInIncreasingOrder(this IReadOnlyList<DotRange> ranges)
-        {
-            if (ranges.Count <= 1) return true;
-
-            for (var i = 1; i < ranges.Count; ++i)
-            {
-                if (ranges[i - 1].To >= ranges[i].From) return false;
-            }
-
-            return true;
-        }
-    }
-    
     [DebuggerDisplay("{_dict.Count < 5 ? string.Join(',', _dict) : _dict.Count + \" items ...\"}")]
-    public sealed class DottedList<TItem> : IEnumerable<KeyValuePair<TItem, ulong>>
+    public sealed class DottedList<TItem> : IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>
         where TItem : IEquatable<TItem>
     {
-        private readonly ConcurrentDictionary<TItem, ulong> _dict = new();
+        private readonly Dictionary<TItem, ulong> _dict = new();
         
         // Consideration about usage of sorted list:
         //
@@ -46,16 +33,37 @@ namespace Nyris.Crdt
         // there is no additional synchronization downside and additions/removals can be capped as O(log n)
         private readonly SortedList<ulong, TItem> _inverse = new();
         private readonly ReaderWriterLockSlim _lock = new();
-        
+
+        private readonly int _enumerationBatchSize;
+
+        // obviously, this is not an actual size (for instance, dictionary has overhead over number of items), but it will do the job
+        public ulong StorageSize
+        {
+            get
+            {
+                _lock.EnterReadLock();
+                try
+                {
+                    return (ulong) (sizeof(ulong) + Marshal.SizeOf<TItem>()) * (ulong) _dict.Count;
+                }
+                finally
+                {
+                    _lock.ExitReadLock();
+                }
+            }
+        }
+
         public ICollection<TItem> Items => _dict.Keys;
 
-        public DottedList()
+        public DottedList(int enumerationBatchSize = 10000)
         {
+            _enumerationBatchSize = enumerationBatchSize;
         }
         
-        public DottedList(IDictionary<TItem, ulong> dict)
+        public DottedList(IDictionary<TItem, ulong> dict, int enumerationBatchSize = 10000)
         {
-            _dict = new ConcurrentDictionary<TItem, ulong>(dict);
+            _enumerationBatchSize = enumerationBatchSize;
+            _dict = new Dictionary<TItem, ulong>(dict);
             _inverse = new SortedList<ulong, TItem>(dict.ToDictionary(pair => pair.Value, pair => pair.Key));
         }
 
@@ -94,8 +102,11 @@ namespace Nyris.Crdt
                 _lock.ExitWriteLock();
             }
         }
-        
+
         public bool TryAdd(TItem item, ulong dot, bool throwIfNotLatestDot = false)
+            => TryAdd(item, dot, out _, throwIfNotLatestDot);
+        
+        public bool TryAdd(TItem item, ulong dot, out ulong? removedDot, bool throwIfNotLatestDot)
         {
             Debug.Assert(item is not null);
             _lock.EnterWriteLock();
@@ -112,6 +123,7 @@ namespace Nyris.Crdt
                 {
                     _dict[item] = dot;
                     _inverse[dot] = item;
+                    removedDot = null;
                     return true;
                 }
 
@@ -122,12 +134,15 @@ namespace Nyris.Crdt
                         throw new AssumptionsViolatedException("DottedList contains item with dot, that" +
                                                                "is greater then generated dot.");
                     }
+
+                    removedDot = null;
                     return false; // TODO: think more about result (true/false) meaning and its consistency
                 }
 
                 _dict[item] = dot;
                 _inverse.Remove(currentDot);
                 _inverse[dot] = item;
+                removedDot = currentDot;
                 return true;
             }
             finally
@@ -136,6 +151,7 @@ namespace Nyris.Crdt
             }
         }
 
+        
         public bool TryGetValue(ulong i, [NotNullWhen(true)] out TItem? item)
         {
             _lock.EnterReadLock();
@@ -149,15 +165,28 @@ namespace Nyris.Crdt
             }
         }
 
+        public bool Contains(TItem item)
+        {
+            _lock.EnterReadLock();
+            try
+            {
+                return _dict.ContainsKey(item);
+            }
+            finally
+            {
+                _lock.ExitReadLock();
+            }
+        }
+
         public bool TryGetValue(TItem item, out ulong i) => _dict.TryGetValue(item, out i);
         
-        public bool TryRemove(TItem item)
+        public bool TryRemove(TItem item, out ulong dot)
         {
             _lock.EnterWriteLock();
             try
             {
-                if(!_dict.TryRemove(item, out var i)) return false;
-                _inverse.Remove(i);
+                if(!_dict.Remove(item, out dot)) return false;
+                _inverse.Remove(dot);
                 return true;
             }
             finally
@@ -166,54 +195,8 @@ namespace Nyris.Crdt
             }
         }
 
-        public (TItem item, ulong dot)[] GetItemsSince(ulong since)
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                if (_inverse.Count == 0 || _inverse.Keys[^1] < since) return Array.Empty<(TItem item, ulong dot)>();
-                var start = GetFirstDotIndex(since);
-                var length = _inverse.Keys.Count - start;
-                var result = new (TItem item, ulong dot)[length];
-                for (var i = start; i < _inverse.Count; ++i)
-                {
-                    var dot = _inverse.Keys[i];
-                    result[i - start] = new ValueTuple<TItem, ulong>(_inverse[dot], dot);
-                }
-
-                return result;
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
-
-        private int GetFirstDotIndex(ulong since)
-        {
-            var l = 0;
-            var r = _inverse.Count - 1;
-            var keys = _inverse.Keys;
-            
-            while (l < r)
-            {
-                var mid = (l + r) / 2;
-                if (keys[mid] == since)
-                {
-                    return mid;
-                }
-                else if (keys[mid] > since)
-                {
-                    r = mid - 1;
-                }
-                else
-                {
-                    l = mid + 1;
-                }
-            }
-            
-            return l;
-        }
+        public IEnumerable<ArraySegment<DottedItem<TItem>>> GetItemsSince(ulong since) 
+            => new PartialEnumerable(_inverse, _lock, since);
 
         /// <summary>
         /// Gets dot ranges, for which there are no items saved in this DottedList.
@@ -305,7 +288,7 @@ namespace Nyris.Crdt
                 var result = true;
                 for (var i = range.From; i < range.To; ++i)
                 {
-                    result &= _inverse.Remove(i, out var item) && _dict.TryRemove(item, out _);
+                    result &= _inverse.Remove(i, out var item) && _dict.Remove(item);
                 }
 
                 return result;
@@ -315,8 +298,208 @@ namespace Nyris.Crdt
                 _lock.ExitWriteLock();
             }
         }
+        
+        public bool TryRemove(ulong dot)
+        {
+            _lock.EnterWriteLock();
+            try
+            {
+                return _inverse.Remove(dot, out var item) && _dict.Remove(item);
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
 
-        public IEnumerator<KeyValuePair<TItem, ulong>> GetEnumerator() => _dict.GetEnumerator();
+        public IEnumerator<ReadOnlyMemory<DottedItem<TItem>>> GetEnumerator() => new MemoryBasedEnumerator(_inverse, _lock, _enumerationBatchSize);
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        private sealed class PartialEnumerable : IEnumerable<ArraySegment<DottedItem<TItem>>>
+        {
+            private readonly SortedList<ulong, TItem> _inverse;
+            private readonly ReaderWriterLockSlim _lock;
+            private readonly int _enumerationBatchSize;
+            private readonly ulong _enumerationStartDot;
+        
+            public PartialEnumerable(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, ulong enumerationStartDot, int enumerationBatchSize = 1000)
+            {
+                _inverse = inverse;
+                _lock = @lock;
+                _enumerationStartDot = enumerationStartDot;
+                _enumerationBatchSize = enumerationBatchSize;
+            }
+        
+            public IEnumerator<ArraySegment<DottedItem<TItem>>> GetEnumerator() 
+                => new ArrayBasedEnumerator(_inverse, _lock, _enumerationBatchSize, _enumerationStartDot);
+        
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        private abstract class Enumerator
+        {
+            protected readonly SortedList<ulong, TItem> Inverse;
+            protected readonly ReaderWriterLockSlim Lock;
+            protected int Position;
+            private readonly ulong _startDot;
+
+            protected Enumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, ulong startDot)
+            {
+                Inverse = inverse;
+                Lock = @lock;
+                _startDot = startDot;
+                Reset();
+            }
+
+            public void Reset()
+            {
+                Lock.EnterReadLock();
+                try
+                {
+                    Position = Inverse.GetIndexOfFirstGreaterOrEqualKey(_startDot);
+                }
+                finally
+                {
+                    Lock.ExitReadLock();
+                }
+            }
+        }
+        
+        private sealed class ArrayBasedEnumerator : Enumerator, IEnumerator<ArraySegment<DottedItem<TItem>>>
+        {
+            private readonly int _batchSize;
+            private int _length;
+            private readonly DottedItem<TItem>[] _batch;
+
+            public ArrayBasedEnumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, int batchSize, ulong startDot = 0)
+                : base(inverse, @lock, startDot)
+            {
+                _batchSize = batchSize;
+                _batch = ArrayPool<DottedItem<TItem>>.Shared.Rent(batchSize);
+            }
+
+            public bool MoveNext()
+            {
+                Lock.EnterReadLock();
+                try
+                {
+                    if (Position >= Inverse.Count) return false;
+
+                    var end = Math.Min(Position + _batchSize, Inverse.Count);
+                    _length = end - Position;
+
+                    for (var i = 0; i < _length; ++i)
+                    {
+                        var key = Inverse.Keys[Position + i];
+                        _batch[i] = new DottedItem<TItem>(Inverse[key], key);
+                    }
+
+                    Position = end;
+                    return true;
+                }
+                finally
+                {
+                    Lock.ExitReadLock();
+                }
+            }
+
+            public ArraySegment<DottedItem<TItem>> Current => new(_batch, 0, _length);
+
+            object IEnumerator.Current => Current;
+
+            public void Dispose()
+            {
+                ArrayPool<DottedItem<TItem>>.Shared.Return(_batch);
+            }
+        }
+        
+        private sealed class MemoryBasedEnumerator : Enumerator, IEnumerator<ReadOnlyMemory<DottedItem<TItem>>>
+        {
+            private readonly ReaderWriterLockSlim _lock;
+            private readonly int _batchSize;
+            private int _length;
+            private readonly IMemoryOwner<DottedItem<TItem>> _memoryOwner;
+
+            public MemoryBasedEnumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, int batchSize, ulong startDot = 0)
+                : base(inverse, @lock, startDot)
+            {
+                _lock = @lock;
+                _batchSize = batchSize;
+                _memoryOwner = MemoryPool<DottedItem<TItem>>.Shared.Rent(batchSize);
+            }
+
+            public bool MoveNext()
+            {
+                _lock.EnterReadLock();
+                try
+                {
+                    if (Position >= Inverse.Count) return false;
+
+                    var end = Math.Min(Position + _batchSize, Inverse.Count);
+                    _length = end - Position;
+
+                    var span = _memoryOwner.Memory.Span;
+                    for (var i = 0; i < _length; ++i)
+                    {
+                        var key = Inverse.Keys[Position + i];
+                        span[i] = new DottedItem<TItem>(Inverse[key], key);
+                    }
+
+                    Position = end;
+                    return true;
+                }
+                finally
+                {
+                    _lock.ExitReadLock();
+                }
+            }
+
+            public ReadOnlyMemory<DottedItem<TItem>> Current => _memoryOwner.Memory[.._length];
+
+            object IEnumerator.Current => Current;
+
+            public void Dispose() => _memoryOwner.Dispose();
+        }
+    }
+
+    public static class SortedListExtensions
+    {
+        /// <summary>
+        /// Finds index of a first key in the list that is greater or equal to provided one.
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="key"></param>
+        /// <typeparam name="TKey"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        /// <returns>Index of the first list.Key that is greater or equal to <param name="key"/> or list.Count if there are no such key.</returns>
+        public static int GetIndexOfFirstGreaterOrEqualKey<TKey, TValue>(this SortedList<TKey, TValue> list, TKey key)
+            where TKey : IComparable<TKey>
+        {
+            if (list.Count == 0 || list.Keys[0].CompareTo(key) >= 0) return 0;
+            if (list.Keys[^1].CompareTo(key) < 0) return list.Count;
+            
+            var l = 0;
+            var r = list.Count - 1;
+            var keys = list.Keys;
+
+            while (l < r)
+            {
+                var mid = (l + r) / 2;
+                switch (keys[mid].CompareTo(key))
+                {
+                    case 0:
+                        return mid;
+                    case > 0:
+                        r = mid - 1;
+                        break;
+                    default:
+                        l = mid + 1;
+                        break;
+                }
+            }
+            
+            return l;
+            
+        }
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Nyris.Crdt
@@ -12,11 +13,24 @@ namespace Nyris.Crdt
     public sealed class VersionContext<TActorId>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
-        private readonly ConcurrentDictionary<TActorId, DotRanges> _ranges = new();
-        
+        private readonly ConcurrentDictionary<TActorId, DotRangeList> _ranges = new();
+
+        public ulong StorageSize
+        {
+            get
+            {
+                var result = (ulong) (Marshal.SizeOf<TActorId>() * _ranges.Count);
+                foreach (var ranges in _ranges.Values)
+                {
+                    result += (ulong) (Marshal.SizeOf<DotRange>() * ranges.Count);
+                }
+
+                return result;
+            }
+        }
         public ICollection<TActorId> Actors => _ranges.Keys;
 
-        public bool TryGetValue(TActorId actorId, [NotNullWhen(true)] out DotRanges? ranges) 
+        public bool TryGetValue(TActorId actorId, [NotNullWhen(true)] out DotRangeList? ranges) 
             => _ranges.TryGetValue(actorId, out ranges);
 
         public void Merge(TActorId actorId, ulong other)
@@ -24,7 +38,7 @@ namespace Nyris.Crdt
             // TODO: is allocating closures better then using a lock?
             _ranges.AddOrUpdate(actorId, _ =>
             {
-                var ranges = new DotRanges();
+                var ranges = new DotRangeList();
                 ranges.Merge(other);
                 return ranges;
             }, (_, current) =>
@@ -38,7 +52,7 @@ namespace Nyris.Crdt
         {
             _ranges.AddOrUpdate(actorId, _ =>
             {
-                var ranges = new DotRanges();
+                var ranges = new DotRangeList();
                 ranges.Merge(range);
                 return ranges;
             }, (_, current) =>
@@ -51,14 +65,14 @@ namespace Nyris.Crdt
 
         public ulong Increment(TActorId actorId)
         {
-            var ranges = _ranges.GetOrAdd(actorId, _ => new DotRanges());
+            var ranges = _ranges.GetOrAdd(actorId, _ => new DotRangeList());
             return ranges.GetNew();
         }
 
         public Dictionary<TActorId, DotRange[]> ToDictionary() 
             => _ranges.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
         
-        public Dictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, DotRanges>, T> valueFunc) 
+        public Dictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, DotRangeList>, T> valueFunc) 
             => _ranges.ToDictionary(pair => pair.Key, valueFunc);
 
         private string DebuggerDisplayString

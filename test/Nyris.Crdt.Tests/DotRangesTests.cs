@@ -987,7 +987,7 @@ public sealed class DotRangesTests
     public void MergeRangesWork(IEnumerable<DotRange> startingData, DotRange range,
         IEnumerable<DotRange> expectedResult)
     {
-        var ranges = new DotRanges(startingData);
+        var ranges = new DotRangeList(startingData);
         ranges.Merge(range);
         ranges.ToArray().Should().BeEquivalentTo(expectedResult);
     }
@@ -995,7 +995,7 @@ public sealed class DotRangesTests
     [Fact]
     public void DotRanges_GetNewWorks()
     {
-        var ranges = new DotRanges();
+        var ranges = new DotRangeList();
 
         ranges.GetNew().Should().Be(1);
         ranges.GetNew().Should().Be(2);
@@ -1005,7 +1005,7 @@ public sealed class DotRangesTests
     [Fact]
     public void DotRanges_GetNewInParallelWorks()
     {
-        var ranges = new DotRanges();
+        var ranges = new DotRangeList();
         Parallel.For(0, 1000, _ =>
         {
             ranges.GetNew();
@@ -1017,7 +1017,7 @@ public sealed class DotRangesTests
     [Fact]
     public void DotRanges_MergeWorks()
     {
-        var ranges = new DotRanges();
+        var ranges = new DotRangeList();
 
         ranges.Merge(1);
         ranges.GetNew().Should().Be(2);
@@ -1030,7 +1030,7 @@ public sealed class DotRangesTests
     [Fact]
     public void DotRanges_ParallelMergesWorks()
     {
-        var ranges = new DotRanges();
+        var ranges = new DotRangeList();
         Parallel.For(1, 1000, i =>
         {
             ranges.Merge((ulong)i);
@@ -1042,7 +1042,7 @@ public sealed class DotRangesTests
     [Fact]
     public void DotRanges_ConnectingMergeWorks()
     {
-        var ranges = new DotRanges();
+        var ranges = new DotRangeList();
 
         ranges.Merge(2);
         ranges.ToArray().Should().Contain(new DotRange(2, 3)).And.HaveCount(1);

@@ -1,50 +1,29 @@
-using ProtoBuf;
 using System;
+using System.Collections.Generic;
 
-namespace Nyris.Crdt;
-
-/// <summary>
-/// <seealso cref="TItem"/> that has an attached <seealso cref="Dot{TActorId}"/> with it
-/// </summary>
-/// <typeparam name="TActorId"></typeparam>
-/// <typeparam name="TItem"></typeparam>
-[ProtoContract]
-public readonly struct DottedItem<TActorId, TItem> : IEquatable<DottedItem<TActorId, TItem>>
-    where TActorId : IEquatable<TActorId>
-    where TItem : IEquatable<TItem>
+namespace Nyris.Crdt
 {
-    public DottedItem(Dot<TActorId> dot, TItem value)
+    public readonly struct DottedItem<TItem> : IEquatable<DottedItem<TItem>>
     {
-        Dot = dot;
-        Value = value;
+        public readonly ulong Dot;
+        public readonly TItem Item;
+
+        public DottedItem(TItem item, ulong dot)
+        {
+            Item = item;
+            Dot = dot;
+        }
+
+        public bool Equals(DottedItem<TItem> other) => Dot == other.Dot && EqualityComparer<TItem>.Default.Equals(Item, other.Item);
+        public override bool Equals(object? obj) => obj is DottedItem<TItem> other && Equals(other);
+        public override int GetHashCode() => HashCode.Combine(Dot, Item);
+        public static bool operator ==(DottedItem<TItem> left, DottedItem<TItem> right) => left.Equals(right);
+        public static bool operator !=(DottedItem<TItem> left, DottedItem<TItem> right) => !(left == right);
+
+        public void Deconstruct(out TItem item, out ulong dot)
+        {
+            item = Item;
+            dot = Dot;
+        }
     }
-
-    /// <summary>
-    /// Value of current <seealso cref="DottedItem{TActorId,TItem}"/>
-    /// </summary>
-    [ProtoMember(1)]
-    public TItem Value { get; }
-
-    /// <inheritdoc cref="Dot{TActorId}" />
-    [ProtoMember(2)]
-    public Dot<TActorId> Dot { get; }
-
-    public override string ToString() => $"({Value}, v: {Dot})";
-
-    public bool Equals(DottedItem<TActorId, TItem> other)
-        => Value.Equals(other.Value) && Dot.Equals(other.Dot);
-
-    public override bool Equals(object? obj) => obj is DottedItem<TActorId, TItem> other && Equals(other);
-
-    public override int GetHashCode() => HashCode.Combine(Value.GetHashCode(), Dot.GetHashCode());
-
-    public static bool operator ==(
-        DottedItem<TActorId, TItem> left,
-        DottedItem<TActorId, TItem> right
-    ) => left.Equals(right);
-
-    public static bool operator !=(
-        DottedItem<TActorId, TItem> left,
-        DottedItem<TActorId, TItem> right
-    ) => !left.Equals(right);
 }

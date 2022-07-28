@@ -437,6 +437,53 @@ public sealed class DottedListTests
         var ranges = list.GetEmptyRanges(known.ToList());
         ranges.Should().BeEquivalentTo(expected);
     }
+    
+    [Fact]
+    public void EnumerateDotsSinceWorks()
+    {
+        var expected = new HashSet<DottedItem<double>>();
+        var list = new DottedList<double>(100);
+        var since = 100000UL;
+        for (ulong i = 0; i < since + 11111; ++i)
+        {
+            var value = Random.Shared.NextDouble();
+            list.TryAdd(value, i);
+            if(i >= since) expected.Add(new DottedItem<double>(value, i));
+        }
+        
+        list.GetItemsSince(since).SelectMany(batch => batch).ToHashSet().SetEquals(expected);
+    }
+    
+    [Fact]
+    public void EnumerateDotsSince2Works()
+    {
+        var expected = new HashSet<DottedItem<double>>();
+        var list = new DottedList<double>(100);
+        var since = 100000UL;
+        for (ulong i = 0; i < since + 11111; ++i)
+        {
+            var value = Random.Shared.NextDouble();
+            list.TryAdd(value, i);
+            if(i >= since) expected.Add(new DottedItem<double>(value, i));
+        }
+        
+        list.GetItemsSince(since).SelectMany(batch => batch).ToHashSet().SetEquals(expected);
+    }
+    
+    [Fact]
+    public void EnumerateDotsWorks()
+    {
+        var expected = new HashSet<DottedItem<double>>();
+        var list = new DottedList<double>(100);
+        for (ulong i = 0; i < 111111; ++i)
+        {
+            var value = Random.Shared.NextDouble();
+            list.TryAdd(value, i);
+            expected.Add(new DottedItem<double>(value, i));
+        }
+        
+        list.SelectMany(batch => batch.ToArray()).ToHashSet().SetEquals(expected);
+    }
 
     [Theory]
     [InlineData(2)]
