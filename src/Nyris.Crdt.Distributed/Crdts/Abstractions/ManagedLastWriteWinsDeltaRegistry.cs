@@ -3,7 +3,6 @@ using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Extensions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using ProtoBuf;
 using System;
 using System.Collections.Concurrent;
@@ -14,6 +13,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 

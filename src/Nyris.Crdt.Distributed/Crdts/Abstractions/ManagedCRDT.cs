@@ -2,7 +2,6 @@
 using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using Nyris.Extensions.Guids;
 using System;
 using System.Collections.Concurrent;
@@ -10,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 

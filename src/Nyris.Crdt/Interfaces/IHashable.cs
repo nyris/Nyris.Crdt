@@ -1,6 +1,6 @@
 using System;
 
-namespace Nyris.Crdt.Model;
+namespace Nyris.Crdt.Interfaces;
 
 public interface IHashable
 {

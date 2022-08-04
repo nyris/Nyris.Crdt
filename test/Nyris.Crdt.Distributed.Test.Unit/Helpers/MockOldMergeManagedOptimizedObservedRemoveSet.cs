@@ -3,6 +3,7 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 using System.Collections.Generic;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Test.Unit.Helpers;
 
@@ -16,7 +17,7 @@ internal class MockOldMergeManagedOptimizedObservedRemoveSet : OldMergeManagedOp
     public class MockUserSetDto : OrSetDto
     {
         [ProtoMember(1)]
-        public override HashSet<DottedItem<NodeId, MockUser>>? Items { get; set; }
+        public override HashSet<DottedItemWithActor<NodeId, MockUser>>? Items { get; set; }
 
         [ProtoMember(2)]
         public override Dictionary<NodeId, uint>? VersionVectors { get; set; }

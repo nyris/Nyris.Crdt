@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Model;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -136,7 +137,7 @@ public class ManagedOptimizedObservedRemoveSetTests
 
         // Add New Value to get ConflictSolved result
         dtoB.VersionVectors![mockNodeB] += 1;
-        dtoB.Items.Add(new DottedItem<NodeId, MockUser>(new Dot<NodeId>(mockNodeB, dtoB.VersionVectors![mockNodeB]),
+        dtoB.Items.Add(new DottedItemWithActor<NodeId, MockUser>(new IntDot<NodeId>(mockNodeB, dtoB.VersionVectors![mockNodeB]),
             new MockUser(Guid.NewGuid(), "mock-user-" + _userCount++)));
 
 
@@ -167,20 +168,20 @@ public class ManagedOptimizedObservedRemoveSetTests
         var iterations = rand.Next(0, 200);
         var totalRemoveOps = 0;
         var dtoBOperations = 0U;
-        var remoteNodeBAllItems = new HashSet<DottedItem<NodeId, MockUser>>();
+        var remoteNodeBAllItems = new HashSet<DottedItemWithActor<NodeId, MockUser>>();
 
         // Do Random Amount of Operations, to get remote/other items merged in local state
         foreach (var _ in Enumerable.Range(1, iterations).ToList())
         {
             var isRemoveOperation = rand.Next(0, 100) > 50;
 
-            var remoteNodeItems = new HashSet<DottedItem<NodeId, MockUser>>
+            var remoteNodeItems = new HashSet<DottedItemWithActor<NodeId, MockUser>>
             {
-                new(new Dot<NodeId>(remoteNodeB, ++dtoBOperations),
+                new(new IntDot<NodeId>(remoteNodeB, ++dtoBOperations),
                     new MockUser(Guid.NewGuid(), "mock-user-" + _userCount++)),
-                new(new Dot<NodeId>(remoteNodeB, ++dtoBOperations),
+                new(new IntDot<NodeId>(remoteNodeB, ++dtoBOperations),
                     new MockUser(Guid.NewGuid(), "mock-user-" + _userCount++)),
-                new(new Dot<NodeId>(remoteNodeB, ++dtoBOperations),
+                new(new IntDot<NodeId>(remoteNodeB, ++dtoBOperations),
                     new MockUser(Guid.NewGuid(), "mock-user-" + _userCount++)),
             };
 
@@ -194,7 +195,7 @@ public class ManagedOptimizedObservedRemoveSetTests
                     { remoteNodeB, dtoBOperations }
                 },
                 Items = remoteNodeBAllItems,
-                Tombstones = new Dictionary<Dot<NodeId>, HashSet<NodeId>>()
+                Tombstones = new Dictionary<IntDot<NodeId>, HashSet<NodeId>>()
             };
 
             var dtoBOld = new MockOldMergeManagedOptimizedObservedRemoveSet.MockUserSetDto
@@ -289,14 +290,14 @@ public class ManagedOptimizedObservedRemoveSetTests
                 { node, items }
             },
             Items = GetRandomItems(node, items),
-            Tombstones = new Dictionary<Dot<NodeId>, HashSet<NodeId>>()
+            Tombstones = new Dictionary<IntDot<NodeId>, HashSet<NodeId>>()
         };
     }
 
-    private static HashSet<DottedItem<NodeId, MockUser>> GetRandomItems(NodeId node, uint count)
+    private static HashSet<DottedItemWithActor<NodeId, MockUser>> GetRandomItems(NodeId node, uint count)
     {
         return Enumerable.Range(0, (int) count).Select(i =>
-            new DottedItem<NodeId, MockUser>(new Dot<NodeId>(node, (uint) i),
+            new DottedItemWithActor<NodeId, MockUser>(new IntDot<NodeId>(node, (uint) i),
                 new MockUser(Guid.NewGuid(), "mock-user-" + _userCount++))).ToHashSet();
     }
 }

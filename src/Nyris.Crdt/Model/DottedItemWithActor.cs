@@ -1,10 +1,10 @@
-using ProtoBuf;
 using System;
+using ProtoBuf;
 
-namespace Nyris.Crdt;
+namespace Nyris.Crdt.Model;
 
 /// <summary>
-/// <seealso cref="TItem"/> that has an attached <seealso cref="Dot{TActorId}"/> with it
+/// <seealso cref="TItem"/> that has an attached <seealso cref="IntDot{TActorId}"/> with it
 /// </summary>
 /// <typeparam name="TActorId"></typeparam>
 /// <typeparam name="TItem"></typeparam>
@@ -13,7 +13,7 @@ public readonly struct DottedItemWithActor<TActorId, TItem> : IEquatable<DottedI
     where TActorId : IEquatable<TActorId>
     where TItem : IEquatable<TItem>
 {
-    public DottedItemWithActor(Dot<TActorId> dot, TItem value)
+    public DottedItemWithActor(IntDot<TActorId> dot, TItem value)
     {
         Dot = dot;
         Value = value;
@@ -25,9 +25,9 @@ public readonly struct DottedItemWithActor<TActorId, TItem> : IEquatable<DottedI
     [ProtoMember(1)]
     public TItem Value { get; }
 
-    /// <inheritdoc cref="Dot{TActorId}" />
+    /// <inheritdoc cref="IntDot{TActorId}" />
     [ProtoMember(2)]
-    public Dot<TActorId> Dot { get; }
+    public IntDot<TActorId> Dot { get; }
 
     public override string ToString() => $"({Value}, v: {Dot})";
 

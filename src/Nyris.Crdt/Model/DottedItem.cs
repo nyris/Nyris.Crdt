@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Nyris.Crdt
+namespace Nyris.Crdt.Model
 {
     public readonly struct DottedItem<TItem> : IEquatable<DottedItem<TItem>>
     {

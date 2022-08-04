@@ -5,11 +5,11 @@ using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 

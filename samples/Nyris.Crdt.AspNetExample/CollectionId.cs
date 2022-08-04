@@ -1,10 +1,10 @@
 using Newtonsoft.Json;
 using Nyris.Crdt.Distributed.Model.Converters;
-using Nyris.Crdt.Model;
 using ProtoBuf;
 using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.AspNetExample;
 

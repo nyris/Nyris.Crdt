@@ -1,5 +1,4 @@
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 using System;
@@ -7,6 +6,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Nyris.Crdt.Extensions;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts;
 

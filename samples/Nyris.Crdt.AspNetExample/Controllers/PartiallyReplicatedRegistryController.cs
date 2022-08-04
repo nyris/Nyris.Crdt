@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.AspNetExample.Controllers;
 

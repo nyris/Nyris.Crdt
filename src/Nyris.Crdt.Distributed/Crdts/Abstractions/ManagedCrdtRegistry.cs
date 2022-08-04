@@ -4,7 +4,6 @@ using Nyris.Crdt.Distributed.Crdts.Interfaces;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using Nyris.Crdt.Sets;
 using ProtoBuf;
 using System;
@@ -16,6 +15,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Extensions;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 

@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Nyris.Crdt;
+namespace Nyris.Crdt.Interfaces;
 
 public interface IAsyncCRDT<TDto>
 {

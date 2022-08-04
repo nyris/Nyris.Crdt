@@ -1,12 +1,22 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
+using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Model;
+using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt.Sets
 {
+    /// <summary>
+    /// This is a performance-optimized version of <see cref="OptimizedObservedRemoveSet{TActorId,TItem}"/>
+    /// It is thread safe with supported concurrent reads. 
+    /// </summary>
+    /// <typeparam name="TActorId"></typeparam>
+    /// <typeparam name="TItem"></typeparam>
     [SuppressMessage("ReSharper", "ForCanBeConvertedToForeach", Justification = "Performance")]
     [SuppressMessage("ReSharper", "LoopCanBeConvertedToQuery", Justification = "Performance")]
     public class OptimizedObservedRemoveSetV2<TActorId, TItem>
@@ -15,8 +25,7 @@ namespace Nyris.Crdt.Sets
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
-        // Using ConcurrentDictionary because that way some operation do not require lock (mainly - EnumerateDeltaDtos)
-        private readonly Dictionary<TActorId, DottedList<TItem>> _items = new();
+        private readonly ConcurrentDictionary<TActorId, VersionedItemList<TItem>> _items = new();
         private readonly VersionContext<TActorId> _versionContext = new();
         
         // lock is used for operations, that rely on _items and _versionContext being in sync 
@@ -27,27 +36,16 @@ namespace Nyris.Crdt.Sets
             get
             {
                 var values = new HashSet<TItem>();
-                _lock.EnterReadLock();
-                try
+                foreach (var batch in _items.Values.SelectMany(dottedList => dottedList))
                 {
-                    foreach (var dottedList in _items.Values)
+                    var span = batch.Span;
+                    for (var i = 0; i < span.Length; ++i)
                     {
-                        foreach (var batch in dottedList)
-                        {
-                            var span = batch.Span;
-                            for (var i = 0; i < span.Length; ++i)
-                            {
-                                values.Add(span[i].Item);
-                            }
-                        }
+                        values.Add(span[i].Item);
                     }
+                }
 
-                    return values;
-                }
-                finally
-                {
-                    _lock.ExitReadLock();
-                }
+                return values;
             }
         }
 
@@ -56,19 +54,10 @@ namespace Nyris.Crdt.Sets
 
         public bool Contains(TItem item)
         {
-            _lock.EnterReadLock();
-            try
+            foreach (var dottedList in _items.Values)
             {
-                foreach (var dottedList in _items.Values)
-                {
-                    if (dottedList.Contains(item)) return true;
-                }
+                if (dottedList.Contains(item)) return true;
             }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-
             return false;
         }
 
@@ -83,11 +72,9 @@ namespace Nyris.Crdt.Sets
                 var dot = _versionContext.Increment(actor);
                 if (!_items.TryGetValue(actor, out var actorsDottedItems))
                 {
-                    _items[actor] = actorsDottedItems = DottedList<TItem>.New();
+                    _items[actor] = actorsDottedItems = VersionedItemList<TItem>.New();
                 }
                 actorsDottedItems.TryAdd(item, dot, out var removedDot, true);
-                
-                // TODO: is it possible to get rid of this allocations?
                 return removedDot.HasValue 
                            ? new[] { DeltaDto.Added(item, actor, dot), DeltaDto.Removed(actor, removedDot.Value) } 
                            : new[] { DeltaDto.Added(item, actor, dot) };
@@ -135,7 +122,7 @@ namespace Nyris.Crdt.Sets
                     // if we have not seen this actor, just take everything for this actor from other
                     if (!_versionContext.TryGetValue(actorId, out var myRange))
                     {
-                        _items[actorId] = new DottedList<TItem>(otherItems);
+                        _items[actorId] = new VersionedItemList<TItem>(otherItems);
                         foreach (var range in other.VersionVector[actorId])
                         {
                             _versionContext.Merge(actorId, range);
@@ -165,7 +152,7 @@ namespace Nyris.Crdt.Sets
                     var otherRangeList = other.VersionVector[actorId];
 
                     // check which items to remove
-                    var otherRanges = new DotRangeList(otherRangeList);
+                    var otherRanges = new ConcurrentVersionRanges(otherRangeList);
                     foreach (var batch in myItems)
                     {
                         var span = batch.Span;
@@ -217,20 +204,21 @@ namespace Nyris.Crdt.Sets
 
         public Dictionary<TActorId, ulong> GetLastKnownTimestamp() 
             // no locking is necessary as both VersionContext and DottedList is already thread safe on it's own 
-            => _versionContext.ToDictionary(pair => pair.Value.GetLastBeforeUnknown());
+            => _versionContext.ToDictionary(pair => pair.Value.GetFirstUnknown());
 
-        public IEnumerable<DeltaDto> EnumerateDeltaDtos(Dictionary<TActorId, ulong>? since = default)
+        public IEnumerable<DeltaDto> EnumerateDeltaDtos(Dictionary<TActorId, ulong>? timestamp = default)
         {
-            since ??= new Dictionary<TActorId, ulong>();
+            timestamp ??= new Dictionary<TActorId, ulong>();
             
             foreach (var actorId in _versionContext.Actors)
             {
-                if (!_versionContext.TryGetValue(actorId, out var myDotRanges) || !_items.TryGetValue(actorId, out var myItems)) continue;
+                if (!_versionContext.TryGetValue(actorId, out var myDotRanges) 
+                    || !_items.TryGetValue(actorId, out var myItems)) continue;
 
-                if (!since.TryGetValue(actorId, out var startAt)) startAt = 0;
+                if (!timestamp.TryGetValue(actorId, out var startAt)) startAt = 0;
 
                 // every new item, that was added since provided version
-                foreach (var batch in myItems.GetItemsSince(startAt + 1)) // +1 because only deletion can be a new event at startAt  
+                foreach (var batch in myItems.GetItemsSince(startAt))
                 {
                     var innerArray = batch.Array!; // faster indexing
                     for (var i = batch.Offset; i < batch.Count; ++i)
@@ -251,24 +239,16 @@ namespace Nyris.Crdt.Sets
 
         public IReadOnlyList<DeltaDto> ProduceDeltasFor(TItem item)
         {
-            _lock.EnterReadLock();
-            try
+            var result = new List<DeltaDto>(_items.Count);
+            foreach (var (actorId, dottedList) in _items)
             {
-                var result = new List<DeltaDto>(_items.Count);
-                foreach (var (actorId, dottedList) in _items)
+                if (dottedList.TryGetValue(item, out var dot))
                 {
-                    if (dottedList.TryGetValue(item, out var dot))
-                    {
-                        result.Add(DeltaDto.Added(item, actorId, dot));
-                    }
+                    result.Add(DeltaDto.Added(item, actorId, dot));
                 }
+            }
 
-                return result;
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
+            return result;
         }
 
         public void Merge(DeltaDto delta)
@@ -304,33 +284,33 @@ namespace Nyris.Crdt.Sets
         {
             if (!_items.TryGetValue(delta.Actor, out var actorsDottedItems))
             {
-                _items[delta.Actor] = actorsDottedItems = DottedList<TItem>.New();
+                _items[delta.Actor] = actorsDottedItems = VersionedItemList<TItem>.New();
             }
             switch (delta)
             {
-                case DeltaDtoAddition deltaDtoCreated:
-                    actorsDottedItems.TryAdd(deltaDtoCreated.Item, deltaDtoCreated.Dot);
-                    _versionContext.Merge(delta.Actor, deltaDtoCreated.Dot);
+                case DeltaDtoAddition(var item, _, var version):
+                    actorsDottedItems.TryAdd(item, version);
+                    _versionContext.Merge(delta.Actor, version);
                     break;
-                case DeltaDtoDeletedDot deltaDtoDeletedDot:
-                    actorsDottedItems.TryRemove(deltaDtoDeletedDot.Dot);
-                    _versionContext.Merge(deltaDtoDeletedDot.Actor, deltaDtoDeletedDot.Dot);
+                case DeltaDtoDeletedDot(var actorId, var version):
+                    actorsDottedItems.TryRemove(version);
+                    _versionContext.Merge(actorId, version);
                     break;
-                case DeltaDtoDeletedRange deltaDtoDeletedRange:
-                    actorsDottedItems.TryRemove(deltaDtoDeletedRange.Range);
-                    _versionContext.Merge(deltaDtoDeletedRange.Actor, deltaDtoDeletedRange.Range);
+                case DeltaDtoDeletedRange(var actorId, var range):
+                    actorsDottedItems.TryRemove(range);
+                    _versionContext.Merge(actorId, range);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(delta));
             }
         }
 
-        private IReadOnlyList<DotRange> GetEmptyRanges(DottedList<TItem> dottedList, DotRangeList ranges)
+        private IReadOnlyList<Range> GetEmptyRanges(VersionedItemList<TItem> versionedItemList, ConcurrentVersionRanges ranges)
         {
-            _lock.EnterReadLock();
+            _lock.EnterReadLock(); // needs to be locked, as reads from both VersionContext and items 
             try
             {
-                return dottedList.GetEmptyRanges(ranges.ToArray());
+                return versionedItemList.GetEmptyRanges(ranges.ToArray());
             }
             finally
             {
@@ -342,23 +322,22 @@ namespace Nyris.Crdt.Sets
 
         #region DtoRecords
 
-        public record Dto(Dictionary<TActorId, DotRange[]> VersionVector, Dictionary<TActorId, Dictionary<TItem, ulong>> Items);
+        public record Dto(Dictionary<TActorId, Range[]> VersionVector, Dictionary<TActorId, Dictionary<TItem, ulong>> Items);
 
         public abstract record DeltaDto(TActorId Actor)
         {
-            public static DeltaDto Added(TItem item, TActorId actor, ulong dot) 
-                => new DeltaDtoAddition(item, actor, dot);
-            public static DeltaDto Removed(TActorId actor, DotRange range) 
+            public static DeltaDto Added(TItem item, TActorId actor, ulong version) 
+                => new DeltaDtoAddition(item, actor, version);
+            public static DeltaDto Removed(TActorId actor, Range range) 
                 => new DeltaDtoDeletedRange(actor, range);
-            public static DeltaDto Removed(TActorId actor, ulong dot) 
-                => new DeltaDtoDeletedDot(actor, dot);
+            public static DeltaDto Removed(TActorId actor, ulong version) 
+                => new DeltaDtoDeletedDot(actor, version);
         }
         
-        public sealed record DeltaDtoAddition(TItem Item, TActorId Actor, ulong Dot) : DeltaDto(Actor);
-        public sealed record DeltaDtoDeletedDot(TActorId Actor, ulong Dot) : DeltaDto(Actor);
-        public sealed record DeltaDtoDeletedRange(TActorId Actor, DotRange Range) : DeltaDto(Actor);
+        public sealed record DeltaDtoAddition(TItem Item, TActorId Actor, ulong Version) : DeltaDto(Actor);
+        public sealed record DeltaDtoDeletedDot(TActorId Actor, ulong Version) : DeltaDto(Actor);
+        public sealed record DeltaDtoDeletedRange(TActorId Actor, Range Range) : DeltaDto(Actor);
 
 #endregion
-        
     }
 }

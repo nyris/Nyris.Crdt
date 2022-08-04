@@ -6,7 +6,6 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Model;
 using Nyris.Extensions.Guids;
 using System;
 using System.Collections.Concurrent;
@@ -17,6 +16,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed
 {

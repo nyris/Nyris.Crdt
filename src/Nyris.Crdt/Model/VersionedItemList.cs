@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -9,11 +8,12 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Nyris.Crdt.Exceptions;
+using Nyris.Crdt.Extensions;
 
-namespace Nyris.Crdt
+namespace Nyris.Crdt.Model
 {
     [DebuggerDisplay("{_dict.Count < 5 ? string.Join(',', _dict) : _dict.Count + \" items ...\"}")]
-    public sealed class DottedList<TItem> : IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>
+    public sealed class VersionedItemList<TItem> : IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>
         where TItem : IEquatable<TItem>
     {
         private readonly Dictionary<TItem, ulong> _dict = new();
@@ -31,6 +31,9 @@ namespace Nyris.Crdt
         // Alternative solution will be to have 2 separate data structures - one Dictionary<ulong, TItems> _inverse for mapping dots to items
         // and something like SortedSet for keeping an order of dots. As all operations are already synchronized by ReaderWriteLockSlim, 
         // there is no additional synchronization downside and additions/removals can be capped as O(log n)
+        
+        // Another alternative is to use  SortedDictionary<ulong, TItems>. This gives us O(log n) guarantees on both additions and removals
+        // But it looses in enumeration. SortedDictionary does not provide range queries, even though it could.  
         private readonly SortedList<ulong, TItem> _inverse = new();
         private readonly ReaderWriterLockSlim _lock = new();
 
@@ -55,19 +58,19 @@ namespace Nyris.Crdt
 
         public ICollection<TItem> Items => _dict.Keys;
 
-        public DottedList(int enumerationBatchSize = 10000)
+        public VersionedItemList(int enumerationBatchSize = 10000)
         {
             _enumerationBatchSize = enumerationBatchSize;
         }
         
-        public DottedList(IDictionary<TItem, ulong> dict, int enumerationBatchSize = 10000)
+        public VersionedItemList(IDictionary<TItem, ulong> dict, int enumerationBatchSize = 10000)
         {
             _enumerationBatchSize = enumerationBatchSize;
             _dict = new Dictionary<TItem, ulong>(dict);
             _inverse = new SortedList<ulong, TItem>(dict.ToDictionary(pair => pair.Value, pair => pair.Key));
         }
 
-        public static DottedList<TItem> New() => new();
+        public static VersionedItemList<TItem> New() => new();
 
         public override string ToString()
         {
@@ -165,7 +168,7 @@ namespace Nyris.Crdt
             }
         }
 
-        public bool Contains(TItem item)
+        public bool Contains(in TItem item)
         {
             _lock.EnterReadLock();
             try
@@ -178,9 +181,9 @@ namespace Nyris.Crdt
             }
         }
 
-        public bool TryGetValue(TItem item, out ulong i) => _dict.TryGetValue(item, out i);
+        public bool TryGetValue(in TItem item, out ulong i) => _dict.TryGetValue(item, out i);
         
-        public bool TryRemove(TItem item, out ulong dot)
+        public bool TryRemove(in TItem item, out ulong dot)
         {
             _lock.EnterWriteLock();
             try
@@ -204,75 +207,12 @@ namespace Nyris.Crdt
         /// <param name="knownRanges">Dots that are not in known ranges will not be returned, even if there are no items
         /// present for them. It is assumed that knownRanges are in increasing order and they do not overlap.</param>
         /// <returns></returns>
-        public IReadOnlyList<DotRange> GetEmptyRanges(IReadOnlyList<DotRange> knownRanges)
+        public IReadOnlyList<Range> GetEmptyRanges(IReadOnlyList<Range> knownRanges)
         {
-            Debug.Assert(knownRanges.IsDisjointAndInIncreasingOrder());
-            if (knownRanges.Count == 0) return Array.Empty<DotRange>();
-            var ranges = new List<DotRange>();
             _lock.EnterReadLock();
             try
             {
-                var dots = _inverse.Keys;
-                if (dots.Count == 0)
-                {
-                    return knownRanges;
-                }
-
-                var knownRangeIndex = 0;
-                var knownRange = knownRanges[0];
-
-                if (dots[0] > 1 && knownRange.From < dots[0])
-                {
-                    ranges.Add(new DotRange(Math.Max(1, knownRange.From), Math.Min(dots[0], knownRange.To)));
-                }
-
-                var i = 1;
-                while(i < dots.Count)
-                {
-                    var start = dots[i - 1] + 1;
-                    var end = dots[i];
-                     
-                    if (start == end)
-                    {
-                        ++i;
-                        continue;
-                    }
-
-                    if (start < knownRange.To && knownRange.From < end)
-                    {
-                        ranges.Add(new DotRange(Math.Max(start, knownRange.From), Math.Min(end, knownRange.To)));
-                    }
-
-                    if (end <= knownRange.To)
-                    {
-                        ++i;
-                    }
-                    else
-                    {
-                        ++knownRangeIndex;
-                        if (knownRangeIndex == knownRanges.Count) return ranges;
-                        knownRange = knownRanges[knownRangeIndex];
-                    }
-                }
-
-                var lastStart = dots[^1] + 1;
-                if (lastStart < knownRange.To)
-                {
-                    ranges.Add(new DotRange(Math.Max(lastStart, knownRange.From), knownRange.To));
-                }
-
-                ++knownRangeIndex;
-                while (knownRangeIndex < knownRanges.Count)
-                {
-                    knownRange = knownRanges[knownRangeIndex];
-                    if (lastStart < knownRange.To)
-                    {
-                        ranges.Add(new DotRange(Math.Max(lastStart, knownRange.From), knownRange.To));
-                    }
-                    ++knownRangeIndex;
-                }
-
-                return ranges;
+                return _inverse.GetEmptyRanges(knownRanges);
             }
             finally
             {
@@ -280,7 +220,7 @@ namespace Nyris.Crdt
             }
         }
         
-        public bool TryRemove(DotRange range)
+        public bool TryRemove(in Range range)
         {
             _lock.EnterWriteLock();
             try
@@ -336,6 +276,7 @@ namespace Nyris.Crdt
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
+        // TODO: to remove allocations, these can be made into structs
         private abstract class Enumerator
         {
             protected readonly SortedList<ulong, TItem> Inverse;
@@ -388,10 +329,12 @@ namespace Nyris.Crdt
                     var end = Math.Min(Position + _batchSize, Inverse.Count);
                     _length = end - Position;
 
+                    var keys = Inverse.Keys;
+                    var values = Inverse.Values;
                     for (var i = 0; i < _length; ++i)
                     {
-                        var key = Inverse.Keys[Position + i];
-                        _batch[i] = new DottedItem<TItem>(Inverse[key], key);
+                        var j = Position + i;
+                        _batch[i] = new DottedItem<TItem>(values[j], keys[j]);
                     }
 
                     Position = end;
@@ -438,11 +381,13 @@ namespace Nyris.Crdt
                     var end = Math.Min(Position + _batchSize, Inverse.Count);
                     _length = end - Position;
 
+                    var keys = Inverse.Keys;
+                    var values = Inverse.Values;
                     var span = _memoryOwner.Memory.Span;
                     for (var i = 0; i < _length; ++i)
                     {
-                        var key = Inverse.Keys[Position + i];
-                        span[i] = new DottedItem<TItem>(Inverse[key], key);
+                        var j = Position + i;
+                        span[i] = new DottedItem<TItem>(values[j], keys[j]);
                     }
 
                     Position = end;
@@ -459,47 +404,6 @@ namespace Nyris.Crdt
             object IEnumerator.Current => Current;
 
             public void Dispose() => _memoryOwner.Dispose();
-        }
-    }
-
-    public static class SortedListExtensions
-    {
-        /// <summary>
-        /// Finds index of a first key in the list that is greater or equal to provided one.
-        /// </summary>
-        /// <param name="list"></param>
-        /// <param name="key"></param>
-        /// <typeparam name="TKey"></typeparam>
-        /// <typeparam name="TValue"></typeparam>
-        /// <returns>Index of the first list.Key that is greater or equal to <param name="key"/> or list.Count if there are no such key.</returns>
-        public static int GetIndexOfFirstGreaterOrEqualKey<TKey, TValue>(this SortedList<TKey, TValue> list, TKey key)
-            where TKey : IComparable<TKey>
-        {
-            if (list.Count == 0 || list.Keys[0].CompareTo(key) >= 0) return 0;
-            if (list.Keys[^1].CompareTo(key) < 0) return list.Count;
-            
-            var l = 0;
-            var r = list.Count - 1;
-            var keys = list.Keys;
-
-            while (l < r)
-            {
-                var mid = (l + r) / 2;
-                switch (keys[mid].CompareTo(key))
-                {
-                    case 0:
-                        return mid;
-                    case > 0:
-                        r = mid - 1;
-                        break;
-                    default:
-                        l = mid + 1;
-                        break;
-                }
-            }
-            
-            return l;
-            
         }
     }
 }

@@ -5,6 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Nyris.Crdt.Extensions;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt;
 

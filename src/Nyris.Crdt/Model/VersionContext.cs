@@ -7,13 +7,13 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Nyris.Crdt
+namespace Nyris.Crdt.Model
 {
     [DebuggerDisplay("{DebuggerDisplayString,nq}")]
     public sealed class VersionContext<TActorId>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
-        private readonly ConcurrentDictionary<TActorId, DotRangeList> _ranges = new();
+        private readonly ConcurrentDictionary<TActorId, ConcurrentVersionRanges> _ranges = new();
 
         public ulong StorageSize
         {
@@ -22,7 +22,7 @@ namespace Nyris.Crdt
                 var result = (ulong) (Marshal.SizeOf<TActorId>() * _ranges.Count);
                 foreach (var ranges in _ranges.Values)
                 {
-                    result += (ulong) (Marshal.SizeOf<DotRange>() * ranges.Count);
+                    result += (ulong) (Marshal.SizeOf<Range>() * ranges.Count);
                 }
 
                 return result;
@@ -30,7 +30,7 @@ namespace Nyris.Crdt
         }
         public ICollection<TActorId> Actors => _ranges.Keys;
 
-        public bool TryGetValue(TActorId actorId, [NotNullWhen(true)] out DotRangeList? ranges) 
+        public bool TryGetValue(TActorId actorId, [NotNullWhen(true)] out ConcurrentVersionRanges? ranges) 
             => _ranges.TryGetValue(actorId, out ranges);
 
         public void Merge(TActorId actorId, ulong other)
@@ -38,7 +38,7 @@ namespace Nyris.Crdt
             // TODO: is allocating closures better then using a lock?
             _ranges.AddOrUpdate(actorId, _ =>
             {
-                var ranges = new DotRangeList();
+                var ranges = new ConcurrentVersionRanges();
                 ranges.Merge(other);
                 return ranges;
             }, (_, current) =>
@@ -48,11 +48,11 @@ namespace Nyris.Crdt
             });
         }
 
-        public void Merge(TActorId actorId, DotRange range)
+        public void Merge(TActorId actorId, Range range)
         {
             _ranges.AddOrUpdate(actorId, _ =>
             {
-                var ranges = new DotRangeList();
+                var ranges = new ConcurrentVersionRanges();
                 ranges.Merge(range);
                 return ranges;
             }, (_, current) =>
@@ -65,14 +65,14 @@ namespace Nyris.Crdt
 
         public ulong Increment(TActorId actorId)
         {
-            var ranges = _ranges.GetOrAdd(actorId, _ => new DotRangeList());
+            var ranges = _ranges.GetOrAdd(actorId, _ => new ConcurrentVersionRanges());
             return ranges.GetNew();
         }
 
-        public Dictionary<TActorId, DotRange[]> ToDictionary() 
+        public Dictionary<TActorId, Range[]> ToDictionary() 
             => _ranges.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
         
-        public Dictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, DotRangeList>, T> valueFunc) 
+        public Dictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, ConcurrentVersionRanges>, T> valueFunc) 
             => _ranges.ToDictionary(pair => pair.Key, valueFunc);
 
         private string DebuggerDisplayString

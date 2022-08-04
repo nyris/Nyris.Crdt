@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Sets;
 
@@ -151,7 +153,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
 
             versionVector += 1;
 
-            var itemDot = new Dot<TActorId>(actorPerformingAddition, versionVector);
+            var itemDot = new IntDot<TActorId>(actorPerformingAddition, versionVector);
 
             Items.Add(new DottedItemWithActor<TActorId, TItem>(itemDot, item));
 

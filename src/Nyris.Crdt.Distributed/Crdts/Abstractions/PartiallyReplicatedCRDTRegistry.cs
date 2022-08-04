@@ -12,7 +12,6 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Services;
 using Nyris.Crdt.Distributed.Strategies.PartialReplication;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using Nyris.Extensions.Guids;
 using ProtoBuf;
 using System;
@@ -24,6 +23,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Extensions;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 

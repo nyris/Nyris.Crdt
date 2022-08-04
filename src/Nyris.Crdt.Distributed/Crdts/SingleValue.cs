@@ -1,7 +1,7 @@
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using ProtoBuf;
 using System;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts
 {
@@ -66,7 +66,7 @@ namespace Nyris.Crdt.Distributed.Crdts
         public sealed class SingleValueFactory : ICRDTFactory<SingleValue<T>, SingleValueDto>
         {
             /// <inheritdoc />
-            public SingleValue<T> Create(SingleValueDto dto) => new SingleValue<T>(dto);
+            public SingleValue<T> Create(SingleValueDto dto) => new(dto);
         }
     }
 }

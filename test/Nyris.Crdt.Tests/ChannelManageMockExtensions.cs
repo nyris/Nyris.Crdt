@@ -6,10 +6,10 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Grpc;
 using Nyris.Crdt.Distributed.Services;
-using Nyris.Crdt.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Tests;
 

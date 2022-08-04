@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Nyris.Crdt.Model;
 using Xunit;
 using Xunit.Abstractions;
 

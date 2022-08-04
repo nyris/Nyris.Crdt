@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Nyris.Crdt
+namespace Nyris.Crdt.Interfaces
 {
     public interface IActoredSet<in TActorId, TItem>
     {

@@ -1,7 +1,7 @@
-using ProtoBuf;
 using System;
+using ProtoBuf;
 
-namespace Nyris.Crdt;
+namespace Nyris.Crdt.Model;
 
 [ProtoContract]
 public sealed class TimeStampedItem<TValue, TTimeStamp>

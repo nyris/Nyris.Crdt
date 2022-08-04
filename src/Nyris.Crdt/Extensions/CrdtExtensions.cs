@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
+using Nyris.Crdt.Interfaces;
 
-namespace Nyris.Crdt;
+namespace Nyris.Crdt.Extensions;
 
 public static class CrdtExtensions
 {

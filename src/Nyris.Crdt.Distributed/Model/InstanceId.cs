@@ -1,7 +1,7 @@
-﻿using Nyris.Crdt.Model;
-using Nyris.Model.Ids.SourceGenerators;
+﻿using Nyris.Model.Ids.SourceGenerators;
 using ProtoBuf;
 using System;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Model;
 

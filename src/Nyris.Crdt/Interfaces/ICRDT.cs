@@ -1,4 +1,4 @@
-namespace Nyris.Crdt;
+namespace Nyris.Crdt.Interfaces;
 
 public interface ICRDT<TDto>
 {
