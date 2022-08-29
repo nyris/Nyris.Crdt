@@ -1,6 +1,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using Range = Nyris.Crdt.Model.Range;
@@ -21,14 +22,14 @@ namespace Nyris.Crdt.Extensions
         public static int GetIndexOfFirstGreaterOrEqualKey<TKey, TValue>(this SortedList<TKey, TValue> list, TKey key)
             where TKey : IComparable<TKey>
         {
-            if (list.Count == 0 || list.Keys[0].CompareTo(key) >= 0) return 0;
-            if (list.Keys[^1].CompareTo(key) < 0) return list.Count;
+            // if (list.Count == 0 || list.Keys[0].CompareTo(key) >= 0) return 0;
+            // if (list.Keys[^1].CompareTo(key) < 0) return list.Count;
             
             var l = 0;
             var r = list.Count - 1;
             var keys = list.Keys;
 
-            while (l < r)
+            while (l <= r)
             {
                 var mid = (l + r) / 2;
                 switch (keys[mid].CompareTo(key))  // in case you are wondering like I was - using CompareTo somehow 
@@ -47,12 +48,12 @@ namespace Nyris.Crdt.Extensions
             return l;
         }
 
-        public static IReadOnlyList<Range> GetEmptyRanges<T>(this SortedList<ulong, T> inverse, IReadOnlyList<Range> knownRanges)
+        public static ImmutableArray<Range> GetEmptyRanges<T>(this SortedList<ulong, T> inverse, ImmutableArray<Range> knownRanges)
         {
             Debug.Assert(knownRanges.IsDisjointAndInIncreasingOrder());
-            if (knownRanges.Count == 0) return Array.Empty<Range>();
+            if (knownRanges.Length == 0) return ImmutableArray<Range>.Empty;
             
-            var ranges = new List<Range>();
+            var ranges = ImmutableArray.CreateBuilder<Range>();
             var versions = inverse.Keys;
             if (versions.Count == 0)
             {
@@ -91,7 +92,7 @@ namespace Nyris.Crdt.Extensions
                 else
                 {
                     ++knownRangeIndex;
-                    if (knownRangeIndex == knownRanges.Count) return ranges;
+                    if (knownRangeIndex == knownRanges.Length) return ranges.ToImmutable();
                     knownRange = knownRanges[knownRangeIndex];
                 }
             }
@@ -103,7 +104,7 @@ namespace Nyris.Crdt.Extensions
             }
 
             ++knownRangeIndex;
-            while (knownRangeIndex < knownRanges.Count)
+            while (knownRangeIndex < knownRanges.Length)
             {
                 knownRange = knownRanges[knownRangeIndex];
                 if (lastStart < knownRange.To)
@@ -113,7 +114,7 @@ namespace Nyris.Crdt.Extensions
                 ++knownRangeIndex;
             }
 
-            return ranges;
+            return ranges.ToImmutable();
         }
     }
 }

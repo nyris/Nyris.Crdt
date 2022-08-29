@@ -19,4 +19,9 @@
         <PackageReference Include="Nyris.Contracts.Exceptions" Version="1.1.0" />
         <PackageReference Include="protobuf-net" Version="3.1.4" />
     </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Nyris.Crdt.Tests" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    </ItemGroup>
 </Project>

@@ -1,7 +1,5 @@
 ﻿using System.Collections.Immutable;
-using System.ComponentModel.Design;
 using System.Runtime.CompilerServices;
-using BenchmarkDotNet.Running;
 
 namespace Nyris.Crdt.Benchmarks;
 

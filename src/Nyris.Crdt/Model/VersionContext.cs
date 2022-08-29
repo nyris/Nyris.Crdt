@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -72,8 +73,8 @@ namespace Nyris.Crdt.Model
         public Dictionary<TActorId, Range[]> ToDictionary() 
             => _ranges.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
         
-        public Dictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, ConcurrentVersionRanges>, T> valueFunc) 
-            => _ranges.ToDictionary(pair => pair.Key, valueFunc);
+        public ImmutableDictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, ConcurrentVersionRanges>, T> valueFunc) 
+            => _ranges.ToImmutableDictionary(pair => pair.Key, valueFunc);
 
         private string DebuggerDisplayString
         {

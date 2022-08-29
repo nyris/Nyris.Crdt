@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -117,8 +118,8 @@ namespace Nyris.Crdt.Model
             {
                 if (_inverse.TryGetValue(dot, out var savedItem) && !savedItem.Equals(item))
                 {
-                    throw new AssumptionsViolatedException("Attempt to save an item to the version history that is already occupied " +
-                                                           "by a different item. This can happen if same ActorId was writing items " +
+                    throw new AssumptionsViolatedException($"Attempt to save an item {item}, to the version history that is already occupied " +
+                                                           $"by a different item ({savedItem}, {dot}). This can happen if same ActorId was writing items " +
                                                            "concurrently to different replicas of this set, which is not supported.");
                 }
                 
@@ -198,8 +199,8 @@ namespace Nyris.Crdt.Model
             }
         }
 
-        public IEnumerable<ArraySegment<DottedItem<TItem>>> GetItemsSince(ulong since) 
-            => new PartialEnumerable(_inverse, _lock, since);
+        public ArrayBatchEnumerator GetItemsOutsideRanges(ImmutableArray<Range> except) 
+            => new(_inverse, _lock, except);
 
         /// <summary>
         /// Gets dot ranges, for which there are no items saved in this DottedList.
@@ -207,7 +208,7 @@ namespace Nyris.Crdt.Model
         /// <param name="knownRanges">Dots that are not in known ranges will not be returned, even if there are no items
         /// present for them. It is assumed that knownRanges are in increasing order and they do not overlap.</param>
         /// <returns></returns>
-        public IReadOnlyList<Range> GetEmptyRanges(IReadOnlyList<Range> knownRanges)
+        public ImmutableArray<Range> GetEmptyRanges(ImmutableArray<Range> knownRanges)
         {
             _lock.EnterReadLock();
             try
@@ -226,9 +227,13 @@ namespace Nyris.Crdt.Model
             try
             {
                 var result = true;
-                for (var i = range.From; i < range.To; ++i)
+                var i = _inverse.GetIndexOfFirstGreaterOrEqualKey(range.From);
+                var keys = _inverse.Keys;
+                var values = _inverse.Values;
+                while(i < keys.Count && keys[i] < range.To)
                 {
-                    result &= _inverse.Remove(i, out var item) && _dict.Remove(item);
+                    result &= _dict.Remove(values[i]);
+                    _inverse.RemoveAt(i); // rare occasion when end of list comes closer to i and not the other way around
                 }
 
                 return result;
@@ -252,123 +257,36 @@ namespace Nyris.Crdt.Model
             }
         }
 
-        public IEnumerator<ReadOnlyMemory<DottedItem<TItem>>> GetEnumerator() => new MemoryBasedEnumerator(_inverse, _lock, _enumerationBatchSize);
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public MemoryBasedEnumerator GetEnumerator() => new(_inverse, _lock, _enumerationBatchSize);
 
-        private sealed class PartialEnumerable : IEnumerable<ArraySegment<DottedItem<TItem>>>
-        {
-            private readonly SortedList<ulong, TItem> _inverse;
-            private readonly ReaderWriterLockSlim _lock;
-            private readonly int _enumerationBatchSize;
-            private readonly ulong _enumerationStartDot;
+        IEnumerator<ReadOnlyMemory<DottedItem<TItem>>> IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>.GetEnumerator()
+            => new MemoryBasedEnumerator(_inverse, _lock, _enumerationBatchSize);
+        IEnumerator IEnumerable.GetEnumerator()
+            => new MemoryBasedEnumerator(_inverse, _lock, _enumerationBatchSize);
         
-            public PartialEnumerable(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, ulong enumerationStartDot, int enumerationBatchSize = 1000)
-            {
-                _inverse = inverse;
-                _lock = @lock;
-                _enumerationStartDot = enumerationStartDot;
-                _enumerationBatchSize = enumerationBatchSize;
-            }
         
-            public IEnumerator<ArraySegment<DottedItem<TItem>>> GetEnumerator() 
-                => new ArrayBasedEnumerator(_inverse, _lock, _enumerationBatchSize, _enumerationStartDot);
-        
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-        }
-
-        // TODO: to remove allocations, these can be made into structs
-        private abstract class Enumerator
-        {
-            protected readonly SortedList<ulong, TItem> Inverse;
-            protected readonly ReaderWriterLockSlim Lock;
-            protected int Position;
-            private readonly ulong _startDot;
-
-            protected Enumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, ulong startDot)
-            {
-                Inverse = inverse;
-                Lock = @lock;
-                _startDot = startDot;
-                Reset();
-            }
-
-            public void Reset()
-            {
-                Lock.EnterReadLock();
-                try
-                {
-                    Position = Inverse.GetIndexOfFirstGreaterOrEqualKey(_startDot);
-                }
-                finally
-                {
-                    Lock.ExitReadLock();
-                }
-            }
-        }
-        
-        private sealed class ArrayBasedEnumerator : Enumerator, IEnumerator<ArraySegment<DottedItem<TItem>>>
+        public struct ArrayBatchEnumerator : IEnumerator<ArraySegment<DottedItem<TItem>>>, IEnumerable<ArraySegment<DottedItem<TItem>>>
         {
             private readonly int _batchSize;
             private int _length;
             private readonly DottedItem<TItem>[] _batch;
-
-            public ArrayBasedEnumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, int batchSize, ulong startDot = 0)
-                : base(inverse, @lock, startDot)
-            {
-                _batchSize = batchSize;
-                _batch = ArrayPool<DottedItem<TItem>>.Shared.Rent(batchSize);
-            }
-
-            public bool MoveNext()
-            {
-                Lock.EnterReadLock();
-                try
-                {
-                    if (Position >= Inverse.Count) return false;
-
-                    var end = Math.Min(Position + _batchSize, Inverse.Count);
-                    _length = end - Position;
-
-                    var keys = Inverse.Keys;
-                    var values = Inverse.Values;
-                    for (var i = 0; i < _length; ++i)
-                    {
-                        var j = Position + i;
-                        _batch[i] = new DottedItem<TItem>(values[j], keys[j]);
-                    }
-
-                    Position = end;
-                    return true;
-                }
-                finally
-                {
-                    Lock.ExitReadLock();
-                }
-            }
-
-            public ArraySegment<DottedItem<TItem>> Current => new(_batch, 0, _length);
-
-            object IEnumerator.Current => Current;
-
-            public void Dispose()
-            {
-                ArrayPool<DottedItem<TItem>>.Shared.Return(_batch);
-            }
-        }
-        
-        private sealed class MemoryBasedEnumerator : Enumerator, IEnumerator<ReadOnlyMemory<DottedItem<TItem>>>
-        {
+            private readonly SortedList<ulong, TItem> _inverse;
             private readonly ReaderWriterLockSlim _lock;
-            private readonly int _batchSize;
-            private int _length;
-            private readonly IMemoryOwner<DottedItem<TItem>> _memoryOwner;
-
-            public MemoryBasedEnumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, int batchSize, ulong startDot = 0)
-                : base(inverse, @lock, startDot)
+            private int _versionPosition;
+            private int _rangePosition;
+            private readonly ImmutableArray<Range> _except;
+            
+            public ArrayBatchEnumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, ImmutableArray<Range> except, int batchSize = 1000)
             {
-                _lock = @lock;
+                _inverse = inverse;
                 _batchSize = batchSize;
-                _memoryOwner = MemoryPool<DottedItem<TItem>>.Shared.Rent(batchSize);
+                _except = except;
+                _versionPosition = 0;
+                _rangePosition = 0;
+                _length = 0;
+                _lock = @lock;
+                _batch = ArrayPool<DottedItem<TItem>>.Shared.Rent(batchSize);
+                Reset();
             }
 
             public bool MoveNext()
@@ -376,21 +294,114 @@ namespace Nyris.Crdt.Model
                 _lock.EnterReadLock();
                 try
                 {
-                    if (Position >= Inverse.Count) return false;
+                    _length = 0;
+                    while (_rangePosition < _except.Length && _versionPosition < _inverse.Count)
+                    {
+                        var nextVersion = _inverse.Keys[_versionPosition];
+                        var (from, to) = _except[_rangePosition];
+                        if (from > nextVersion) // if 'except' range starts after version, then respected key is of interest to us 
+                        {
+                            _batch[_length] = new DottedItem<TItem>(_inverse.Values[_versionPosition], nextVersion);
+                            ++_versionPosition;
+                            ++_length;
+                            if (_length < _batchSize) continue;
+                            return true;
+                        }
 
-                    var end = Math.Min(Position + _batchSize, Inverse.Count);
-                    _length = end - Position;
+                        if (to > nextVersion) // if nextVersion is within one of 'except' ranges, it should be skipped - advance version pointer and try again 
+                        {
+                            ++_versionPosition;
+                        }
+                        else // if nextVersion lies beyond current range, we need to check if nextRange does not apply - advance range pointer and try again
+                        {
+                            ++_rangePosition;
+                        }
+                    }
 
-                    var keys = Inverse.Keys;
-                    var values = Inverse.Values;
+                    // check if there no versions left
+                    if (_versionPosition >= _inverse.Count) return _length > 0;
+
+                    while (_length < _batchSize && _versionPosition < _inverse.Count)
+                    {
+                        _batch[_length] = new DottedItem<TItem>(_inverse.Values[_versionPosition], _inverse.Keys[_versionPosition]);
+                        ++_versionPosition;
+                        ++_length;
+                    }
+                    return _length > 0;
+                }
+                finally
+                {
+                    _lock.ExitReadLock();
+                }
+            }
+
+            public ArraySegment<DottedItem<TItem>> Current => new(_batch, 0, _length);
+
+            object IEnumerator.Current => Current;
+
+            public void Reset()
+            {
+                _lock.EnterReadLock();
+                try
+                {
+                    _versionPosition = _except.Length > 0 && _except[0].From == 1 
+                                           ? _inverse.GetIndexOfFirstGreaterOrEqualKey(_except[0].To) 
+                                           : 0;
+                }
+                finally
+                {
+                    _lock.ExitReadLock();
+                }
+            }
+            public void Dispose() => ArrayPool<DottedItem<TItem>>.Shared.Return(_batch);
+
+            public ArrayBatchEnumerator GetEnumerator() => this;
+            IEnumerator<ArraySegment<DottedItem<TItem>>> IEnumerable<ArraySegment<DottedItem<TItem>>>.GetEnumerator() => this;
+            IEnumerator IEnumerable.GetEnumerator() => this;
+        }
+        
+        public struct MemoryBasedEnumerator : IEnumerator<ReadOnlyMemory<DottedItem<TItem>>>, IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>
+        {
+            private readonly ReaderWriterLockSlim _lock;
+            private readonly int _batchSize;
+            private int _length;
+            private readonly IMemoryOwner<DottedItem<TItem>> _memoryOwner;
+            private readonly SortedList<ulong, TItem> _inverse;
+            private int _position;
+            private readonly ulong _startDot;
+
+            public MemoryBasedEnumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, int batchSize, ulong startDot = 0)
+            {
+                _inverse = inverse;
+                _lock = @lock;
+                _batchSize = batchSize;
+                _startDot = startDot;
+                _position = 0;
+                _length = 0;
+                _memoryOwner = MemoryPool<DottedItem<TItem>>.Shared.Rent(batchSize);
+                Reset();
+            }
+
+            public bool MoveNext()
+            {
+                _lock.EnterReadLock();
+                try
+                {
+                    if (_position >= _inverse.Count) return false;
+
+                    var end = Math.Min(_position + _batchSize, _inverse.Count);
+                    _length = end - _position;
+
+                    var keys = _inverse.Keys;
+                    var values = _inverse.Values;
                     var span = _memoryOwner.Memory.Span;
                     for (var i = 0; i < _length; ++i)
                     {
-                        var j = Position + i;
+                        var j = _position + i;
                         span[i] = new DottedItem<TItem>(values[j], keys[j]);
                     }
 
-                    Position = end;
+                    _position = end;
                     return true;
                 }
                 finally
@@ -403,7 +414,23 @@ namespace Nyris.Crdt.Model
 
             object IEnumerator.Current => Current;
 
+            public void Reset()
+            {
+                _lock.EnterReadLock();
+                try
+                {
+                    _position = _inverse.GetIndexOfFirstGreaterOrEqualKey(_startDot);
+                }
+                finally
+                {
+                    _lock.ExitReadLock();
+                }
+            }
+            
             public void Dispose() => _memoryOwner.Dispose();
+            MemoryBasedEnumerator GetEnumerator() => this;
+            IEnumerator<ReadOnlyMemory<DottedItem<TItem>>> IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>.GetEnumerator() => this;
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }
 }

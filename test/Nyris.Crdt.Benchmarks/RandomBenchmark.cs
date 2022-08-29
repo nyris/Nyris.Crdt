@@ -1,8 +1,5 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using System.Collections.ObjectModel;
 using BenchmarkDotNet.Attributes;
-using Nyris.Crdt.Extensions;
 
 namespace Nyris.Crdt.Benchmarks;
 

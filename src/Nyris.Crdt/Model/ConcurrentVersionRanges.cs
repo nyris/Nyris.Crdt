@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -27,12 +28,13 @@ namespace Nyris.Crdt.Model
         public override string ToString() => string.Join(", ", _ranges);
         
         public Range[] ToArray() => _ranges.ToArray();
+        public ImmutableArray<Range> ToImmutable() => _ranges.ToImmutableArray();
 
         public bool Contains(ulong version)
         {
             if (_ranges.Count == 0) return false;
             var i = LeftClosestRangeIndex(version);
-            return i > 0 && _ranges[i].To > version;
+            return i >= 0 && _ranges[i].To > version;
         }
         
         public ulong GetNew()
@@ -285,22 +287,10 @@ namespace Nyris.Crdt.Model
         private int LeftClosestRangeIndex(ulong dot)
         {
             Debug.Assert(_ranges.Count > 0);
-            if (_ranges[0].From > dot) return -1;
-            
-            // If there are few ranges, just iterate through one-by-one.  
-            if (_ranges.Count < 6)
-            {
-                for (var i = 1; i < _ranges.Count; ++i)
-                {
-                    if (_ranges[i].From > dot) return i - 1;
-                }
-            }
-            
-            // Binary search.
             var l = 0;
             var r = _ranges.Count - 1;
 
-            while (l < r)
+            while (l <= r)
             {
                 var mid = (l + r) / 2;
                 var midRange = _ranges[mid];
@@ -361,7 +351,7 @@ namespace Nyris.Crdt.Model
             {
                 if (_ranges.Count == 0) return false;
                 var i = LeftClosestRangeIndex(dot);
-                return i > 0 && _ranges[i].To > dot;
+                return i >= 0 && _ranges[i].To > dot;
             }
             finally
             {
@@ -377,6 +367,19 @@ namespace Nyris.Crdt.Model
             try
             {
                 return _ranges.ToArray();
+            }
+            finally
+            {
+                _lock.ExitReadLock();
+            }
+        }
+        
+        public ImmutableArray<Range> ToImmutable()
+        {
+            _lock.EnterReadLock();
+            try
+            {
+                return _ranges.ToImmutableArray();
             }
             finally
             {
@@ -695,22 +698,10 @@ namespace Nyris.Crdt.Model
         private int LeftClosestRangeIndex(ulong dot)
         {
             Debug.Assert(_ranges.Count > 0);
-            if (_ranges[0].From > dot) return -1;
-            
-            // If there are few ranges, just iterate through one-by-one.  
-            if (_ranges.Count < 6)
-            {
-                for (var i = 1; i < _ranges.Count; ++i)
-                {
-                    if (_ranges[i].From > dot) return i - 1;
-                }
-            }
-            
             // Binary search.
             var l = 0;
             var r = _ranges.Count - 1;
-
-            while (l < r)
+            while (l <= r)
             {
                 var mid = (l + r) / 2;
                 var midRange = _ranges[mid];

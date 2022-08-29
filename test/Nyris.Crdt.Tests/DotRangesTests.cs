@@ -981,6 +981,22 @@ public sealed class DotRangesTests
                 new Range(3, 5), new Range(6, 8), new Range(13, 26)
             }
         };
+        
+        // ##### caught during debugging #####
+        yield return new object[]
+        {
+            new Range[]
+            {
+                new(1, 31), new(32, 36), new(37, 38), new(39, 41), new(43, 54), new(55, 70), new(71, 76),
+                new(77, 80), new(82, 96), new(97, 105), new(106, 107), new(109, 114), new(115, 118), new(119, 127)
+            },
+            new Range(31, 32),
+            new Range[]
+            {
+                new(1, 36), new(37, 38), new(39, 41), new(43, 54), new(55, 70), new(71, 76),
+                new(77, 80), new(82, 96), new(97, 105), new(106, 107), new(109, 114), new(115, 118), new(119, 127)
+            }
+        };
     }
 
     [Theory]

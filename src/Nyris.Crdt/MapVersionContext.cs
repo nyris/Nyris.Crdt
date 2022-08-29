@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Nyris.Crdt.Extensions;
 using Nyris.Crdt.Model;
@@ -11,10 +12,9 @@ using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt
 {
-    internal sealed class MapVersionContext<TActorId, TKey, TValueTimestamp> 
-        where TActorId : IEquatable<TActorId>, IComparable<TActorId> 
+    [DebuggerDisplay("{DebuggerDisplayString,nq}")]
+    internal sealed class MapVersionContext<TKey> 
         where TKey : IEquatable<TKey>
-        where TValueTimestamp : IComparable<TValueTimestamp>
     {
         private readonly VersionRanges _ranges = new();
         private readonly SortedList<ulong, TKey> _inverse = new();
@@ -105,12 +105,12 @@ namespace Nyris.Crdt
         }
         
         [Pure]
-        public IReadOnlyList<Range> GetEmptyRanges()
+        public ImmutableArray<Range> GetEmptyRanges()
         {
             _lock.EnterReadLock();
             try
             {
-                return _inverse.GetEmptyRanges(_ranges.InnerList);
+                return _inverse.GetEmptyRanges(_ranges.ToImmutable());
             }
             finally
             {
@@ -119,12 +119,13 @@ namespace Nyris.Crdt
         }
         
         [Pure]
-        public Range[] GetRanges()
+        public ImmutableArray<Range> GetRanges()
         {
             _lock.EnterReadLock();
             try
             {
-                return _ranges.ToArray();
+                var array = _ranges.ToArray();
+                return Unsafe.As<Range[], ImmutableArray<Range>>(ref array);
             }
             finally
             {
@@ -152,17 +153,17 @@ namespace Nyris.Crdt
         }
 
 
-        public Enumerator EnumerateKeysOutsideRanges(Range[] except) => new(except, _inverse, _lock);
+        public Enumerator EnumerateKeysOutsideRanges(ImmutableArray<Range> except) => new(except, _inverse, _lock);
 
         public struct Enumerator : IEnumerator<TKey>
         {
-            private readonly Range[] _except;
+            private readonly ImmutableArray<Range> _except;
             private int _rangePosition;
             private int _versionPosition;
             private readonly SortedList<ulong, TKey> _inverse;
             private readonly ReaderWriterLockSlim _lock;
 
-            public Enumerator(Range[] except, SortedList<ulong, TKey> inverse, ReaderWriterLockSlim @lock)
+            public Enumerator(ImmutableArray<Range> except, SortedList<ulong, TKey> inverse, ReaderWriterLockSlim @lock)
             {
                 _except = except;
                 _inverse = inverse;
@@ -224,5 +225,7 @@ namespace Nyris.Crdt
 
             public Enumerator GetEnumerator() => this;
         }
+        
+        private string DebuggerDisplayString => _ranges.ToString();
     }
 }

@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using Nyris.Crdt.Model;
 
@@ -20,36 +22,31 @@ namespace Nyris.Crdt.Extensions
         }
 
         [Pure]
-        public static Range[] Inverse(this IReadOnlyList<Range> ranges)
+        public static bool Contains(this ImmutableArray<Range> ranges, ulong version)
         {
-            // If first range does not starts at 1, then inverse array will have 1 more element then input array. For example:
-            // [3, 5), [6, 8) becomes [1, 3), [5, 6), [8, inf)
-            var isFirstSpotEmpty = ranges[0].From > 1;
-            var reverse = isFirstSpotEmpty ? new Range[ranges.Count + 1] : new Range[ranges.Count];
-            
-            if (isFirstSpotEmpty)
-            {
-                reverse = new Range[ranges.Count + 1];
-                reverse[0] = new Range(1, ranges[0].From);
-                
-                for (var i = 1; i < ranges.Count; ++i)
-                {
-                    reverse[i] = new Range(ranges[i - 1].To, ranges[i].From);
-                }
-                
-                reverse[^1] = new Range(ranges[^1].To, ulong.MaxValue);
-                return reverse;
-            }
+            Debug.Assert(ranges.Length > 0);
+            var l = 0;
+            var r = ranges.Length - 1;
 
-            // And otherwise, if first range starts at 1, resulting array will be of the same length and we can easily do it in-place
-            // for example: [1, 5), [7, 9)  =>  [5, 7), [9, inf)
-            for (var i = 0; i < ranges.Count - 1; ++i)
+            while (l <= r)
             {
-                reverse[i] = new Range(ranges[i].To, ranges[i + 1].From);
+                var mid = (l + r) / 2;
+                var midRange = ranges[mid];
+                if (midRange.From == version)
+                {
+                    return true;
+                }
+                else if (midRange.From > version)
+                {
+                    r = mid - 1;
+                }
+                else
+                {
+                    l = mid + 1;
+                }
             }
-                
-            reverse[^1] = new Range(ranges[^1].To, ulong.MaxValue);
-            return reverse;
+            // r is now left-closest range
+            return r < 0 || r >= ranges.Length || ranges[r].To <= version;
         }
     }
 }

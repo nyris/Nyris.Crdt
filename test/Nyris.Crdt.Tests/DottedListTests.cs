@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -410,12 +411,6 @@ public sealed class DottedListTests
         };
         
         // manually found edge cases:
-        // yield return new object[]
-        // {
-        //     new ulong[] { 546, 547, 548, 549, 550, 551, 552 },
-        //     new[] { new DotRange(1, 545), new DotRange(546, 553) },
-        //     new[] { new DotRange(1, 545) }
-        // };
         yield return new object[]
         {
             new ulong[] { 10, 11, 12 },
@@ -436,7 +431,7 @@ public sealed class DottedListTests
             list.TryAdd(Random.Shared.NextDouble(), dot);
         }
         
-        var ranges = list.GetEmptyRanges(known.ToList());
+        var ranges = list.GetEmptyRanges(known.ToImmutableArray());
         ranges.Should().BeEquivalentTo(expected);
     }
     
@@ -452,8 +447,9 @@ public sealed class DottedListTests
             list.TryAdd(value, i);
             if(i >= since) expected.Add(new DottedItem<double>(value, i));
         }
-        
-        list.GetItemsSince(since).SelectMany(batch => batch).ToHashSet().SetEquals(expected);
+
+        var except = new[] { new Range(1, since) }.ToImmutableArray();
+        list.GetItemsOutsideRanges(except).SelectMany(batch => batch).ToHashSet().SetEquals(expected);
     }
     
     [Fact]
@@ -469,7 +465,8 @@ public sealed class DottedListTests
             if(i >= since) expected.Add(new DottedItem<double>(value, i));
         }
         
-        list.GetItemsSince(since).SelectMany(batch => batch).ToHashSet().SetEquals(expected);
+        var except = new[] { new Range(1, since) }.ToImmutableArray();
+        list.GetItemsOutsideRanges(except).SelectMany(batch => batch).ToHashSet().SetEquals(expected);
     }
     
     [Fact]
@@ -506,23 +503,23 @@ public sealed class DottedListTests
     {
         var list = new VersionedItemList<double>();
         
-        var ranges = list.GetEmptyRanges(Array.Empty<Range>()).ToList();
+        var ranges = list.GetEmptyRanges(ImmutableArray<Range>.Empty);
         ranges.Should().HaveCount(0);
         
         var expectedRange = new Range(1, 5);
-        ranges = list.GetEmptyRanges(new[] { expectedRange }).ToList();
+        ranges = list.GetEmptyRanges(ImmutableArray.Create(expectedRange));
         ranges.Should()
             .Contain(expectedRange)
             .And.HaveCount(1);
         
         expectedRange = new Range(3, 5);
-        ranges = list.GetEmptyRanges(new[] { expectedRange }).ToList();
+        ranges = list.GetEmptyRanges(ImmutableArray.Create(expectedRange));
         ranges.Should()
             .Contain(expectedRange)
             .And.HaveCount(1);
         
         expectedRange = new Range(1, 2);
-        ranges = list.GetEmptyRanges(new[] { expectedRange }).ToList();
+        ranges = list.GetEmptyRanges(ImmutableArray.Create(expectedRange));
         ranges.Should()
             .Contain(expectedRange)
             .And.HaveCount(1);
@@ -540,33 +537,33 @@ public sealed class DottedListTests
         list.TryAdd(Random.Shared.NextDouble(), 13);
         list.TryAdd(Random.Shared.NextDouble(), 14);
 
-        var ranges = list.GetEmptyRanges(Array.Empty<Range>()).ToList();
+        var ranges = list.GetEmptyRanges(ImmutableArray<Range>.Empty);
         ranges.Should().HaveCount(0);
 
-        ranges = list.GetEmptyRanges(Ranges(1, 2)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 2));
         ranges.Should()
             .Contain(new Range(1, 2))
             .And.HaveCount(1);
         
-        ranges = list.GetEmptyRanges(Ranges(1, 4)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 4));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.HaveCount(1);
         
-        ranges = list.GetEmptyRanges(Ranges(1, 8)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 8));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(4, 8))
             .And.HaveCount(2);
 
-        ranges = list.GetEmptyRanges(Ranges(1, 13)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 13));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(4, 8))
             .And.Contain(new Range(10, 11))
             .And.HaveCount(3);
         
-        ranges = list.GetEmptyRanges(Ranges(1, 16)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 16));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(4, 8))
@@ -574,7 +571,7 @@ public sealed class DottedListTests
             .And.Contain(new Range(15, 16))
             .And.HaveCount(4);
         
-        ranges = list.GetEmptyRanges(Ranges(1, 100)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 100));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(4, 8))
@@ -595,31 +592,31 @@ public sealed class DottedListTests
         list.TryAdd(Random.Shared.NextDouble(), 13);
         list.TryAdd(Random.Shared.NextDouble(), 14);
         
-        var ranges = list.GetEmptyRanges(Ranges(1, 2, 3, 4)).ToList();
+        var ranges = list.GetEmptyRanges(Ranges(1, 2, 3, 4));
         ranges.Should()
             .Contain(new Range(1, 2))
             .And.HaveCount(1);
         
-        ranges = list.GetEmptyRanges(Ranges(1, 4, 5, 7)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 4, 5, 7));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(5, 7))
             .And.HaveCount(2);
         
-        ranges = list.GetEmptyRanges(Ranges(1, 4, 5, 9)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 4, 5, 9));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(5, 8))
             .And.HaveCount(2);
 
-        ranges = list.GetEmptyRanges(Ranges(1, 10, 11, 16)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 10, 11, 16));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(4, 8))
             .And.Contain(new Range(15, 16))
             .And.HaveCount(3);
 
-        ranges = list.GetEmptyRanges(Ranges(1, 10, 11, 16, 20, 100)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 10, 11, 16, 20, 100));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(4, 8))
@@ -627,7 +624,7 @@ public sealed class DottedListTests
             .And.Contain(new Range(20, 100))
             .And.HaveCount(4);
         
-        ranges = list.GetEmptyRanges(Ranges(1, 10, 11, 16, 20, 100, 101, 103)).ToList();
+        ranges = list.GetEmptyRanges(Ranges(1, 10, 11, 16, 20, 100, 101, 103));
         ranges.Should()
             .Contain(new Range(1, 3))
             .And.Contain(new Range(4, 8))
@@ -637,16 +634,16 @@ public sealed class DottedListTests
             .And.HaveCount(5);
     }
 
-    private Range[] Ranges(params ulong[] dots)
+    private ImmutableArray<Range> Ranges(params ulong[] dots)
     {
         Debug.Assert(dots.Length % 2 == 0);
-        var result = new Range[dots.Length / 2];
-        for (var i = 0; i < result.Length; ++i)
+        var result = ImmutableArray.CreateBuilder<Range>(dots.Length / 2);
+        for (var i = 0; i < result.Capacity; ++i)
         {
-            result[i] = new Range(dots[2 * i], dots[2 * i + 1]);
+            result.Add(new Range(dots[2 * i], dots[2 * i + 1]));
         }
 
-        return result;
+        return result.MoveToImmutable();
     }
     
     private void CheckConcurrentAdds<T>(T item, int n) where T : IEquatable<T>

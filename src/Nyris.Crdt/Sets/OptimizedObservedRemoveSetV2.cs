@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Nyris.Crdt.Interfaces;
 using Nyris.Crdt.Model;
@@ -21,7 +23,8 @@ namespace Nyris.Crdt.Sets
     [SuppressMessage("ReSharper", "LoopCanBeConvertedToQuery", Justification = "Performance")]
     public class OptimizedObservedRemoveSetV2<TActorId, TItem>
         : ICRDT<OptimizedObservedRemoveSetV2<TActorId, TItem>.Dto>,
-          IDeltaCrdt<OptimizedObservedRemoveSetV2<TActorId, TItem>.DeltaDto, Dictionary<TActorId, ulong>>
+          IDeltaCrdt<OptimizedObservedRemoveSetV2<TActorId, TItem>.DeltaDto, 
+              OptimizedObservedRemoveSetV2<TActorId,TItem>.CausalTimestamp>
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
@@ -62,22 +65,23 @@ namespace Nyris.Crdt.Sets
         }
 
         #region Mutations
-        public IReadOnlyList<DeltaDto> Add(TItem item, TActorId actor)
+        public ImmutableArray<DeltaDto> Add(TItem item, TActorId actor)
         {
             Debug.Assert(item is not null);
             Debug.Assert(actor is not null);
             _lock.EnterWriteLock();
             try
             {
-                var dot = _versionContext.Increment(actor);
+                var version = _versionContext.Increment(actor);
                 if (!_items.TryGetValue(actor, out var actorsDottedItems))
                 {
                     _items[actor] = actorsDottedItems = VersionedItemList<TItem>.New();
                 }
-                actorsDottedItems.TryAdd(item, dot, out var removedDot, true);
-                return removedDot.HasValue 
-                           ? new[] { DeltaDto.Added(item, actor, dot), DeltaDto.Removed(actor, removedDot.Value) } 
-                           : new[] { DeltaDto.Added(item, actor, dot) };
+                actorsDottedItems.TryAdd(item, version, out var removedVersion, true);
+                return removedVersion.HasValue 
+                           ? ImmutableArray.Create(DeltaDto.Added(item, actor, version), 
+                                                   DeltaDto.Removed(actor, removedVersion.Value)) 
+                           : ImmutableArray.Create(DeltaDto.Added(item, actor, version));
             }
             finally
             {
@@ -85,13 +89,13 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        public IReadOnlyList<DeltaDto> Remove(TItem item)
+        public ImmutableArray<DeltaDto> Remove(TItem item)
         {
             Debug.Assert(item is not null);
             _lock.EnterWriteLock(); // although _versionContext is not updated, we need to update multiple dottedLists atomically 
             try
             {
-                var dtos = new List<DeltaDto>(_items.Count);
+                var dtos = ImmutableArray.CreateBuilder<DeltaDto>(_items.Count);
                 foreach (var (actorId, actorsDottedItems) in _items)
                 {
                     if (actorsDottedItems.TryRemove(item, out var removedDot))
@@ -100,7 +104,7 @@ namespace Nyris.Crdt.Sets
                     }
                 }
 
-                return dtos;
+                return dtos.ToImmutable();
             }
             finally
             {
@@ -202,53 +206,44 @@ namespace Nyris.Crdt.Sets
 
         #region DeltaCrdt
 
-        public Dictionary<TActorId, ulong> GetLastKnownTimestamp() 
-            // no locking is necessary as both VersionContext and DottedList is already thread safe on it's own 
-            => _versionContext.ToDictionary(pair => pair.Value.GetFirstUnknown());
-
-        public IEnumerable<DeltaDto> EnumerateDeltaDtos(Dictionary<TActorId, ulong>? timestamp = default)
+        public CausalTimestamp GetLastKnownTimestamp()
         {
-            timestamp ??= new Dictionary<TActorId, ulong>();
+            return new CausalTimestamp(_versionContext.ToDictionary(pair =>
+            {
+                var array = pair.Value.ToArray();
+                return Unsafe.As<Range[], ImmutableArray<Range>>(ref array);
+            }));
+        }
+
+        public IEnumerable<DeltaDto> EnumerateDeltaDtos(CausalTimestamp? timestamp = default)
+        {
+            var since = timestamp?.Since ?? ImmutableDictionary<TActorId, ImmutableArray<Range>>.Empty;
             
             foreach (var actorId in _versionContext.Actors)
             {
                 if (!_versionContext.TryGetValue(actorId, out var myDotRanges) 
                     || !_items.TryGetValue(actorId, out var myItems)) continue;
 
-                if (!timestamp.TryGetValue(actorId, out var startAt)) startAt = 0;
+                if (!since.TryGetValue(actorId, out var except)) except = ImmutableArray<Range>.Empty;
 
                 // every new item, that was added since provided version
-                foreach (var batch in myItems.GetItemsSince(startAt))
+                foreach (var batch in myItems.GetItemsOutsideRanges(except))
                 {
                     var innerArray = batch.Array!; // faster indexing
                     for (var i = batch.Offset; i < batch.Count; ++i)
                     {
-                        var (item, dot) = innerArray[i];
-                        yield return DeltaDto.Added(item, actorId, dot);
+                        var (item, version) = innerArray[i];
+                        yield return DeltaDto.Added(item, actorId, version);
                     }
                 }
 
                 // every item, that was removed (we don't know the items, but we can restore dots)
                 var emptyRanges = GetEmptyRanges(myItems, myDotRanges);
-                for (var i = 0; i < emptyRanges.Count; ++i)
+                for (var i = 0; i < emptyRanges.Length; ++i)
                 {
                     yield return DeltaDto.Removed(actorId, emptyRanges[i]);
                 }
             }
-        }
-
-        public IReadOnlyList<DeltaDto> ProduceDeltasFor(TItem item)
-        {
-            var result = new List<DeltaDto>(_items.Count);
-            foreach (var (actorId, dottedList) in _items)
-            {
-                if (dottedList.TryGetValue(item, out var dot))
-                {
-                    result.Add(DeltaDto.Added(item, actorId, dot));
-                }
-            }
-
-            return result;
         }
 
         public void Merge(DeltaDto delta)
@@ -288,11 +283,14 @@ namespace Nyris.Crdt.Sets
             }
             switch (delta)
             {
-                case DeltaDtoAddition(var item, _, var version):
+                case DeltaDtoAddition(var item, var actor, var version):
+                    // first check if version is new. If already observed by context, ignore 
+                    if (_versionContext.TryGetValue(actor, out var ranges) && ranges.Contains(version)) return;
                     actorsDottedItems.TryAdd(item, version);
-                    _versionContext.Merge(delta.Actor, version);
+                    _versionContext.Merge(actor, version);
                     break;
                 case DeltaDtoDeletedDot(var actorId, var version):
+                    // for removals it does not matter if it was already observed or not - at worst we will try removing non-existent version 
                     actorsDottedItems.TryRemove(version);
                     _versionContext.Merge(actorId, version);
                     break;
@@ -305,12 +303,12 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        private IReadOnlyList<Range> GetEmptyRanges(VersionedItemList<TItem> versionedItemList, ConcurrentVersionRanges ranges)
+        private ImmutableArray<Range> GetEmptyRanges(VersionedItemList<TItem> versionedItemList, ConcurrentVersionRanges ranges)
         {
             _lock.EnterReadLock(); // needs to be locked, as reads from both VersionContext and items 
             try
             {
-                return versionedItemList.GetEmptyRanges(ranges.ToArray());
+                return versionedItemList.GetEmptyRanges(ranges.ToImmutable());
             }
             finally
             {
@@ -322,8 +320,10 @@ namespace Nyris.Crdt.Sets
 
         #region DtoRecords
 
-        public record Dto(Dictionary<TActorId, Range[]> VersionVector, Dictionary<TActorId, Dictionary<TItem, ulong>> Items);
+        public sealed record Dto(Dictionary<TActorId, Range[]> VersionVector, Dictionary<TActorId, Dictionary<TItem, ulong>> Items);
 
+        public sealed record CausalTimestamp(ImmutableDictionary<TActorId, ImmutableArray<Range>> Since);
+        
         public abstract record DeltaDto(TActorId Actor)
         {
             public static DeltaDto Added(TItem item, TActorId actor, ulong version) 

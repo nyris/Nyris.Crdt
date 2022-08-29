@@ -12,6 +12,7 @@ namespace Nyris.Crdt.Tests;
 public sealed class ObservedRemoveSetV2Tests
 {
     private readonly ITestOutputHelper _output;
+    private readonly Random _random = new Random(42);
 
     public ObservedRemoveSetV2Tests(ITestOutputHelper output)
     {
@@ -57,13 +58,13 @@ public sealed class ObservedRemoveSetV2Tests
     [InlineData(127, 47, 11, false)]
     [InlineData(127, 59, 47, false)]
     [InlineData(10000, 3500, 99, false)]
-    public void DeltaMerging_MergeIntoEmpty_Works(int nElements, int nDeletes, int nActors, bool deltaMerge = true)
+    public void MergeIntoEmpty_Works(int nElements, int nDeletes, int nActors, bool deltaMerge = true)
     {
         var set1 = new OptimizedObservedRemoveSetV2<Guid, double>();
         var actors = Enumerable.Range(0, nActors).Select(_ => Guid.NewGuid()).ToList();
         var expectedValues = new Dictionary<int, double>(Enumerable
             .Range(0, nElements)
-            .Select(i => new KeyValuePair<int, double>(i, Random.Shared.NextDouble())));
+            .Select(i => new KeyValuePair<int, double>(i, _random.NextDouble())));
         
         var start = DateTime.Now;
         for (var i = 0; i < nElements; ++i)
@@ -75,7 +76,7 @@ public sealed class ObservedRemoveSetV2Tests
         start = DateTime.Now;
         for (var i = 0; i < nDeletes; ++i)
         {
-            var indexToDelete = Random.Shared.Next(0, nElements);
+            var indexToDelete = _random.Next(0, nElements);
             while (!expectedValues.ContainsKey(indexToDelete))
             {
                 indexToDelete = indexToDelete > 0 ? indexToDelete - 1 : nElements - 1;
@@ -94,6 +95,7 @@ public sealed class ObservedRemoveSetV2Tests
         _output.WriteLine($"Merge done in {DateTime.Now - start}");
 
         set2.Values.SetEquals(expectedValues.Values).Should().BeTrue();
+        AssertSetEquality(set1, set2);
     }
 
     [Theory]
@@ -119,7 +121,7 @@ public sealed class ObservedRemoveSetV2Tests
         var actor2 = Guid.NewGuid();
         var expectedValues = new Dictionary<int, double>(Enumerable
             .Range(0, nElements)
-            .Select(i => new KeyValuePair<int, double>(i, Random.Shared.NextDouble())));
+            .Select(i => new KeyValuePair<int, double>(i, _random.NextDouble())));
 
         var start = DateTime.Now;
         foreach (var (i, value) in expectedValues)
@@ -132,7 +134,7 @@ public sealed class ObservedRemoveSetV2Tests
         start = DateTime.Now;
         for (var i = 0; i < nDeletes; ++i)
         {
-            var indexToDelete = Random.Shared.Next(0, nElements);
+            var indexToDelete = _random.Next(0, nElements);
             while (!expectedValues.ContainsKey(indexToDelete))
             {
                 indexToDelete = indexToDelete > 0 ? indexToDelete - 1 : nElements - 1;
@@ -155,9 +157,8 @@ public sealed class ObservedRemoveSetV2Tests
         set1.Values.SetEquals(expectedValues.Values).Should().BeTrue(
             $"expected {expectedValues.Count} items, but this were not found: " +
             $"{string.Join(";", expectedValues.Values.Except(set1.Values))}");
-        set2.Values.SetEquals(expectedValues.Values).Should().BeTrue(
-            $"expected {expectedValues.Count} items, but this were not found: " +
-            $"{string.Join(";", expectedValues.Values.Except(set2.Values))}");
+        
+        AssertSetEquality(set1, set2);
         _output.WriteLine($"Assertions done in {DateTime.Now - start}");
     }
 
@@ -195,13 +196,13 @@ public sealed class ObservedRemoveSetV2Tests
         
         for (var i = 0; i < nOperations; ++i)
         {
-            switch (Random.Shared.NextDouble())
+            switch (_random.NextDouble())
             {
                 case < 0.3:
-                    set1.Add(Random.Shared.NextDouble(), RandomActor());
+                    set1.Add(_random.NextDouble(), RandomActor());
                     break;
                 case < 0.6:
-                    set2.Add(Random.Shared.NextDouble(), RandomActor());
+                    set2.Add(_random.NextDouble(), RandomActor());
                     break;
                 case < 0.8:
                     set1.Remove(set1.Values.FirstOrDefault());
@@ -215,8 +216,9 @@ public sealed class ObservedRemoveSetV2Tests
         }
         
         set1.Values.SetEquals(set2.Values).Should().BeTrue();
+        AssertSetEquality(set1, set2);
 
-        Guid RandomActor() => actors![Random.Shared.Next(0, actors.Count)];
+        Guid RandomActor() => actors![_random.Next(0, actors.Count)];
     }
 
     [Theory]
@@ -248,7 +250,7 @@ public sealed class ObservedRemoveSetV2Tests
             .ToList();
 
         var actors = sets.Select(_ => Guid.NewGuid()).ToList();
-        var expectedValues = Enumerable.Range(0, nElements).Select(_ => Random.Shared.NextDouble()).ToList();
+        var expectedValues = Enumerable.Range(0, nElements).Select(_ => _random.NextDouble()).ToList();
         
         for (var i = 0; i < sets.Count; ++i)
         {
@@ -286,6 +288,11 @@ public sealed class ObservedRemoveSetV2Tests
                 $"expected {expectedValues.Count} items, but this were not found: " +
                 $"{string.Join(";", expectedValues.Except(set.Values))}");
         }
+
+        for (var i = 1; i < sets.Count; ++i)
+        {
+            AssertSetEquality(sets[0], sets[i]);
+        }
     }
 
     [Theory]
@@ -317,7 +324,7 @@ public sealed class ObservedRemoveSetV2Tests
             .ToList();
 
         var actors = sets.Select(_ => Guid.NewGuid()).ToList();
-        var expectedValues = Enumerable.Range(0, nElements).Select(_ => Random.Shared.NextDouble()).ToList();
+        var expectedValues = Enumerable.Range(0, nElements).Select(_ => _random.NextDouble()).ToList();
             
         var tasks = new Task[sets.Count * 2];
         var start = DateTime.Now;
@@ -328,7 +335,7 @@ public sealed class ObservedRemoveSetV2Tests
             // Distribute all elements between actors (include element if [element index] % [n actors] == [actor index])
             // But also add some other elements where that condition is not met, so that there is overlap
             var actorsElements = expectedValues
-                .Where((_, j) => j % nSets == i || Random.Shared.NextDouble() < 0.2)
+                .Where((_, j) => j % nSets == i || _random.NextDouble() < 0.2)
                 .ToList();
             
             tasks[i] = DeltaMergeContinuouslyAsync(sets[i], sets[next], 
@@ -362,6 +369,22 @@ public sealed class ObservedRemoveSetV2Tests
                 $"expected {expectedValues.Count} items, but this were not found: " +
                 $"{string.Join(";", expectedValues.Except(set.Values))}");
         }
+        for (var i = 1; i < sets.Count; ++i)
+        {
+            AssertSetEquality(sets[0], sets[i]);
+        }
+    }
+
+    private static void AssertSetEquality<TActor, TItem>(OptimizedObservedRemoveSetV2<TActor, TItem> set1,
+        OptimizedObservedRemoveSetV2<TActor, TItem> set2)
+        where TItem : IEquatable<TItem>
+        where TActor : IEquatable<TActor>, IComparable<TActor>
+    {
+        set1.Values.SetEquals(set2.Values).Should().BeTrue();
+        var deltas1 = set1.EnumerateDeltaDtos().ToHashSet();
+        var deltas2 = set2.EnumerateDeltaDtos().ToHashSet();
+        deltas1.SetEquals(deltas2).Should().BeTrue();
+        set1.ToDto().Should().BeEquivalentTo(set2.ToDto());
     }
 
     private async Task AddAndRemoveContinuouslyAsync<TActorId, TItem>(OptimizedObservedRemoveSetV2<TActorId, TItem> set,
@@ -456,7 +479,7 @@ public sealed class ObservedRemoveSetV2Tests
                 continue;
             }
 
-            switch (Random.Shared.NextDouble())
+            switch (_random.NextDouble())
             {
                 case < 0.1:   // message dropped
                     break;
@@ -480,7 +503,7 @@ public sealed class ObservedRemoveSetV2Tests
                 continue;
             }
 
-            switch (Random.Shared.NextDouble())
+            switch (_random.NextDouble())
             {
                 case < 0.1:   // message dropped
                     break;
@@ -497,6 +520,9 @@ public sealed class ObservedRemoveSetV2Tests
             }
         }
 
+        _random.Shuffle(delayedMessagesTo1);
+        _random.Shuffle(delayedMessagesTo2);
+        
         foreach (var dto in delayedMessagesTo1)
         {
             set1.Merge(dto);

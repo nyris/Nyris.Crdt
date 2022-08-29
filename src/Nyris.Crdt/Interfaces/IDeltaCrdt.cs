@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 
 namespace Nyris.Crdt.Interfaces
 {
@@ -8,12 +9,11 @@ namespace Nyris.Crdt.Interfaces
         IEnumerable<TDeltaDto> EnumerateDeltaDtos(TTimestamp? timestamp = default);
         void Merge(TDeltaDto delta);
 
-        public void Merge(IReadOnlyList<TDeltaDto> deltas)
+        public void Merge(ImmutableArray<TDeltaDto> deltas)
         {
-            // ReSharper disable once ForCanBeConvertedToForeach - faster
-            for (var i = 0; i < deltas.Count; ++i)
+            foreach (var delta in deltas)
             {
-                Merge(deltas[i]);
+                Merge(delta);
             }
         }
     }
