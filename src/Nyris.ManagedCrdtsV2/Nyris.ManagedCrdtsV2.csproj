@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Nyris.Crdt.Distributed\Nyris.Crdt.Distributed.csproj" />
+      <ProjectReference Include="..\Nyris.Crdt.Serialization.Abstractions\Nyris.Crdt.Serialization.Abstractions.csproj" />
       <ProjectReference Include="..\Nyris.Crdt\Nyris.Crdt.csproj" />
     </ItemGroup>
 
