@@ -3,189 +3,59 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using Nyris.Crdt.Extensions;
 
 namespace Nyris.Crdt.Model
 {
-    [DebuggerDisplay("{string.Join(\", \", _ranges)}")]
-    public sealed class ConcurrentVersionRanges
+    public sealed class VersionRanges
     {
         private readonly List<Range> _ranges = new();
-        private readonly ReaderWriterLockSlim _lock = new();
 
-        public ConcurrentVersionRanges()
+        public VersionRanges()
         {
         }
-
-        public ConcurrentVersionRanges(IEnumerable<Range> ranges)
+        
+        public VersionRanges(IEnumerable<Range> ranges)
         {
             _ranges = ranges as List<Range> ?? ranges.ToList();
             Debug.Assert(_ranges.IsDisjointAndInIncreasingOrder());
         }
+        
+        public int Count => _ranges.Count;
+        public IReadOnlyList<Range> InnerList => _ranges;
+        
+        public override string ToString() => string.Join(", ", _ranges);
+        
+        public Range[] ToArray() => _ranges.ToArray();
+        public ImmutableArray<Range> ToImmutable() => _ranges.ToImmutableArray();
 
-        public int Count
+        public bool Contains(ulong version)
         {
-            get
-            {
-                _lock.EnterReadLock();
-                try
-                {
-                    return _ranges.Count;
-                }
-                finally
-                {
-                    _lock.ExitReadLock();
-                }
-            }
+            if (_ranges.Count == 0) return false;
+            var i = LeftClosestRangeIndex(version);
+            return i >= 0 && _ranges[i].To > version;
         }
         
-        public bool Contains(ulong dot)
+        public ulong GetNew()
         {
-            _lock.EnterReadLock();
-            try
+            if (_ranges.Count == 0)
             {
-                if (_ranges.Count == 0) return false;
-                var i = LeftClosestRangeIndex(dot);
-                return i >= 0 && _ranges[i].To > dot;
+                _ranges.Add(new Range(1, 2));
+                return 1;
             }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
-        
-        public bool Contains(Range range)
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                if (_ranges.Count == 0) return false;
-                var i = LeftClosestRangeIndex(range.From);
-                return i >= 0 && _ranges[i].To >= range.To;
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
+
+            var lastRange = _ranges[^1];
+            var nextDot = lastRange.To;
+            _ranges[^1] = new Range(lastRange.From, nextDot + 1);
+            return nextDot;
         }
 
-        // public IReadOnlyList<DotRange> ToList() => ToArray();
-        
-        public Range[] ToArray()
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                return _ranges.ToArray();
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
-        
-        public ImmutableArray<Range> ToImmutable()
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                return _ranges.ToImmutableArray();
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
-        
-        public override string ToString() // TODO: remove after debugging? 
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                return string.Join(", ", _ranges);
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
-
-        /// <summary>
-        /// Merges a given version into a set, preserving ordering and disjointness
-        /// </summary>
-        /// <param name="version"></param>
-        /// <returns>False if no changes were made, true otherwise</returns>
-        public bool Merge(ulong version)
-        {
-            Debug.Assert(version > 0);
-
-            _lock.EnterWriteLock();
-            try
-            {
-                return MergeInternal(version);
-            }
-            finally
-            {
-                _lock.ExitWriteLock();
-            }
-        }
-        
         /// <summary>
         /// Merges a given range into a set, preserving ordering and disjointness
         /// </summary>
         /// <param name="range"></param>
         /// <returns>False if no changes were made, true otherwise</returns>
         public bool Merge(Range range)
-        {
-            _lock.EnterWriteLock();
-            try
-            {
-                return MergeInternal(range);
-            }
-            finally
-            {
-                _lock.ExitWriteLock();
-            }
-        }
-
-        public ulong GetFirstUnknown()
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                if (_ranges.Count == 0 || _ranges[0].From > 1) return 1;
-                return _ranges[0].To;
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
-        
-        public ulong GetNew()
-        {
-            _lock.EnterWriteLock();
-            try
-            {
-                if (_ranges.Count == 0)
-                {
-                    _ranges.Add(new Range(1, 2));
-                    return 1;
-                }
-
-                var lastRange = _ranges[^1];
-                var nextDot = lastRange.To;
-                _ranges[^1] = new Range(lastRange.From, nextDot + 1);
-                return nextDot;
-            }
-            finally
-            {
-                _lock.ExitWriteLock();
-            }
-        }
-
-        private bool MergeInternal(Range range)
         {
             if (_ranges.Count == 0)
             {
@@ -336,7 +206,7 @@ namespace Nyris.Crdt.Model
             return true;
         }
         
-        private bool MergeInternal(ulong dot)
+        public bool TryInsert(ulong dot)
         {
             if (_ranges.Count == 0)
             {
@@ -422,9 +292,9 @@ namespace Nyris.Crdt.Model
         private int LeftClosestRangeIndex(ulong dot)
         {
             Debug.Assert(_ranges.Count > 0);
-            // Binary search.
             var l = 0;
             var r = _ranges.Count - 1;
+
             while (l <= r)
             {
                 var mid = (l + r) / 2;

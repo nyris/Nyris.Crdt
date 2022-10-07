@@ -7,19 +7,24 @@ namespace Nyris.Crdt.Interfaces
     {
         TTimestamp GetLastKnownTimestamp();
         IEnumerable<TDeltaDto> EnumerateDeltaDtos(TTimestamp? timestamp = default);
-        void Merge(TDeltaDto delta);
+        DeltaMergeResult Merge(TDeltaDto delta);
+        
+        /// <summary>
+        /// Attempts to remove all traces of an applied delta. If can't, state should not be updated and false should be returned. 
+        /// </summary>
+        /// <param name="deltaDto"></param>
+        /// <returns></returns>
+        bool TryReverse(TDeltaDto deltaDto) => false;
 
-        public void Merge(ImmutableArray<TDeltaDto> deltas)
+        public DeltaMergeResult Merge(ImmutableArray<TDeltaDto> deltas)
         {
+            var result = DeltaMergeResult.StateNotChanged;
             foreach (var delta in deltas)
             {
-                Merge(delta);
+                if (Merge(delta) == DeltaMergeResult.StateUpdated) result = DeltaMergeResult.StateUpdated;
             }
+
+            return result;
         }
     }
-
-    // public interface IDeltaCrdt<TDeltaDto, TTimestamp, in TOperation> : IDeltaCrdt<TDeltaDto, TTimestamp>
-    // {
-    //     IReadOnlyList<TDeltaDto> Mutate(TOperation operation);
-    // }
 }

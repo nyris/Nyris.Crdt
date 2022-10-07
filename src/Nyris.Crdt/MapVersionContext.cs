@@ -35,21 +35,35 @@ namespace Nyris.Crdt
                 _lock.ExitWriteLock();
             }
         }
-
-        public ImmutableArray<TKey> ObserveAndClear(Range range)
+        
+        public TKey? ObserveAndClear(ulong version, out bool newVersionWasInserted)
         {
             _lock.EnterWriteLock();
             try
             {
-                _ranges.Merge(range);
+                if (!(newVersionWasInserted = _ranges.TryInsert(version))) return default;
+                return _inverse.Remove(version, out var key) ? key : default;
+            }
+            finally
+            {
+                _lock.ExitWriteLock();   
+            }
+        }
+        
+        public ImmutableArray<(TKey Key, ulong Version)> ObserveAndClear(Range range, out bool newVersionsWasInserted)
+        {
+            _lock.EnterWriteLock();
+            try
+            {
+                newVersionsWasInserted = _ranges.Merge(range);
                 var i = _inverse.GetIndexOfFirstGreaterOrEqualKey(range.From);
                 var end = _inverse.GetIndexOfFirstGreaterOrEqualKey(range.To);
                 var keys = _inverse.Keys;
                 var values = _inverse.Values;
-                var removedKeys = ImmutableArray.CreateBuilder<TKey>(end - i);
+                var removedKeys = ImmutableArray.CreateBuilder<(TKey Key, ulong Version)>(end - i);
                 while(i < keys.Count && keys[i] < range.To)
                 {
-                    removedKeys.Add(values[i]);
+                    removedKeys.Add((values[i], keys[i]));
                     _inverse.RemoveAt(i); // rare occasion when end of list comes closer to i and not the other way around
                 }
 

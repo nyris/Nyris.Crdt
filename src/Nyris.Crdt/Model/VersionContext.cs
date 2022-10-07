@@ -34,6 +34,8 @@ namespace Nyris.Crdt.Model
         public bool TryGetValue(TActorId actorId, [NotNullWhen(true)] out ConcurrentVersionRanges? ranges) 
             => _ranges.TryGetValue(actorId, out ranges);
 
+        public ConcurrentVersionRanges GetOrAdd(TActorId actorId) => _ranges.GetOrAdd(actorId, _ => new ConcurrentVersionRanges());
+        
         public void Merge(TActorId actorId, ulong other)
         {
             // TODO: is allocating closures better then using a lock?
