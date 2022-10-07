@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+service Node {
+  rpc MergeDeltaBatch (DeltaBatch) returns (Empty);
+  rpc JoinToCluster (NodeInfo) returns (NodeSetDto);
+  rpc MergeMetadataDeltaBatch (MetadataDelta) returns (Empty);
+}
+
+message DeltaBatch {
+  string InstanceId = 1;
+  uint32 ShardId = 2;
+  bytes Deltas = 3;
+}
+
+message MetadataDelta {
+  int32 Kind = 1; 
+  bytes Deltas = 2;
+}
+
+message Empty {}
+
+message NodeInfo {
+  string Address = 1;
+  string NodeId = 2;
+}
+
+//message Range {
+//  uint64 From = 1;
+//  uint64 To = 2;
+//}
+
+//message Ranges {
+//  repeated Range Values = 1;
+//}
+
+//message VersionedNodeInfo {
+//  NodeInfo Value = 1;
+//  uint64 Version = 2;
+//}
+
+//message VersionedNodeInfos {
+//  repeated VersionedNodeInfo Values = 1;
+//}
+
+message NodeSetDto {
+  bytes Value = 1; 
+//  map<string, Ranges> VersionContext = 1;
+//  map<string, VersionedNodeInfos> Items = 2;
+}

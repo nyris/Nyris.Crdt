@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <Protobuf Include="Protos\node.proto" />
+    </ItemGroup>
+    
+    <ItemGroup>
+      <PackageReference Include="Grpc.AspNetCore" Version="2.49.0" />
+      <PackageReference Include="Grpc.Net.Client" Version="2.49.0" />
+      <PackageReference Include="Grpc.Tools" Version="2.49.1">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
+    </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\Nyris.ManagedCrdtsV2\Nyris.ManagedCrdtsV2.csproj" />
+    </ItemGroup>
+
+</Project>
