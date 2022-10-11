@@ -13,11 +13,11 @@ internal sealed class NodeGrpcClient : INodeClient
     {
         _client = client;
     }
-
+    
     public async Task MergeAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> deltas,
         CancellationToken cancellationToken = default)
     {
-        await _client.MergeDeltaBatchAsync(new DeltaBatch
+        await _client.MergeDeltasAsync(new DeltaBatch
         {
             InstanceId = instanceId.ToString(),
             ShardId = shardId.AsUint,
@@ -27,12 +27,15 @@ internal sealed class NodeGrpcClient : INodeClient
 
     public async Task MergeMetadataAsync(MetadataDto kind, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
     {
-        await _client.MergeMetadataDeltaBatchAsync(new MetadataDelta
+        await _client.MergeMetadataDeltasAsync(new MetadataDelta
         {
             Kind = (int)kind,
             Deltas = UnsafeByteOperations.UnsafeWrap(data)
         }, cancellationToken: cancellationToken);
     }
+
+    public IDuplexMetadataDeltasStream GetMetadataDuplexStream() => new GrpcDuplexMetadataDeltasStream(_client);
+    public IDuplexDeltasStream GetDeltaDuplexStream() => new GrpcDuplexDeltasStream(_client);
 
     public async Task<ReadOnlyMemory<byte>> JoinToClusterAsync(
         Distributed.Model.NodeInfo nodeInfo, 

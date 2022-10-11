@@ -221,18 +221,23 @@ namespace Nyris.Crdt.Model
             }
         }
         
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="range"></param>
+        /// <returns>True if ANY state change occured, false otherwise</returns>
         public bool TryRemove(in Range range)
         {
             _lock.EnterWriteLock();
             try
             {
-                var result = true;
+                var result = false;
                 var i = _inverse.GetIndexOfFirstGreaterOrEqualKey(range.From);
                 var keys = _inverse.Keys;
                 var values = _inverse.Values;
                 while(i < keys.Count && keys[i] < range.To)
                 {
-                    result &= _dict.Remove(values[i]);
+                    result |= _dict.Remove(values[i]);
                     _inverse.RemoveAt(i); // rare occasion when end of list comes closer to i and not the other way around
                 }
 

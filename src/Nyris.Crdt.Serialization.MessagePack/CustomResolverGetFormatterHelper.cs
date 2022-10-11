@@ -15,19 +15,21 @@ internal static class CustomResolverGetFormatterHelper
         {typeof(NodeId), NodeIdFormatter.Instance},
         {typeof(Range), new RangeFormatter()},
         {typeof(NodeInfo), new NodeInfoFormatter()},
-        {typeof(NodeInfoSet.DeltaDto), new NodeInfoSetDeltaFormatter()},
+        // {typeof(NodeInfoSet.DeltaDto), new NodeInfoSetDeltaFormatter()},
         {typeof(CrdtInfo.DeltaDto), new CrdtInfoDeltaDtoFormatter()},
         {typeof(CrdtConfig.DeltaDto), new CrdtConfigDeltaDtoFormatter()},
         {typeof(GlobalShardId), new GlobalShardIdFormatter()},
-        {typeof(CrdtConfigs.DeltaDto), new CrdtConfigsDeltaDtoFormatter()},
-        {typeof(CrdtInfos.DeltaDto), new CrdtInfosDeltaDtoFormatter()},
+        // {typeof(CrdtConfigs.DeltaDto), new CrdtConfigsDeltaDtoFormatter()},
+        // {typeof(CrdtInfos.DeltaDto), new CrdtInfosDeltaDtoFormatter()},
         {typeof(InstanceId), new InstanceIdFormatter()}
     };
     
     private static readonly Dictionary<Type, Type> GenericFormatters = new()
     {
         [typeof(OptimizedObservedRemoveSetV2<,>.DeltaDto)] = typeof(ObservedRemoveSetDeltaDtoFormatter<,>),
-        [typeof(ObservedRemoveMap<,,,,>.DeltaDto)] = typeof(ObservedRemoveMapDeltaDtoFormatter<,,,,>)
+        [typeof(ObservedRemoveMap<,,,,>.DeltaDto)] = typeof(ObservedRemoveMapDeltaDtoFormatter<,,,,>),
+        [typeof(OptimizedObservedRemoveSetV2<,>.CausalTimestamp)] = typeof(ObservedRemoveSetCausalTimestampFormatter<,>),
+        [typeof(ObservedRemoveMap<,,,,>.CausalTimestamp)] = typeof(ObservedRemoveMapCausalTimestampFormatter<,,,,>),
     };
 
     internal static object? GetFormatter(Type t)

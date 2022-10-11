@@ -279,11 +279,6 @@ namespace Nyris.Crdt.Sets
 
         private DeltaMergeResult MergeInternal(DeltaDto delta)
         {
-            // if (!_items.TryGetValue(delta.Actor, out var actorsDottedItems))
-            // {
-            //     _items[delta.Actor] = actorsDottedItems = VersionedItemList<TItem>.New();
-            // }
-
             var actorId = delta.Actor;
             var actorsDottedItems = _items.GetOrAdd(actorId, _ => VersionedItemList<TItem>.New());
             var observedRanges = _versionContext.GetOrAdd(actorId);

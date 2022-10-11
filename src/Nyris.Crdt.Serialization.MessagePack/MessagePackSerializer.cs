@@ -4,7 +4,7 @@ using Nyris.Crdt.Serialization.Abstractions;
 
 namespace Nyris.Crdt.Serialization.MessagePack;
 
-internal sealed class MessagePackSerializer : ISerializer
+public sealed class MessagePackSerializer : ISerializer
 {
     private static readonly MessagePackSerializerOptions Options = MessagePackSerializerOptions.Standard
         .WithResolver(CompositeResolver.Create(CustomResolver.Instance, StandardResolver.Instance));

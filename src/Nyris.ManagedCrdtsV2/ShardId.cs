@@ -17,7 +17,10 @@ public readonly struct ShardId : IComparable<ShardId>, IEquatable<ShardId>
 
     public uint AsUint => _id;
     public static ShardId FromUint(uint value) => new(value);
-    
+    public static ShardId FromString(string value) => ShardId.FromUint(uint.Parse(value));
+
+    public override string ToString() => _id.ToString();
+
     public bool Equals(ShardId other) => _id == other._id;
     public override bool Equals(object? obj) => obj is ShardId other && Equals(other);
     public override int GetHashCode() => (int)_id;

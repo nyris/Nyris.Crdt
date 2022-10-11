@@ -15,7 +15,7 @@ namespace Nyris.Crdt.Tests;
 public sealed class ObservedRemoveMapTests
 {
     private readonly ITestOutputHelper _output;
-    private readonly Random _random = new(2);
+    private readonly Random _random = new(3);
         
     public ObservedRemoveMapTests(ITestOutputHelper output)
     {
@@ -139,8 +139,8 @@ public sealed class ObservedRemoveMapTests
     [InlineData(3, 3, 3, 1, false)]
     [InlineData(9, 3, 2, 3)]
     [InlineData(9, 3, 2, 3, false)]
-    [InlineData(3, 9, 2, 2)]
-    [InlineData(3, 9, 2, 2, false)]
+    [InlineData(5, 9, 2, 2)]
+    [InlineData(5, 9, 2, 2, false)]
     [InlineData(12, 5, 3, 8)]
     [InlineData(12, 5, 3, 8, false)]
     public void EqualSplitDistinctActors_DeletesAfterMerge_Works(int nKeys, int nElements, int nActors, int nDeletes, bool addPopulated = true)
@@ -195,7 +195,7 @@ public sealed class ObservedRemoveMapTests
     [InlineData(3, 100, 50)]
     [InlineData(5, 100, 50)]
     [InlineData(11, 100, 50)]
-    [InlineData(100, 100, 50)]
+    // [InlineData(100, 100, 50)]
     public void RepeatedAddRemoveMerge_Works(int nActors, int nLoops, int nOperationsPerCycle)
     {
         // pre-populate maps so that mutations/removal have keys to act on.
@@ -245,11 +245,11 @@ public sealed class ObservedRemoveMapTests
     [InlineData(3, 100, 50)]
     [InlineData(5, 100, 50)]
     [InlineData(11, 100, 50)]
-    [InlineData(100, 100, 50)]
+    // [InlineData(100, 100, 50)]
     public void RepeatedAddRemoveMerge_TwoSided_Works(int nActors, int nLoops, int nOperationsPerCycle)
     {
         // pre-populate maps so that mutations/removal have keys to act on.
-        var map1 = GetMapSequentialIntKeys(nLoops, 3, nActors);
+        var map1 = GetMapSequentialIntKeys(nLoops + 1, 3, nActors);
         var map2 = NewMap();
         DeltaMerge(map1, map2);
         var actors = Enumerable.Range(0, nActors).Select(_ => Guid.NewGuid()).ToList();
@@ -321,7 +321,11 @@ public sealed class ObservedRemoveMapTests
             .Select(_ => NewMap())
             .ToArray();
 
-        var actors = maps.Select(_ => Guid.NewGuid()).ToArray();
+        var actors = new Guid[maps.Length];
+        for (var i = 0; i < maps.Length; ++i)
+        {
+            actors[i] = Guid.NewGuid();
+        }
             
         // act
         var tasks = new Task[maps.Length * 2];
@@ -336,7 +340,6 @@ public sealed class ObservedRemoveMapTests
                 .Where((_, j) => j % nMaps == i || _random.NextDouble() < 0.2)
                 .ToList();
 
-            maps[i].Id = actors[i].ToString()[..8];
             tasks[i] = DeltaMergeContinuouslyAsync(maps[i], maps[next], 
                 TimeSpan.FromMilliseconds(800),
                 TimeSpan.FromMilliseconds(10));
@@ -351,32 +354,10 @@ public sealed class ObservedRemoveMapTests
         // merge without drops
         start = DateTime.Now;
         for (var i = 0; i < maps.Length; ++i)
-        for (var j = i + 1; j < maps.Length; ++j)
+        for (var j = 0; j < maps.Length; ++j)
         {
-            // if (i == 1 && j == 2)
-            // {
-            //     var dtos = maps[1].EnumerateDeltaDtos().ToArray();
-            //     var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-            //     var s = JsonConvert.SerializeObject(dtos, settings);
-            //     await File.WriteAllTextAsync("/Users/user/Repos/Nyris.Crdt/samples/ConsoleApp/map1.json", s);
-            //     
-            //     dtos = maps[2].EnumerateDeltaDtos().ToArray();
-            //     s = JsonConvert.SerializeObject(dtos, settings);
-            //     await File.WriteAllTextAsync("/Users/user/Repos/Nyris.Crdt/samples/ConsoleApp/map2.json", s);
-            // }
-            
-            _output.WriteLine($"Starting to merge {maps[i].Id} and {maps[j].Id} after all tasks were awaited");
-            DeltaMerge(maps[i], maps[j], true, true, false, false);
-
-            try
-            {
-                AssertMapEquality(maps[i], maps[j]);
-            }
-            catch (XunitException)
-            {
-                _output.WriteLine($"Failed after merging {i}: {maps[i].Id} and {j}: {maps[j].Id}");
-                throw;
-            }
+            if (i == j) continue;
+            DeltaMerge(maps[i], maps[j], true);
         }
         _output.WriteLine($"All sets merged in {DateTime.Now - start}");
 
@@ -393,17 +374,39 @@ public sealed class ObservedRemoveMapTests
     {
         var map1 = NewMap();
         var map2 = NewMap();
-
-        var actor1 = Guid.NewGuid();
-        var actor2 = Guid.NewGuid();
-
-        map1.AddOrMerge(actor1, -1, GetRandomSet(1));
-        map1.AddOrMerge(actor2, -1, GetRandomSet(1));
-        DeltaMerge(map1, map2);
+        var map3 = NewMap();
         
-        map1.AddOrMerge(actor1, -1, GetRandomSet(1));
-        map1.AddOrMerge(actor2, -1, GetRandomSet(1));
+        map1.AddOrMerge(Guid.NewGuid(), -1, GetRandomSet(1));
+        DeltaMerge(map1, map3, true, false, false, false);
+
+        var actor = Guid.NewGuid();
+        map1.TryMutate(actor, -1, set => set.Add(_random.NextDouble(), Guid.NewGuid()), out var d);
         DeltaMerge(map1, map2, true, false, false, false);
+        
+        map1.TryMutate(actor, -1, set => set.Add(_random.NextDouble(), Guid.NewGuid()), out _);
+        var deltas = map1.EnumerateDeltaDtos().ToArray();
+        map3.Merge(deltas.First());
+        map2.Merge(deltas.First());
+        
+        DeltaMerge(map2, map3, true, false, false, false);
+        AssertMapEquality(map2, map3);
+    }
+    
+    [Fact]
+    public void Test2()
+    {
+        var map1 = NewMap();
+        var map2 = NewMap();
+
+        var actor = Guid.NewGuid();
+        var deltas1 = map1.AddOrMerge(actor, -1, GetRandomSet(1));
+        map1.TryRemove(-1, out var deltas2);
+        var deltas3 = map1.AddOrMerge(actor, -1, GetRandomSet(1));
+
+        foreach (var dto in deltas1.Concat(deltas3).Concat(deltas2))
+        {
+            map2.Merge(dto);
+        }
         
         AssertMapEquality(map1, map2);
     }
@@ -418,31 +421,30 @@ public sealed class ObservedRemoveMapTests
     {
         switch (_random.NextDouble(), map.Count)
         {
-            case (< 0.2, > 0):
+            case (< 0.25, > 0):
                 var value = _random.NextDouble();
                 var keyToMutate = GetKey();
-                _output.WriteLine($"Mutating map {map.Id}: key {keyToMutate}, value to add: {value}");
+                // _output.WriteLine($"Mutating map {map.Id}: key {keyToMutate}, value to add: {value}");
                 map.TryMutate(actorId, 
                     keyToMutate, 
                     orSet => orSet.Add(value, actorId), // actorId), 
                     out _);
                 // map.TryGet(keyToMutate, set => set.ToDto(), out var dto);
                 break;
-            case (< 0.8, > 0):
+            case (< 0.5, > 0):
                 keyToMutate = GetKey();
                 map.TryGet(keyToMutate, orSet => orSet.Values.FirstOrDefault(), out value);
-                _output.WriteLine($"Mutating map {map.Id}: key {keyToMutate}, removing '{value}'");
+                // _output.WriteLine($"Mutating map {map.Id}: key {keyToMutate}, removing '{value}'");
                 map.TryMutate(actorId, 
                     keyToMutate, 
                     orSet => orSet.Remove(value), // actorId), 
                     out _);
                 break;
-            // case (< 0.5, > 0):
-            //     var keyToRemove = GetKey();
-            //     _output.WriteLine($"Removing from map {map.Id}: actor {actorId.ToString()[..8]}, key {keyToRemove}");
-            //     map.TryRemove(keyToRemove, out _);
-            //     break;
-            // case (< 0.75, > 0):
+            case (< 0.75, > 0):
+                var keyToRemove = GetKey();
+                map.TryRemove(keyToRemove, out _);
+                break;
+            // case (< 0.8, > 0):
             //     var key = GetKey();
             //     map.TryGet(key, out var set).Should().BeTrue();
             //     value = _random.NextDouble();
@@ -455,7 +457,7 @@ public sealed class ObservedRemoveMapTests
             default:
                 var key = useKeyIfPresent ?? _random.Next();
                 var set = GetRandomSet(1);
-                _output.WriteLine($"inserting into map {map.Id}: actor {actorId.ToString()[..8]}, key {key}, value: {set.Values.First()}");
+                // _output.WriteLine($"inserting into map {map.Id}: actor {actorId.ToString()[..8]}, key {key}, value: {set.Values.First()}");
                 map.AddOrMerge(actorId, key, set);
                 break;
         }
@@ -479,16 +481,19 @@ public sealed class ObservedRemoveMapTests
         }
     }
 
-    private ObservedRemoveMap<Guid, 
-            int, 
-            OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> NewMap() 
-        => new(_output.BuildLoggerFor<ObservedRemoveMap<Guid, 
+    private ObservedRemoveMap<Guid,
+        int,
+        OptimizedObservedRemoveSetV2<Guid, double>,
+        OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto,
+        OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> NewMap()
+        => new(_output.BuildLoggerFor<ObservedRemoveMap<Guid,
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
             OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
             OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp>>());
+            // NullLogger<ObservedRemoveMap<Guid, int, OptimizedObservedRemoveSetV2<Guid, double>,
+            //     OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto,
+            //     OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp>>.Instance);  
 
     private OptimizedObservedRemoveSetV2<Guid, double> GetRandomSet(int nElements)
     {
@@ -565,12 +570,6 @@ public sealed class ObservedRemoveMapTests
         {
             map1.TryGet(key, out var values1).Should().BeTrue();
             map2.TryGet(key, out var values2).Should().BeTrue();
-            if (!values1!.Values.SetEquals(values2!.Values))
-            {
-                var values1Str = string.Join(", ", values1.Values);
-                var values2Str = string.Join(", ", values2.Values);
-                _output.WriteLine($"Maps {map1.Id} and {map2.Id}: values differ in key {key}: {{{values1Str}}} vs {{{values2Str}}}");
-            }
 
             try
             {
@@ -578,11 +577,7 @@ public sealed class ObservedRemoveMapTests
             }
             catch (XunitException)
             {
-                _output.WriteLine($"Sets for key {key} differ in produced dtos: ");
-                var str1 = string.Join(", ", values1.EnumerateDeltaDtos());
-                var str2 = string.Join(", ", values2.EnumerateDeltaDtos());
-                _output.WriteLine($"Set of map {map1.Id}: {str1}");
-                _output.WriteLine($"Set of map {map2.Id}: {str2}");
+                _output.WriteLine($"Sets for key {key} differ in produced dtos");
                 throw;
             }
         }
@@ -609,10 +604,10 @@ public sealed class ObservedRemoveMapTests
         var deltas2 = crdt2.EnumerateDeltaDtos().ToHashSet();
 
         deltas1.Should().HaveSameCount(deltas2);
-        deltas1.SetEquals(deltas2).Should().BeTrue();
-        // deltas1.Should().BeEquivalentTo(deltas2, options => options
-        //     .ComparingRecordsByMembers()
-        //     .WithoutStrictOrdering());
+        // deltas1.SetEquals(deltas2).Should().BeTrue();
+        deltas1.Should().BeEquivalentTo(deltas2, options => options
+            .ComparingRecordsByMembers()
+            .WithoutStrictOrdering());
     }
     
     private async Task AddAndRemoveContinuouslyAsync(ObservedRemoveMap<Guid, 
@@ -661,7 +656,7 @@ public sealed class ObservedRemoveMapTests
         while (DateTime.Now - duration < start)
         {
             await Task.Delay(pauseLength);
-            DeltaMerge(map1, map2, false, false, false, true);
+            DeltaMerge(map1, map2, false, true, true, true);
             ++counter;
         }
         
@@ -669,7 +664,7 @@ public sealed class ObservedRemoveMapTests
         _output.WriteLine($"Repeated delta merges is finished, {counter} cycles executed," +
                           $" average 2-sided merge duration is {avg}");
     }
-
+    
     private void DeltaMerge(ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
@@ -697,20 +692,18 @@ public sealed class ObservedRemoveMapTests
             OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp>.DeltaDto>();
         
         var timestamp = map2.GetLastKnownTimestamp();
-        if(log) _output.WriteLine($"Map {map2.Id} provided timestamp: {JsonConvert.SerializeObject(timestamp)}");
         foreach (var dto in map1.EnumerateDeltaDtos(timestamp))
         {
-            if(log) _output.WriteLine($"Map {map1.Id} yielded dto: {JsonConvert.SerializeObject(dto)}");
             switch (_random.NextDouble())
             {
                 case < 0.1:   // message dropped
-                    if(!drops) map2.Merge(dto);
+                    if (!drops) map2.Merge(dto);
                     break;
                 case < 0.2:   // message duplicate
                     map2.Merge(dto);
-                    if(duplicates) map2.Merge(dto);
+                    if (duplicates) map2.Merge(dto);
                     break;
-                case < 0.4:   // message delayed
+                case < 0.8:   // message delayed
                     if(reordering) delayedMessagesTo2.Add(dto);
                     else map2.Merge(dto);
                     break;
@@ -720,18 +713,16 @@ public sealed class ObservedRemoveMapTests
             }
         }
         timestamp = map1.GetLastKnownTimestamp();
-        if(log) _output.WriteLine($"Map {map1.Id} provided timestamp: {JsonConvert.SerializeObject(timestamp)}");
         foreach (var dto in map2.EnumerateDeltaDtos(timestamp))
         {
-            if(log) _output.WriteLine($"Map {map2.Id} yielded dto: {JsonConvert.SerializeObject(dto)}");
             switch (_random.NextDouble())
             {
                 case < 0.1:   // message dropped
-                    if(!drops) map1.Merge(dto);
+                    if (!drops) map1.Merge(dto);
                     break;
                 case < 0.2:   // message duplicate
                     map1.Merge(dto);
-                    if(duplicates) map1.Merge(dto);
+                    if (duplicates) map1.Merge(dto);
                     break;
                 case < 0.4:   // message delayed
                     if(reordering) delayedMessagesTo1.Add(dto);
@@ -743,8 +734,8 @@ public sealed class ObservedRemoveMapTests
             }
         }
 
-        // _random.Shuffle(delayedMessagesTo1);
-        // _random.Shuffle(delayedMessagesTo2);
+        _random.Shuffle(delayedMessagesTo1);
+        _random.Shuffle(delayedMessagesTo2);
 
         foreach (var dto in delayedMessagesTo1)
         {

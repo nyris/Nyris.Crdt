@@ -1,9 +1,11 @@
 syntax = "proto3";
 
 service Node {
-  rpc MergeDeltaBatch (DeltaBatch) returns (Empty);
   rpc JoinToCluster (NodeInfo) returns (NodeSetDto);
-  rpc MergeMetadataDeltaBatch (MetadataDelta) returns (Empty);
+  rpc MergeDeltas (DeltaBatch) returns (Empty);
+  rpc MergeMetadataDeltas (MetadataDelta) returns (Empty);
+  rpc Sync (stream DeltaBatch) returns (stream DeltaBatch);
+  rpc SyncMetadata (stream MetadataDelta) returns (stream MetadataDelta);
 }
 
 message DeltaBatch {
@@ -24,26 +26,6 @@ message NodeInfo {
   string NodeId = 2;
 }
 
-//message Range {
-//  uint64 From = 1;
-//  uint64 To = 2;
-//}
-
-//message Ranges {
-//  repeated Range Values = 1;
-//}
-
-//message VersionedNodeInfo {
-//  NodeInfo Value = 1;
-//  uint64 Version = 2;
-//}
-
-//message VersionedNodeInfos {
-//  repeated VersionedNodeInfo Values = 1;
-//}
-
 message NodeSetDto {
   bytes Value = 1; 
-//  map<string, Ranges> VersionContext = 1;
-//  map<string, VersionedNodeInfos> Items = 2;
 }

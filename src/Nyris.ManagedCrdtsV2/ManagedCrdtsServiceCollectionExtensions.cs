@@ -11,6 +11,7 @@ public static class ManagedCrdtsServiceCollectionExtensions
             .AddMemoryCache()
             .AddHostedService<NodeFailureSubscriptionsInitializer>()
             .AddHostedService<DiscoveryService>()
+            .AddHostedService<SynchronizationAndRelocationService>()
             .AddSingleton<IManagedCrdtFactory, ManagedCrdtFactory>()
             .AddSingleton<INodeInfoProvider, NodeInfoProvider>()
             .AddSingleton<INodeSelectionStrategy, NextInRingSelectionStrategy>()

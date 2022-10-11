@@ -19,7 +19,7 @@ internal sealed class PropagationService : IPropagationService
 
     public async Task PropagateAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
     {
-        var nodesThatShouldHaveReplica = _distributor.GetDesiredNodesWithReplicas(instanceId, shardId);
+        var nodesThatShouldHaveReplica = _distributor.GetNodesWithWriteReplicas(instanceId, shardId);
         var targetNodes = _selectionStrategy.SelectNodes(nodesThatShouldHaveReplica);
         foreach (var nodeInfo in targetNodes)
         {

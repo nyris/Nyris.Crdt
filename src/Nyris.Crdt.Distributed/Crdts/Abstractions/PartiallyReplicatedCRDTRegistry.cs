@@ -90,7 +90,7 @@ public abstract class PartiallyReplicatedCRDTRegistry<TKey,
     private readonly ConcurrentDictionary<ShardId, TCollection> _collections;
 
     // CollectionInfo += sharding config
-    /// <summary>
+    /// <summary> 
     /// Keys of all collections, regardless if they are stored locally or not
     /// </summary>
     private readonly HashableCrdtRegistry<NodeId,

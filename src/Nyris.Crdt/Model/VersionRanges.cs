@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -66,21 +65,6 @@ namespace Nyris.Crdt.Model
             // Find last range (right-most range) where From <= dot
             var i = LeftClosestRangeIndex(range.From);
 
-            // if we found last range
-            if (i + 1 == _ranges.Count)
-            {
-                // last range does not intersect with input range
-                if (_ranges[i].To < range.From)
-                {
-                    _ranges.Add(range);
-                    return true;
-                }
-
-                // last range and input range intersect
-                _ranges[i] = new Range(_ranges[i].From, Math.Max(range.To, _ranges[i].To));
-                return true;
-            }
-            
             // if there is no saved range that starts before input range
             if (i < 0)
             {
@@ -131,6 +115,21 @@ namespace Nyris.Crdt.Model
 
             // if found range ends after input range, there is no need to do anything
             if (_ranges[i].To >= range.To) return false;
+            
+            // if we found last range
+            if (i + 1 == _ranges.Count)
+            {
+                // last range does not intersect with input range
+                if (_ranges[i].To < range.From)
+                {
+                    _ranges.Add(range);
+                    return true;
+                }
+                
+                // last range and input range intersect
+                _ranges[i] = new Range(_ranges[i].From, range.To);
+                return true;
+            }
 
             // if found range ends before input range starts (we know here that i-th is not the last range)
             if (_ranges[i].To < range.From)

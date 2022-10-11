@@ -32,7 +32,7 @@ public class ObservedRemoveSetDeltaDtoFormatter<TActorId, TValue>
                 writer.WriteUInt64(version);
                 break;
             case OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDtoDeletedRange (var actorId, var range):
-                writer.WriteUInt8(RemovalDelta);
+                writer.WriteUInt8(RemovalRangeDelta);
                 actorFormatter.Serialize(ref writer, actorId, options);
                 writer.WriteUInt64(range.From);
                 writer.WriteUInt64(range.To);
@@ -44,27 +44,34 @@ public class ObservedRemoveSetDeltaDtoFormatter<TActorId, TValue>
 
     public OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
     {
-        var actorFormatter = options.Resolver.GetFormatterWithVerify<TActorId>();
-        var typeByte = reader.ReadByte();
-        switch (typeByte)
+        try
         {
-            case AdditionDelta:
-                var valueFormatter = options.Resolver.GetFormatterWithVerify<TValue>();
-                var value = valueFormatter.Deserialize(ref reader, options);
-                var actorId = actorFormatter.Deserialize(ref reader, options);
-                var version = reader.ReadUInt64();
-                return OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto.Added(value, actorId, version);
-            case RemovalDelta:
-                actorId = actorFormatter.Deserialize(ref reader, options);
-                version = reader.ReadUInt64();
-                return OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto.Removed(actorId, version);
-            case RemovalRangeDelta:
-                actorId = actorFormatter.Deserialize(ref reader, options);
-                var range = new Range(reader.ReadUInt64(), reader.ReadUInt64());
-                return OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto.Removed(actorId, range);
-            default:
-                throw new ArgumentOutOfRangeException(nameof(typeByte), 
-                    $"Type byte of a serialized deltaDto has an unknown value of {typeByte}");
+            var actorFormatter = options.Resolver.GetFormatterWithVerify<TActorId>();
+            var typeByte = reader.ReadByte();
+            switch (typeByte)
+            {
+                case AdditionDelta:
+                    var valueFormatter = options.Resolver.GetFormatterWithVerify<TValue>();
+                    var value = valueFormatter.Deserialize(ref reader, options);
+                    var actorId = actorFormatter.Deserialize(ref reader, options);
+                    var version = reader.ReadUInt64();
+                    return OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto.Added(value, actorId, version);
+                case RemovalDelta:
+                    actorId = actorFormatter.Deserialize(ref reader, options);
+                    version = reader.ReadUInt64();
+                    return OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto.Removed(actorId, version);
+                case RemovalRangeDelta:
+                    actorId = actorFormatter.Deserialize(ref reader, options);
+                    var range = new Range(reader.ReadUInt64(), reader.ReadUInt64());
+                    return OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto.Removed(actorId, range);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(typeByte), 
+                        $"Type byte of a serialized deltaDto has an unknown value of {typeByte}");
+            }
+        }
+        catch (MessagePackSerializationException e)
+        {
+            throw new MessagePackSerializationException($"Failed to deserialize delta: {(global::MessagePack.MessagePackSerializer.ConvertToJson(reader.Sequence))}", e);
         }
     }
 }

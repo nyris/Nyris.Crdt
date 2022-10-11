@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\Nyris.Crdt.Transport.Grpc\Nyris.Crdt.Transport.Grpc.csproj" />
+      <ProjectReference Include="..\..\src\Nyris.ManagedCrdtsV2\Nyris.ManagedCrdtsV2.csproj" />
+    </ItemGroup>
+
+</Project>

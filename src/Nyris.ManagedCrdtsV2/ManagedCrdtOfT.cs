@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Nyris.Crdt;
@@ -21,6 +22,7 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp>
 
     // ReSharper disable once StaticMemberInGenericType
     protected static readonly ShardId DefaultShard = default;
+    internal sealed override ICollection<ShardId> Shards => _shards.Keys;
 
     protected ManagedCrdt(InstanceId instanceId,
         ISerializer serializer,
@@ -31,32 +33,43 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp>
         _propagationService = propagationService;
         Logger = logger;
     }
-    
-    public sealed override async Task MergeDeltaBatchAsync(ShardId shardId, ReadOnlyMemory<byte> batch, OperationContext context)
+
+    public sealed override async Task MergeAsync(ShardId shardId, ReadOnlyMemory<byte> batch, OperationContext context)
     {
         var deltas = _serializer.Deserialize<ImmutableArray<TDelta>>(batch);
         
-        Logger.LogDebug("Merging delta batch for shardId {ShardId}: {Deltas}", 
-            shardId.AsUint, JsonConvert.SerializeObject(deltas));
+        // Logger.LogDebug("Merging delta batch for shardId {ShardId}: {Deltas}", 
+        //     shardId.AsUint, JsonConvert.SerializeObject(deltas));
         var shard = GetOrCreateShard(shardId);
         var result = shard.Merge(deltas);
         if (result == DeltaMergeResult.StateUpdated)
         {
-            Logger.LogDebug("Deltas were new to this replica, propagating further");
+            // Logger.LogDebug("Deltas were new to this replica, propagating further");
             await _propagationService.PropagateAsync(InstanceId, shardId, batch, context.CancellationToken);
         }
     }
 
-    public sealed override async IAsyncEnumerable<ReadOnlyMemory<byte>> EnumerateDeltaBatchesAsync(ShardId shardId, ReadOnlyMemory<byte> since)
+    public sealed override async IAsyncEnumerable<ReadOnlyMemory<byte>> EnumerateDeltaBatchesAsync(ShardId shardId,
+        ReadOnlyMemory<byte> causalTimestampBin,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if(!_shards.TryGetValue(shardId, out var crdt)) yield break;
         
-        var sinceTyped = _serializer.Deserialize<TTimeStamp>(since);
-        foreach (var batch in crdt.EnumerateDeltaDtos(sinceTyped).Chunk(50))
+        var causalTimestamp = causalTimestampBin.IsEmpty 
+            ? default 
+            : _serializer.Deserialize<TTimeStamp>(causalTimestampBin);
+        
+        foreach (var batch in crdt.EnumerateDeltaDtos(causalTimestamp).Chunk(200))
         {
+            if(cancellationToken.IsCancellationRequested) yield break;
             yield return _serializer.Serialize(batch);
         }
     }
+
+    public override ReadOnlyMemory<byte> GetCausalTimestamp(ShardId shardId) =>
+        !_shards.TryGetValue(shardId, out var crdt) 
+            ? ReadOnlyMemory<byte>.Empty 
+            : _serializer.Serialize(crdt.GetLastKnownTimestamp());
 
     protected Task PropagateAsync(ShardId shardId, ImmutableArray<TDelta> deltas, CancellationToken cancellationToken)
     {

@@ -14,7 +14,8 @@ internal sealed class NodeGrpcClientPool : INodeClientPool, INodeFailureNotifier
 {
     private readonly IMemoryCache _cache;
     private readonly ConcurrentBag<INodeFailureObserver> _subscribers = new();
-    private static readonly TimeSpan SlidingExpiration = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan ChannelExpiration = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan ClientExpiration = TimeSpan.FromMinutes(3);
 
     private static readonly GrpcChannelOptions _options = new()
     {
@@ -52,19 +53,19 @@ internal sealed class NodeGrpcClientPool : INodeClientPool, INodeFailureNotifier
     public INodeClient GetClient(Crdt.Distributed.Model.NodeInfo nodeInfo)
     {
         var channel = GetOrCreateChannel(nodeInfo.Address);
-        // return _cache.GetOrCreate(nodeInfo.Id, entry =>
-        // {
-        //     entry.SetSlidingExpiration(SlidingExpiration);
-        return new NodeGrpcClient(new Node.NodeClient(channel
-            .Intercept(new FailureInterceptor(nodeInfo.Id, _subscribers))));
-        // });
+        return _cache.GetOrCreate(nodeInfo.Id, entry =>
+        {
+            entry.SetSlidingExpiration(ClientExpiration);
+            return new NodeGrpcClient(new Node.NodeClient(channel
+                .Intercept(new FailureInterceptor(nodeInfo.Id, _subscribers))));
+        });
     }
 
     private GrpcChannel GetOrCreateChannel(Uri address)
     {
         return _cache.GetOrCreate(address, entry =>
         {
-            entry.SetSlidingExpiration(SlidingExpiration);
+            entry.SetSlidingExpiration(ChannelExpiration);
             entry.RegisterPostEvictionCallback((_, value, _, _) =>
             {
                 var channel = (GrpcChannel)value;

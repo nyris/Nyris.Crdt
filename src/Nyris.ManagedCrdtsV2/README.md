@@ -100,3 +100,9 @@ How does CrdtInfos gets updated?
  - In addition to set and maps based on ObservedRemove principle, there is an ObservedRemove Array, also bounded in space and supporting delta updates. 
 Its description can be found in paper [DSON: JSON CRDT Using Delta-Mutations For Document Stores](https://iditkeidar.com/wp-content/uploads/2021/12/JSON_CRDTs___VLDB.pdf)
 In the same paper authors show how to combine it with ORSet to get a full JSON support based on delta CRDTs. Though remember that this particular paper is under non-commercial license.  
+
+ - In the spirit of extendability, grpc exceptions should be wrapped in a project defined ones, which can then be caught and handled in internal services.
+ - Inverse data structure used ObservedRemoveSet and ObservedRemoveMap currently using a SortedList, but it would be better to write a custom tree-based structure. 
+See [VersionedItemList](../../src/Nyris.Crdt/Model/VersionedItemList.cs) for details   
+ - Lots of allocations thanks to logging, great opportunity for [high-performance logging with source generators](https://learn.microsoft.com/en-us/dotnet/core/extensions/logger-message-generator)
+ - 

@@ -27,20 +27,15 @@ public class ManagedObservedRemoveSet<TItem>
 
     public async Task AddAsync(TItem item, OperationContext context)
     {
-        Logger.LogDebug("Adding {Item} to set", item.ToString());
+        // Logger.LogDebug("Adding {Item} to set", item.ToString());
         var shard = GetOrCreateShard(DefaultShard);
         var deltas = shard.Add(item, _thisNode);
         await PropagateAsync(DefaultShard, deltas, context.CancellationToken);
-        Logger.LogDebug("Addition of {Item} finished", item.ToString());
+        // Logger.LogDebug("Addition of {Item} finished", item.ToString());
     }
 
     public async Task RemoveAsync(TItem item, OperationContext context)
     {
         
-    }
-
-    public override ReadOnlyMemory<byte> GetHash(ShardId shardId)
-    {
-        throw new NotImplementedException();
     }
 }

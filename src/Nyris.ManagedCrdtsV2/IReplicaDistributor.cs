@@ -5,5 +5,5 @@ namespace Nyris.ManagedCrdtsV2;
 
 public interface IReplicaDistributor
 {
-    ImmutableArray<NodeInfo> GetDesiredNodesWithReplicas(InstanceId instanceId, ShardId shardId);
+    ImmutableArray<NodeInfo> GetNodesWithWriteReplicas(InstanceId instanceId, ShardId shardId);
 }

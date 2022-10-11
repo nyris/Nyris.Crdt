@@ -45,10 +45,12 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
         _nodeSet.Add(thisNode, thisNode.Id);
     }
 
+    public ICollection<InstanceId> InstanceIds => _crdts.Keys;
+
     public async Task<ReadOnlyMemory<byte>> AddNewNodeAsync(NodeInfo nodeInfo, CancellationToken cancellationToken = default)
     {
         // we don't want to accidentally propagate the update to a newly added node
-        var nodesBeforeAddition = _nodeSet.Values;
+        var nodesBeforeAddition = _nodeSet.Values.ToImmutableArray();
         var deltas = await AddNodeInfoAsync(nodeInfo, cancellationToken);
         await PropagateNodeDeltasAsync(deltas, nodesBeforeAddition, cancellationToken);
         await DistributeShardsAsync(cancellationToken);
@@ -57,7 +59,7 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
 
     public async Task MergeAsync(MetadataDto kind, ReadOnlyMemory<byte> dto, CancellationToken cancellationToken = default)
     {
-        var nodeSetBeforeMerge = _nodeSet.Values;
+        var nodeSetBeforeMerge = _nodeSet.Values.ToImmutableArray();
         DeltaMergeResult result;
 
         await _semaphore.WaitAsync(cancellationToken);
@@ -72,24 +74,82 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
 
         if (result == DeltaMergeResult.StateUpdated)
         {
+            _logger.LogDebug("After merging {Kind} delta state was updated, propagating further", 
+                kind.ToString("G"));
             await _propagationService.PropagateAsync(kind, dto, nodeSetBeforeMerge, cancellationToken);
             await DistributeShardsAsync(cancellationToken);
         }
     }
-    
-    public ImmutableArray<NodeInfo> GetDesiredNodesWithReplicas(InstanceId instanceId, ShardId shardId) 
+
+    public async Task<ImmutableArray<NodeInfo>> GetNodesAsync(CancellationToken cancellationToken) 
+        => _nodeSet.Values.ToImmutableArray();
+
+    public ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> GetCausalTimestamps(
+        CancellationToken cancellationToken)
+    {
+        var builder = ImmutableDictionary.CreateBuilder<MetadataDto, ReadOnlyMemory<byte>>();
+
+        var serialized = _serializer.Serialize(_nodeSet.GetLastKnownTimestamp());
+        builder.Add(MetadataDto.NodeSet, serialized);
+        
+        serialized = _serializer.Serialize(_crdtConfigs.GetLastKnownTimestamp());
+        builder.Add(MetadataDto.CrdtConfigs, serialized);
+        
+        serialized = _serializer.Serialize(_crdtInfos.GetLastKnownTimestamp());
+        builder.Add(MetadataDto.CrdtInfos, serialized);
+
+        return builder.ToImmutable();
+    }
+
+    public async IAsyncEnumerable<ReadOnlyMemory<byte>> EnumerateDeltasAsync(MetadataDto kind, 
+        ReadOnlyMemory<byte> timestamp, 
+        CancellationToken cancellationToken)
+    {
+        switch (kind)
+        {
+            case MetadataDto.NodeSetFull:
+            case MetadataDto.NodeSet:
+                var nodesTimestamp = _serializer.Deserialize<NodeInfoSet.CausalTimestamp>(timestamp);
+                foreach (var deltaDto in _nodeSet.EnumerateDeltaDtos(nodesTimestamp).Chunk(100))
+                {
+                    yield return _serializer.Serialize(deltaDto);
+                }
+                break;
+            case MetadataDto.CrdtInfos:
+                var infosTimestamp = _serializer.Deserialize<CrdtInfos.CausalTimestamp>(timestamp);
+                foreach (var deltaDto in _crdtInfos.EnumerateDeltaDtos(infosTimestamp).Chunk(100))
+                {
+                    yield return _serializer.Serialize(deltaDto);
+                }
+                break;
+            case MetadataDto.CrdtConfigs:
+                var configsTimestamp = _serializer.Deserialize<CrdtConfigs.CausalTimestamp>(timestamp);
+                foreach (var deltaDto in _crdtConfigs.EnumerateDeltaDtos(configsTimestamp).Chunk(100))
+                {
+                    yield return _serializer.Serialize(deltaDto);
+                }
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
+        }
+    }
+
+    public ImmutableArray<NodeInfo> GetNodesWithWriteReplicas(InstanceId instanceId, ShardId shardId) 
         => _desiredDistribution.TryGetValue(instanceId.With(shardId), out var nodes) 
             ? nodes 
             : ImmutableArray<NodeInfo>.Empty;
 
-    public IReadOnlyCollection<NodeInfo> GetCurrentNodesWithReplicas(InstanceId instanceId, ShardId shardId)
+    public IReadOnlyCollection<NodeInfo> GetNodesWithReadReplicas(InstanceId instanceId, ShardId shardId)
     {
         throw new NotImplementedException();
     }
 
     public async Task NodeFailureObservedAsync(NodeId nodeId, CancellationToken cancellationToken)
     {
-        if(_thisNode.Id == nodeId) _logger.LogInformation("This node \"detected\" remote failure in itself, no-op");
+        if (_thisNode.Id == nodeId)
+        {
+            _logger.LogWarning("This should not be reachable - \"detected\" remote failure in itself, no-op");
+        }
 
         ImmutableArray<NodeInfoSet.DeltaDto> deltas; 
         await _semaphore.WaitAsync(cancellationToken);
@@ -106,7 +166,7 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
             _semaphore.Release();
         }
         
-        await PropagateNodeDeltasAsync(deltas, _nodeSet.Values, cancellationToken);
+        await PropagateNodeDeltasAsync(deltas, _nodeSet.Values.ToImmutableArray(), cancellationToken);
         await DistributeShardsAsync(cancellationToken);
     }
 
@@ -234,7 +294,8 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
             _semaphore.Release();
         }
         var deltasBin = _serializer.Serialize(deltas);
-        await _propagationService.PropagateAsync(MetadataDto.CrdtConfigs, deltasBin, _nodeSet.Values, cancellationToken);
+        var nodes = _nodeSet.Values.ToImmutableArray();
+        await _propagationService.PropagateAsync(MetadataDto.CrdtConfigs, deltasBin, nodes, cancellationToken);
     }
 
     private async Task AddInfosAndPropagateAsync(GlobalShardId[] shardIds, CancellationToken cancellationToken)
@@ -253,9 +314,10 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
             _semaphore.Release();
         }
         var data = _serializer.Serialize(infosDeltas.SelectMany(deltas => deltas));
-        await _propagationService.PropagateAsync(MetadataDto.CrdtInfos, data, _nodeSet.Values, cancellationToken);
+        var nodes = _nodeSet.Values.ToImmutableArray();
+        await _propagationService.PropagateAsync(MetadataDto.CrdtInfos, data, nodes, cancellationToken);
     }
 
-    private Task PropagateNodeDeltasAsync(ImmutableArray<NodeInfoSet.DeltaDto> deltas, IReadOnlyCollection<NodeInfo> nodes, CancellationToken cancellationToken) 
+    private Task PropagateNodeDeltasAsync(ImmutableArray<NodeInfoSet.DeltaDto> deltas, ImmutableArray<NodeInfo> nodes, CancellationToken cancellationToken) 
         => _propagationService.PropagateAsync(MetadataDto.NodeSet, _serializer.Serialize(deltas), nodes, cancellationToken);
 }

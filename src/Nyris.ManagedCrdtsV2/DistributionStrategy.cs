@@ -16,7 +16,13 @@ internal sealed class DistributionStrategy : IDistributionStrategy
 {
     private static readonly ObjectPool<IncrementalHash> Pool =
         new DefaultObjectPool<IncrementalHash>(new DoNothingOnReturnHashPoolPolicy());
-    
+
+    private static readonly ObjectPool<Dictionary<int, int>> DictionaryPool =
+        new DefaultObjectPool<Dictionary<int, int>>(new HashSetPoolPolicy());
+
+    // Dict<int, int> mean - in a sorted array of nodes, which index (key) have how many shards (value) 
+    private readonly Dictionary<InstanceId, Dictionary<int, int>> _instanceNodeIndexes = new();
+
     public ImmutableDictionary<GlobalShardId, ImmutableArray<NodeInfo>> Distribute(ImmutableArray<ShardInfo> shardInfos, ImmutableArray<NodeInfo> nodes)
     {
         // Idea for how this works:
@@ -32,44 +38,97 @@ internal sealed class DistributionStrategy : IDistributionStrategy
         //
         //    We assign shard to a node with smallest distance (and smallest nodeId if smallest distance is not unique)
         //    We then take next {NumberOfDesiredReplicas} nodes from sorted nodeIds list
+        // 3. Finally, we need to do additional fine-tuning that takes into account sizes
+        //    and spreads shards of same crdts to different nodes:
+        // 3.1  Ensure that different shards of the same InstanceId are on different nodes 
         
         var builder = ImmutableDictionary.CreateBuilder<GlobalShardId, ImmutableArray<NodeInfo>>();
 
         // keep allocations to a minimum with ArrayPools
         // first get a sorted copy of NodeInfo array
-        var orderedNodes = ArrayPool<NodeInfo>.Shared.Rent(nodes.Length);
+        var length = nodes.Length;
+        var orderedNodes = ArrayPool<NodeInfo>.Shared.Rent(length);
         nodes.CopyTo(orderedNodes);
-        Array.Sort(orderedNodes, 0, nodes.Length);
+        Array.Sort(orderedNodes, 0, length);
         
         // then calculate hashes in the same sorted order
-        var orderedNodeIdHashes = ArrayPool<ulong>.Shared.Rent(nodes.Length);
-        GetNodeHashes(orderedNodes, orderedNodeIdHashes, nodes.Length);
+        var orderedNodeIdHashes = ArrayPool<ulong>.Shared.Rent(length);
+        GetNodeHashes(orderedNodes, orderedNodeIdHashes, length);
         
         foreach (var shardInfo in shardInfos)
         { 
             var shardId = shardInfo.ShardId;
             
-            // 1st case - replicas that should be on all nodes (0) and those that request more replicas then nodes
-            if (shardInfo.NumberOfDesiredReplicas == 0 || shardInfo.NumberOfDesiredReplicas >= nodes.Length)
+            // 1st phase - replicas that should be on all nodes (0) and those that request more replicas then nodes
+            if (shardInfo.NumberOfDesiredReplicas == 0 || shardInfo.NumberOfDesiredReplicas >= length)
             {
                 builder.Add(shardId, nodes);
+                continue;
             }
 
-            // 2nd case 
+            // 2nd phase 
             // get hash and find index of a closest nodeId in the ordered array
             var shardIdHash = GetHash(shardId);
-            var minIndex = FindClosestNodeIndex(shardIdHash, orderedNodeIdHashes, orderedNodes, nodes.Length);
-            var nodesForShard = CopyNodeRingSection(shardInfo, orderedNodes, minIndex, nodes.Length - 1);
-
+            var minIndex = FindClosestNodeIndex(shardIdHash, orderedNodeIdHashes, orderedNodes, length);
+            
+            // 3.1 phase - we want to spread different shards of a single InstanceId to different nodes if possible.
+            minIndex = EnsureShardsAreSpreadAcrossNodes(shardId, minIndex, length);
+            // 3.2: TODO: how to take size into account?
+            
+            var nodesForShard = CopyNodeRingSection(shardInfo, orderedNodes, minIndex, length - 1);
             builder.Add(shardId, nodesForShard);
         }
         
-        // TODO: fine tune taking size into account
-        
+        // return all rented objects to pools
         ArrayPool<ulong>.Shared.Return(orderedNodeIdHashes);
         ArrayPool<NodeInfo>.Shared.Return(orderedNodes);
+
+        foreach (var dictionary in _instanceNodeIndexes.Values) DictionaryPool.Return(dictionary);
+        _instanceNodeIndexes.Clear();
         
         return builder.ToImmutable();
+    }
+
+    private int EnsureShardsAreSpreadAcrossNodes(GlobalShardId shardId, int minIndex, int length)
+    {
+        if (!_instanceNodeIndexes.TryGetValue(shardId.InstanceId, out var nodeIndexToNumberOfShards))
+        {
+            nodeIndexToNumberOfShards = _instanceNodeIndexes[shardId.InstanceId] = DictionaryPool.Get();
+        }
+
+        var newMinIndex = minIndex;
+        // if this node already contain at least 1 another shard with same InstanceId
+        if (nodeIndexToNumberOfShards.ContainsKey(minIndex))
+        {
+            // save the number of shards which the found node already has
+            var minCount = nodeIndexToNumberOfShards[minIndex];
+
+            // iterate over all node indexes. For example, minIndex=2 and we have 5 nodes - so indexes are [0,1,2,3,4]
+            // We move upwards i : 2 -> 3 -> 4 -> 0 -> 1
+            for (var j = 0; j < length; ++j)
+            {
+                var i = (minIndex + j) % length;
+                // if i-th node contains strictly less shards, save it. 
+                var ithShardCount = nodeIndexToNumberOfShards.GetValueOrDefault(i);
+                if (ithShardCount < minCount)
+                {
+                    newMinIndex = i;
+                    minCount = ithShardCount;
+                }
+            }
+            // after the loop, minIndex contains a closest node index to originally found in 2nd phase, which contains the least shards of same InstanceId
+        }
+
+        if (nodeIndexToNumberOfShards.ContainsKey(newMinIndex))
+        {
+            nodeIndexToNumberOfShards[newMinIndex] += 1;
+        }
+        else
+        {
+            nodeIndexToNumberOfShards[newMinIndex] = 1;
+        }
+
+        return newMinIndex;
     }
 
     private static ImmutableArray<NodeInfo> CopyNodeRingSection(ShardInfo shardInfo, NodeInfo[] orderedNodes, int startIndex, int nodeMaxIndex)
@@ -78,7 +137,7 @@ internal sealed class DistributionStrategy : IDistributionStrategy
         for (var i = 0; i < nodesForShard.Length; ++i)
         {
             nodesForShard[i] = orderedNodes[startIndex];
-            startIndex = startIndex > 0 ? startIndex - 1 : nodeMaxIndex; 
+            startIndex = startIndex < nodeMaxIndex ? startIndex + 1 : 0; 
         }
 
         return Unsafe.As<NodeInfo[], ImmutableArray<NodeInfo>>(ref nodesForShard);
@@ -123,7 +182,18 @@ internal sealed class DistributionStrategy : IDistributionStrategy
             nodeIdHashes[i] = BitConverter.ToUInt64(hashBytes);
         }
     }
-    
+
+    private sealed class HashSetPoolPolicy : IPooledObjectPolicy<Dictionary<int, int>>
+    {
+        public Dictionary<int, int> Create() => new(10);
+
+        public bool Return(Dictionary<int, int> obj)
+        {
+            obj.Clear();
+            return true;
+        }
+    }
+
     private sealed class DoNothingOnReturnHashPoolPolicy : IPooledObjectPolicy<IncrementalHash>
     {
         /// <inheritdoc />
