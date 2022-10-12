@@ -47,25 +47,35 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
 
     public ICollection<InstanceId> InstanceIds => _crdts.Keys;
 
-    public async Task<ReadOnlyMemory<byte>> AddNewNodeAsync(NodeInfo nodeInfo, CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<(MetadataDto, ReadOnlyMemory<byte>)> AddNewNodeAsync(NodeInfo nodeInfo,
+        OperationContext context)
     {
         // we don't want to accidentally propagate the update to a newly added node
         var nodesBeforeAddition = _nodeSet.Values.ToImmutableArray();
-        var deltas = await AddNodeInfoAsync(nodeInfo, cancellationToken);
-        await PropagateNodeDeltasAsync(deltas, nodesBeforeAddition, cancellationToken);
-        await DistributeShardsAsync(cancellationToken);
-        return _serializer.Serialize(_nodeSet.ToDto());
+        var deltas = await AddNodeInfoAsync(nodeInfo, context.CancellationToken);
+        await PropagateNodeDeltasAsync(deltas, nodesBeforeAddition, context);
+        await DistributeShardsAsync(context.CancellationToken);
+
+        yield return (MetadataDto.NodeSetFull, _serializer.Serialize(_nodeSet.ToDto()));
+        foreach (var delta in _crdtConfigs.EnumerateDeltaDtos().Chunk(100))
+        {
+            yield return (MetadataDto.CrdtConfigs, _serializer.Serialize(delta));
+        }
+        foreach (var delta in _crdtInfos.EnumerateDeltaDtos().Chunk(100))
+        {
+            yield return (MetadataDto.CrdtInfos, _serializer.Serialize(delta));
+        }
     }
 
-    public async Task MergeAsync(MetadataDto kind, ReadOnlyMemory<byte> dto, CancellationToken cancellationToken = default)
+    public async Task MergeAsync(MetadataDto kind, ReadOnlyMemory<byte> dto, OperationContext context)
     {
         var nodeSetBeforeMerge = _nodeSet.Values.ToImmutableArray();
         DeltaMergeResult result;
 
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(context.CancellationToken);
         try
         {
-            result = MergeInternal(kind, dto);
+            result = MergeInternal(kind, dto, context.TraceId);
         }
         finally
         {
@@ -74,10 +84,10 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
 
         if (result == DeltaMergeResult.StateUpdated)
         {
-            _logger.LogDebug("After merging {Kind} delta state was updated, propagating further", 
-                kind.ToString("G"));
-            await _propagationService.PropagateAsync(kind, dto, nodeSetBeforeMerge, cancellationToken);
-            await DistributeShardsAsync(cancellationToken);
+            _logger.LogDebug("TraceId '{TraceId}': After merging {Kind} delta state was updated, propagating further", 
+                context.TraceId, kind.ToString("G"));
+            await _propagationService.PropagateAsync(kind, dto, nodeSetBeforeMerge, context);
+            await DistributeShardsAsync(context.CancellationToken);
         }
     }
 
@@ -151,6 +161,8 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
             _logger.LogWarning("This should not be reachable - \"detected\" remote failure in itself, no-op");
         }
 
+        var traceId = $"{_thisNode.Id}-observed-{nodeId}-fail";
+        var context = new OperationContext(_thisNode.Id, -1, traceId, cancellationToken);
         ImmutableArray<NodeInfoSet.DeltaDto> deltas; 
         await _semaphore.WaitAsync(cancellationToken);
         try
@@ -158,7 +170,8 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
             var nodeInfo = _nodeSet.Values.FirstOrDefault(ni => ni.Id == nodeId);
             if (nodeInfo is null) return;
 
-            _logger.LogInformation("Failure in node '{NodeId}' detected, removing from NodeSet", nodeId);
+            _logger.LogInformation("TraceId '{TraceId}': Failure in node '{NodeId}' detected, removing from NodeSet", 
+                traceId, nodeId);
             deltas = _nodeSet.Remove(nodeInfo);
         }
         finally
@@ -166,7 +179,7 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
             _semaphore.Release();
         }
         
-        await PropagateNodeDeltasAsync(deltas, _nodeSet.Values.ToImmutableArray(), cancellationToken);
+        await PropagateNodeDeltasAsync(deltas, _nodeSet.Values.ToImmutableArray(), context);
         await DistributeShardsAsync(cancellationToken);
     }
 
@@ -181,42 +194,44 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
     public async Task<TCrdt> CreateAsync<TCrdt>(InstanceId instanceId, CancellationToken cancellationToken)
         where TCrdt : ManagedCrdt
     {
+        var traceId = $"{instanceId.AsReadOnlySpan}-creation";
+        var context = new OperationContext(_thisNode.Id, 1, traceId, cancellationToken);
         var crdt = _crdtFactory.Create<TCrdt>(instanceId, this);
         _crdts.TryAdd(instanceId, crdt);
 
         var shardIds = new[] { instanceId.With(default) };
         await Task.WhenAll(
-            AddConfigAndPropagateAsync<TCrdt>(instanceId, cancellationToken),
-            AddInfosAndPropagateAsync(shardIds, cancellationToken));
+            AddConfigAndPropagateAsync<TCrdt>(instanceId, context),
+            AddInfosAndPropagateAsync(shardIds, context));
         await DistributeShardsAsync(cancellationToken); // intentionally awaited after previous two
 
         return crdt;
     }
 
-    private DeltaMergeResult MergeInternal(MetadataDto kind, ReadOnlyMemory<byte> dto)
+    private DeltaMergeResult MergeInternal(MetadataDto kind, ReadOnlyMemory<byte> dto, string traceId)
     {
         var result = DeltaMergeResult.StateNotChanged;
         switch (kind)
         {
             case MetadataDto.NodeSet:
                 var nodeDeltas = _serializer.Deserialize<ImmutableArray<NodeInfoSet.DeltaDto>>(dto);
-                _logger.LogDebug("Received nodeSet deltas: {Deltas}", JsonConvert.SerializeObject(nodeDeltas));
+                _logger.LogDebug("TraceId '{TraceId}': Received nodeSet deltas: {Deltas}", traceId, JsonConvert.SerializeObject(nodeDeltas));
                 result = _nodeSet.Merge(nodeDeltas);
                 break;
             case MetadataDto.NodeSetFull:
                 // merging a full dto for a NodeSet is a special case used for Discovery, which should not trigger propagation
                 var nodeDto = _serializer.Deserialize<NodeInfoSet.Dto>(dto);
-                _logger.LogDebug("Received nodeSet dto: {Dto}", JsonConvert.SerializeObject(nodeDto));
+                _logger.LogDebug("TraceId '{TraceId}': Received nodeSet dto: {Dto}", traceId, JsonConvert.SerializeObject(nodeDto));
                 _nodeSet.Merge(nodeDto);
                 break;
             case MetadataDto.CrdtInfos:
                 var infoDeltas = _serializer.Deserialize<CrdtInfos.DeltaDto[]>(dto);
-                _logger.LogDebug("Received info deltas: {Deltas}", JsonConvert.SerializeObject(infoDeltas));
+                _logger.LogDebug("TraceId '{TraceId}': Received info deltas: {Deltas}", traceId, JsonConvert.SerializeObject(infoDeltas));
                 result = _crdtInfos.Merge(infoDeltas);
                 break;
             case MetadataDto.CrdtConfigs:
                 var configDeltas = _serializer.Deserialize<CrdtConfigs.DeltaDto[]>(dto);
-                _logger.LogDebug("Received config deltas: {Deltas}", JsonConvert.SerializeObject(configDeltas));
+                _logger.LogDebug("TraceId '{TraceId}': Received config deltas: {Deltas}", traceId, JsonConvert.SerializeObject(configDeltas));
                 result = _crdtConfigs.Merge(configDeltas);
                 CreateNewCrdtsIfAny();
                 break;
@@ -277,10 +292,10 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
         }
     }
 
-    private async Task AddConfigAndPropagateAsync<TCrdt>(InstanceId instanceId, CancellationToken cancellationToken)
+    private async Task AddConfigAndPropagateAsync<TCrdt>(InstanceId instanceId, OperationContext context)
     {
         ImmutableArray<CrdtConfigs.DeltaDto> deltas;
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(context.CancellationToken);
         try
         {
             deltas = _crdtConfigs.AddOrMerge(_thisNode.Id, instanceId, new CrdtConfig
@@ -295,13 +310,13 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
         }
         var deltasBin = _serializer.Serialize(deltas);
         var nodes = _nodeSet.Values.ToImmutableArray();
-        await _propagationService.PropagateAsync(MetadataDto.CrdtConfigs, deltasBin, nodes, cancellationToken);
+        await _propagationService.PropagateAsync(MetadataDto.CrdtConfigs, deltasBin, nodes, context);
     }
 
-    private async Task AddInfosAndPropagateAsync(GlobalShardId[] shardIds, CancellationToken cancellationToken)
+    private async Task AddInfosAndPropagateAsync(GlobalShardId[] shardIds, OperationContext context)
     {
         var infosDeltas = new ImmutableArray<CrdtInfos.DeltaDto>[shardIds.Length];
-        await _semaphore.WaitAsync(cancellationToken);
+        await _semaphore.WaitAsync(context.CancellationToken);
         try
         {
             for (var i = 0; i < shardIds.Length; i++)
@@ -315,9 +330,9 @@ public sealed class ClusterManager : INodeFailureObserver, IClusterMetadataManag
         }
         var data = _serializer.Serialize(infosDeltas.SelectMany(deltas => deltas));
         var nodes = _nodeSet.Values.ToImmutableArray();
-        await _propagationService.PropagateAsync(MetadataDto.CrdtInfos, data, nodes, cancellationToken);
+        await _propagationService.PropagateAsync(MetadataDto.CrdtInfos, data, nodes, context);
     }
 
-    private Task PropagateNodeDeltasAsync(ImmutableArray<NodeInfoSet.DeltaDto> deltas, ImmutableArray<NodeInfo> nodes, CancellationToken cancellationToken) 
-        => _propagationService.PropagateAsync(MetadataDto.NodeSet, _serializer.Serialize(deltas), nodes, cancellationToken);
+    private Task PropagateNodeDeltasAsync(ImmutableArray<NodeInfoSet.DeltaDto> deltas, ImmutableArray<NodeInfo> nodes, OperationContext context) 
+        => _propagationService.PropagateAsync(MetadataDto.NodeSet, _serializer.Serialize(deltas), nodes, context);
 }

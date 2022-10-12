@@ -17,13 +17,15 @@ internal sealed class MetadataPropagationService : IMetadataPropagationService
     public async Task PropagateAsync(MetadataDto kind,
         ReadOnlyMemory<byte> data,
         ImmutableArray<NodeInfo> nodesInCluster,
-        CancellationToken cancellationToken = default)
+        OperationContext context)
     {
         var targetNodes = _selectionStrategy.SelectNodes(nodesInCluster);
         foreach (var nodeInfo in targetNodes)
         {
+            if(nodeInfo.Id == context.Origin) continue;
+            
             var client = _clientPool.GetClient(nodeInfo);
-            await client.MergeMetadataAsync(kind, data, cancellationToken);
+            await client.MergeMetadataAsync(kind, data, context);
         }
     }
 }

@@ -4,13 +4,15 @@ namespace Nyris.ManagedCrdtsV2;
 
 public abstract class ManagedCrdt
 {
+    protected internal readonly SemaphoreSlim WriteLock = new(1, 1);
+    
     protected ManagedCrdt(InstanceId instanceId)
     {
         InstanceId = instanceId;
     }
     
     public InstanceId InstanceId { get; }
-    internal abstract ICollection<ShardId> Shards { get; } 
+    internal abstract ICollection<ShardId> Shards { get; }
 
     public abstract Task MergeAsync(ShardId shardId, ReadOnlyMemory<byte> batch, OperationContext context);
 
@@ -19,7 +21,4 @@ public abstract class ManagedCrdt
         CancellationToken cancellationToken);
 
     public abstract ReadOnlyMemory<byte> GetCausalTimestamp(ShardId shardId);
-
-    // ManagedCrdt should have everything needed by SyncAndRelocation service.
-    // That is - get hash, timestamp and enumerate deltas for a given shardId 
 }

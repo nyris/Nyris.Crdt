@@ -25,12 +25,13 @@ public class ManagedObservedRemoveSet<TItem>
         _thisNode = thisNode;
     }
 
-    public async Task AddAsync(TItem item, OperationContext context)
+    public async Task AddAsync(TItem item, CancellationToken cancellationToken)
     {
         // Logger.LogDebug("Adding {Item} to set", item.ToString());
         var shard = GetOrCreateShard(DefaultShard);
         var deltas = shard.Add(item, _thisNode);
-        await PropagateAsync(DefaultShard, deltas, context.CancellationToken);
+        var context = new OperationContext(_thisNode, 1, "trace1", cancellationToken);
+        await PropagateAsync(DefaultShard, deltas, context);
         // Logger.LogDebug("Addition of {Item} finished", item.ToString());
     }
 

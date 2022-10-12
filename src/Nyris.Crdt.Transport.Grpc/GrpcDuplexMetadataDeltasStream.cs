@@ -43,10 +43,12 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         return headers;
     }
 
-    public async Task<ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>>> ExchangeMetadataTimestampsAsync(ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> timestamps, CancellationToken cancellationToken)
+    public async Task<ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>>> ExchangeMetadataTimestampsAsync(
+        ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> timestamps,
+        OperationContext context)
     {
-        var headers = ToHeaders(timestamps);
-        _call = _client.SyncMetadata(headers, null, cancellationToken);
+        var headers = ToHeaders(timestamps).WithOrigin(context.Origin).WithTraceId(context.TraceId);
+        _call = _client.SyncMetadata(headers, null, context.CancellationToken);
         var responseHeaders = await _call.ResponseHeadersAsync;
         return TimestampsFromHeaders(responseHeaders);
     }

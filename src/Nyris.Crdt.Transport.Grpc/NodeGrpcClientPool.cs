@@ -50,7 +50,7 @@ internal sealed class NodeGrpcClientPool : INodeClientPool, INodeFailureNotifier
         return new NodeGrpcClient(new Node.NodeClient(channel));
     }
 
-    public INodeClient GetClient(Crdt.Distributed.Model.NodeInfo nodeInfo)
+    public INodeClient GetClient(NodeInfo nodeInfo)
     {
         var channel = GetOrCreateChannel(nodeInfo.Address);
         return _cache.GetOrCreate(nodeInfo.Id, entry =>

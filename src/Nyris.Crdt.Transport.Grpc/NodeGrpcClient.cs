@@ -1,4 +1,5 @@
 using Google.Protobuf;
+using Grpc.Core;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.ManagedCrdtsV2;
 using ShardId = Nyris.ManagedCrdtsV2.ShardId;
@@ -15,38 +16,53 @@ internal sealed class NodeGrpcClient : INodeClient
     }
     
     public async Task MergeAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> deltas,
-        CancellationToken cancellationToken = default)
+        OperationContext context)
     {
         await _client.MergeDeltasAsync(new DeltaBatch
         {
             InstanceId = instanceId.ToString(),
             ShardId = shardId.AsUint,
-            Deltas = UnsafeByteOperations.UnsafeWrap(deltas)
-        }, cancellationToken: cancellationToken);
+            Deltas = UnsafeByteOperations.UnsafeWrap(deltas),
+            Context = GetContextMessage(context)
+        }, cancellationToken: context.CancellationToken);
     }
 
-    public async Task MergeMetadataAsync(MetadataDto kind, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+    public async Task MergeMetadataAsync(MetadataDto kind, ReadOnlyMemory<byte> data,
+        OperationContext context)
     {
         await _client.MergeMetadataDeltasAsync(new MetadataDelta
         {
             Kind = (int)kind,
-            Deltas = UnsafeByteOperations.UnsafeWrap(data)
-        }, cancellationToken: cancellationToken);
+            Deltas = UnsafeByteOperations.UnsafeWrap(data),
+            Context = GetContextMessage(context)
+        }, cancellationToken: context.CancellationToken);
     }
 
     public IDuplexMetadataDeltasStream GetMetadataDuplexStream() => new GrpcDuplexMetadataDeltasStream(_client);
     public IDuplexDeltasStream GetDeltaDuplexStream() => new GrpcDuplexDeltasStream(_client);
 
-    public async Task<ReadOnlyMemory<byte>> JoinToClusterAsync(
-        Distributed.Model.NodeInfo nodeInfo, 
-        CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<(MetadataDto, ReadOnlyMemory<byte>)> JoinToClusterAsync(
+        NodeInfo nodeInfo, 
+        OperationContext context)
     {
-        var response = await _client.JoinToClusterAsync(new NodeInfo
+        var response = _client.JoinToCluster(new AddNodeMessage
         {
             NodeId = nodeInfo.Id.ToString(),
-            Address = nodeInfo.Address.ToString()
-        }, cancellationToken: cancellationToken);
+            Address = nodeInfo.Address.ToString(),
+            Context = GetContextMessage(context)
+        }, cancellationToken: context.CancellationToken);
 
-        return response.Value.Memory;
+        await foreach (var delta in response.ResponseStream.ReadAllAsync())
+        {
+            yield return ((MetadataDto)delta.Kind, delta.Deltas.Memory);
+        }
     }
+
+    private static OperationContextMessage GetContextMessage(OperationContext context) =>
+        new()
+        {
+            AwaitPropagationToNNodes = context.AwaitPropagationToNNodes,
+            Origin = context.Origin.ToString(),
+            TraceId = context.TraceId
+        };
 }

@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Nyris.Crdt;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Interfaces;
@@ -45,7 +44,7 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp>
         if (result == DeltaMergeResult.StateUpdated)
         {
             // Logger.LogDebug("Deltas were new to this replica, propagating further");
-            await _propagationService.PropagateAsync(InstanceId, shardId, batch, context.CancellationToken);
+            await _propagationService.PropagateAsync(InstanceId, shardId, batch, context);
         }
     }
 
@@ -71,11 +70,10 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp>
             ? ReadOnlyMemory<byte>.Empty 
             : _serializer.Serialize(crdt.GetLastKnownTimestamp());
 
-    protected Task PropagateAsync(ShardId shardId, ImmutableArray<TDelta> deltas, CancellationToken cancellationToken)
+    protected Task PropagateAsync(in ShardId shardId, in ImmutableArray<TDelta> deltas, OperationContext context)
     {
-        // buffering can done here..
-        return _propagationService.PropagateAsync(InstanceId, shardId, _serializer.Serialize(deltas), cancellationToken);
+        return _propagationService.PropagateAsync(InstanceId, shardId, _serializer.Serialize(deltas), context);
     }
 
-    protected TCrdt GetOrCreateShard(ShardId shardId) => _shards.GetOrAdd(shardId, _ => new TCrdt());
+    protected TCrdt GetOrCreateShard(in ShardId shardId) => _shards.GetOrAdd(shardId, _ => new TCrdt());
 }

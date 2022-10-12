@@ -8,5 +8,5 @@ public interface IMetadataPropagationService
     Task PropagateAsync(MetadataDto kind,
         ReadOnlyMemory<byte> data,
         ImmutableArray<NodeInfo> nodesInCluster,
-        CancellationToken cancellationToken = default);
+        OperationContext context);
 }

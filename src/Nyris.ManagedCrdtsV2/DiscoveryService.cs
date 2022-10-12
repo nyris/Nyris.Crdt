@@ -32,50 +32,49 @@ internal sealed class DiscoveryService : BackgroundService
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var traceId = $"{_thisNode.Id}-discovery";
+        var context = new OperationContext(_thisNode.Id, -1, traceId, stoppingToken);
         try
         {
-            await TryExecutingAsync(stoppingToken);
+            await TryExecutingAsync(context);
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Unhandled exception in {ServiceName}", nameof(DiscoveryService));
+            _logger.LogError(e, "TraceId '{TraceId}': Unhandled exception in {ServiceName}", 
+                traceId, nameof(DiscoveryService));
         }
     }
 
-    private async Task TryExecutingAsync(CancellationToken cancellationToken)
+    private async Task TryExecutingAsync(OperationContext context)
     {
-        _logger.LogDebug("{ServiceName} executing", nameof(DiscoveryService));
+        _logger.LogDebug("TraceId '{TraceId}': {ServiceName} executing", 
+             context.TraceId, nameof(DiscoveryService));
 
-        await foreach (var (address, name) in GetAllUris(cancellationToken))
+        await foreach (var (address, name) in GetAllUris(context.CancellationToken))
         {
             try
             {
-                await TryConnectingToNodeAsync(address, name, cancellationToken);
+                await TryConnectingToNodeAsync(address, name, context);
             }
             catch (Exception e)
             {
-                _logger.LogError("Connecting to node {PodName} failed due to an exception: {ExceptionMessage}",
-                    name, e.ToString());
+                _logger.LogError("TraceId '{TraceId}': Connecting to node {PodName} failed due to an exception: {ExceptionMessage}",
+                    context.TraceId, name, e.ToString());
             }
         }
 
-        _logger.LogDebug("Discovery completed");
+        _logger.LogDebug("TraceId '{TraceId}': Discovery completed", context.TraceId);
     }
 
-    private async Task TryConnectingToNodeAsync(Uri address, string name, CancellationToken cancellationToken)
+    private async Task TryConnectingToNodeAsync(Uri address, string name, OperationContext context)
     {
-        _logger.LogDebug("Attempting to connect to {NodeName} at {NodeAddress}", name, address);
+        _logger.LogDebug("TraceId '{TraceId}': Attempting to connect to {NodeName} at {NodeAddress}", 
+            context.TraceId, name, address);
 
         var client = _nodeClientPool.GetClientForNodeCandidate(address);
-        var dto = await client.JoinToClusterAsync(_thisNode, cancellationToken);
-
-        if (dto.IsEmpty)
+        await foreach (var (kind, dto) in client.JoinToClusterAsync(_thisNode, context))
         {
-            _logger.LogWarning("Node {NodeName} returned null as dto for NodeSet", name);
-        }
-        else
-        {
-            await _clusterMetadata.MergeAsync(MetadataDto.NodeSetFull, dto, cancellationToken);
+            await _clusterMetadata.MergeAsync(kind, dto, context);
         }
     }
 
