@@ -2,6 +2,7 @@ using System.Runtime.Serialization;
 
 namespace Nyris.Crdt.Managed.Exceptions;
 
+[Serializable]
 public sealed class SynchronizationProtocolViolatedException : BaseException 
 {
     public SynchronizationProtocolViolatedException()

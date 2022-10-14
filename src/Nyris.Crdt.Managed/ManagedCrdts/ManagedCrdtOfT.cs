@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Interfaces;
 using Nyris.Crdt.Managed.Model;
-using Nyris.Crdt.Managed.Services;
 using Nyris.Crdt.Managed.Services.Propagation;
 using Nyris.Crdt.Serialization.Abstractions;
 using Nyris.Crdt.Sets;
@@ -38,7 +37,7 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
     internal sealed override ulong GetShardSize(ShardId shardId)
     {
         // TODO: this was used for debugging, remove 
-        if (TryGetShard(shardId, out var shard, out _)) return 0;
+        if (!TryGetShard(shardId, out var shard, out _)) return 0;
         if (shard is OptimizedObservedRemoveSetV2<NodeId, int> set)
         {
             return (ulong)set.Values.Count;

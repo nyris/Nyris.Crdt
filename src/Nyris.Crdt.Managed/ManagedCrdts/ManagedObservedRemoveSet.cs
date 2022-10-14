@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Managed.Model;
-using Nyris.Crdt.Managed.Services;
 using Nyris.Crdt.Managed.Services.Propagation;
 using Nyris.Crdt.Serialization.Abstractions;
 using Nyris.Crdt.Sets;

@@ -26,8 +26,7 @@ public readonly struct ReplicaId : IComparable<ReplicaId>, IEquatable<ReplicaId>
     
     public int CompareTo(ReplicaId other)
     {
-        // var instanceIdComparison = InstanceId.CompareTo(other.InstanceId);
-        // return instanceIdComparison != 0 ? instanceIdComparison : ShardId.CompareTo(other.ShardId);
-        return 1;
+        var instanceIdComparison = InstanceId.CompareTo(other.InstanceId);
+        return instanceIdComparison != 0 ? instanceIdComparison : ShardId.CompareTo(other.ShardId);
     }
 }

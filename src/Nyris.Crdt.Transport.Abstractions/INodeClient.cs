@@ -6,10 +6,12 @@ namespace Nyris.Crdt.Transport.Abstractions;
 
 public interface INodeClient
 {
+    IAsyncEnumerable<(MetadataKind, ReadOnlyMemory<byte>)> JoinToClusterAsync(NodeInfo nodeInfo, OperationContext context);
     Task MergeAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> deltas, OperationContext context);
     Task MergeMetadataAsync(MetadataKind kind, ReadOnlyMemory<byte> data, OperationContext context);
-    IDuplexMetadataDeltasStream GetMetadataDuplexStream();
     IDuplexDeltasStream GetDeltaDuplexStream();
-    IAsyncEnumerable<(MetadataKind, ReadOnlyMemory<byte>)> JoinToClusterAsync(NodeInfo nodeInfo,
+    IDuplexMetadataDeltasStream GetMetadataDuplexStream();
+
+    Task<ReadOnlyMemory<byte>> RerouteAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> operation,
         OperationContext context);
 }

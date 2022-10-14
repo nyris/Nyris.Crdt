@@ -19,21 +19,21 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
         [typeof(NodeInfo)] = 5
     };
 
-    private readonly INodeSelectionStrategy _nodeSelectionStrategy;
+    private readonly INodesSelectionStrategy _nodesSelectionStrategy;
     private readonly INodeClientFactory _nodeClientFactory;
     private readonly ISerializer _serializer;
     private readonly ILogger<ManagedCrdtFactory> _logger;
     private readonly NodeInfo _thisNode;
     private readonly ILoggerFactory _loggerFactory;
 
-    public ManagedCrdtFactory(INodeSelectionStrategy nodeSelectionStrategy,
+    public ManagedCrdtFactory(INodesSelectionStrategy nodesSelectionStrategy,
         INodeClientFactory nodeClientFactory,
         ISerializer serializer, 
         ILogger<ManagedCrdtFactory> logger,
         NodeInfo thisNode,
         ILoggerFactory loggerFactory)
     {
-        _nodeSelectionStrategy = nodeSelectionStrategy;
+        _nodesSelectionStrategy = nodesSelectionStrategy;
         _nodeClientFactory = nodeClientFactory;
         _serializer = serializer;
         _logger = logger;
@@ -82,7 +82,7 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
             {
                 1 => instanceId,
                 2 => _serializer,
-                3 => new PropagationService(distributor, _nodeSelectionStrategy, _nodeClientFactory),
+                3 => new PropagationService(distributor, _nodesSelectionStrategy, _nodeClientFactory),
                 4 => _thisNode.Id,
                 5 => _thisNode,
                 _ => throw new ArgumentOutOfRangeException()

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Google.Protobuf;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using Nyris.Crdt.Managed.Exceptions;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Transport.Abstractions;
 
@@ -22,21 +23,6 @@ internal sealed class NodeGrpcService : Node.NodeBase
         _logger = logger;
     }
 
-    public override async Task<Empty> MergeDeltas(DeltaBatch request, ServerCallContext context)
-    {
-        var instanceId = InstanceId.FromString(request.InstanceId);
-        if (!_crdts.TryGet(instanceId, out var crdt))
-        {
-            _logger.LogWarning("TraceId '{TraceId}': Received delta batch for a non-existent crdt with instanceId '{InstanceId}', ignoring it", 
-                request.Context.TraceId, instanceId.ToString());
-            return Empty;
-        }
-        var shardId = ShardId.FromUint(request.ShardId);
-        var operationContext = GetOperationContext(request.Context, context.CancellationToken);
-        await crdt.MergeAsync(shardId, request.Deltas.Memory, operationContext);
-        return Empty;
-    }
-
     public override async Task JoinToCluster(AddNodeMessage request, IServerStreamWriter<MetadataDelta> responseStream, ServerCallContext context)
     {
         var nodeInfo = new NodeInfo(new Uri(request.Address), NodeId.FromString(request.NodeId));
@@ -50,6 +36,21 @@ internal sealed class NodeGrpcService : Node.NodeBase
             });
         }
     }
+
+    public override async Task<Empty> MergeDeltas(CrdtBytesMsg request, ServerCallContext context)
+    {
+        var instanceId = InstanceId.FromString(request.InstanceId);
+        if (!_crdts.TryGet(instanceId, out var crdt))
+        {
+            _logger.LogWarning("TraceId '{TraceId}': Received delta batch for a non-existent crdt with instanceId '{InstanceId}', ignoring it", 
+                request.Context.TraceId, instanceId.ToString());
+            return Empty;
+        }
+        var shardId = ShardId.FromUint(request.ShardId);
+        var operationContext = GetOperationContext(request.Context, context.CancellationToken);
+        await crdt.MergeAsync(shardId, request.Value.Memory, operationContext);
+        return Empty;
+    }
     
     public override Task<Empty> MergeMetadataDeltas(MetadataDelta request, ServerCallContext context)
     {
@@ -57,8 +58,8 @@ internal sealed class NodeGrpcService : Node.NodeBase
         _clusterMetadata.MergeAsync((MetadataKind)request.Kind, request.Deltas.Memory, operationContext);
         return Task.FromResult(Empty);
     }
-
-    public override async Task Sync(IAsyncStreamReader<DeltaBatch> requestStream, IServerStreamWriter<DeltaBatch> responseStream, ServerCallContext context)
+    
+    public override async Task Sync(IAsyncStreamReader<CrdtBytesMsg> requestStream, IServerStreamWriter<CrdtBytesMsg> responseStream, ServerCallContext context)
     {
         // first exchange headers
         var headers = context.RequestHeaders;
@@ -100,6 +101,23 @@ internal sealed class NodeGrpcService : Node.NodeBase
             WriteMetadataDeltasToResponse(responseStream, timestamps, context.CancellationToken));
     }
 
+    public override async Task<CrdtBytesMsg> Reroute(CrdtBytesMsg request, ServerCallContext context)
+    {
+        var instanceId = InstanceId.FromString(request.InstanceId);
+        if (!_crdts.TryGet(instanceId, out var crdt))
+        {
+            throw new RoutingException($"TraceId '{request.Context.TraceId}': Received operation for " +
+                                       $"a non-existent crdt with instanceId '{instanceId.ToString()}'");
+        }
+        var shardId = ShardId.FromUint(request.ShardId);
+        var operationContext = GetOperationContext(request.Context, context.CancellationToken);
+        var result = await crdt.ApplyAsync(shardId, request.Value.Memory, operationContext);
+        return new CrdtBytesMsg
+        {
+            Value = UnsafeByteOperations.UnsafeWrap(result)
+        };
+    }
+
     private static OperationContext GetOperationContext(OperationContextMessage? contextDto, CancellationToken cancellationToken)
     {
         if (contextDto is null) return new OperationContext(NodeId.Empty, 0, "", cancellationToken);
@@ -110,17 +128,17 @@ internal sealed class NodeGrpcService : Node.NodeBase
         return operationContext;
     }
 
-    private async Task MergeIncomingDeltas(IAsyncStreamReader<DeltaBatch> requestStream, IManagedCrdt crdt, InstanceId instanceId, ShardId shardId, OperationContext context)
+    private async Task MergeIncomingDeltas(IAsyncStreamReader<CrdtBytesMsg> requestStream, IManagedCrdt crdt, InstanceId instanceId, ShardId shardId, OperationContext context)
     {
         await foreach (var deltas in requestStream.ReadAllAsync(cancellationToken: context.CancellationToken))
         {
             _logger.LogDebug("TraceId '{TraceId}': Received delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes", 
-                context.TraceId, instanceId.ToString(), shardId.ToString(), deltas.Deltas.Length.ToString());
-            await crdt.MergeAsync(shardId, deltas.Deltas.Memory, context);
+                context.TraceId, instanceId.ToString(), shardId.ToString(), deltas.Value.Length.ToString());
+            await crdt.MergeAsync(shardId, deltas.Value.Memory, context);
         }
     }
     
-    private async Task WriteDeltasToResponse(IAsyncStreamWriter<DeltaBatch> responseStream,
+    private async Task WriteDeltasToResponse(IAsyncStreamWriter<CrdtBytesMsg> responseStream,
         IManagedCrdt crdt,
         InstanceId instanceId,
         ShardId shardId,
@@ -132,9 +150,9 @@ internal sealed class NodeGrpcService : Node.NodeBase
         {
             _logger.LogDebug("TraceId '{TraceId}': Writing to stream a delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes", 
                 traceId, instanceId.ToString(), shardId.ToString(), deltas.Length.ToString());
-            await responseStream.WriteAsync(new DeltaBatch
+            await responseStream.WriteAsync(new CrdtBytesMsg
             {
-                Deltas = UnsafeByteOperations.UnsafeWrap(deltas)
+                Value = UnsafeByteOperations.UnsafeWrap(deltas)
             }, cancellationToken);
         }
     }

@@ -110,3 +110,4 @@ See [VersionedItemList](../../src/Nyris.Crdt/Model/VersionedItemList.cs) for det
 
 
 1. Callbacks. Interface + inner crdt implementation for notifications about state changes
+2. 

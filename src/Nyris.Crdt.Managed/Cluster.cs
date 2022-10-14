@@ -10,7 +10,6 @@ using Nyris.Crdt.Managed.ManagedCrdts;
 using Nyris.Crdt.Managed.ManagedCrdts.Factory;
 using Nyris.Crdt.Managed.Metadata;
 using Nyris.Crdt.Managed.Model;
-using Nyris.Crdt.Managed.Services;
 using Nyris.Crdt.Managed.Services.Propagation;
 using Nyris.Crdt.Managed.Strategies.Distribution;
 using Nyris.Crdt.Serialization.Abstractions;
@@ -222,19 +221,39 @@ internal sealed class Cluster : ICluster, INodeFailureObserver, IClusterMetadata
 
     public ImmutableArray<NodeInfo> GetNodesWithReadReplicas(InstanceId instanceId, ShardId shardId)
     {
-        throw new NotImplementedException();
+        if (!_crdtInfos.TryGet(instanceId.With(shardId), crdtInfo => crdtInfo.ReadReplicas, out var replicas)
+            || replicas is null 
+            || replicas.Count == 0)
+        {
+            return ImmutableArray<NodeInfo>.Empty;
+        }
+
+        // TODO: refactor this abomination - cache read replica upon change in CrdtInfos
+        var builder = ImmutableArray.CreateBuilder<NodeInfo>(replicas.Count);
+        var nodes = _nodeSet.Values.ToDictionary(ni => ni.Id, ni => ni);
+        foreach (var nodeId in replicas.OrderBy(i => i))
+        {
+            if (nodes.TryGetValue(nodeId, out var info))
+            {
+                builder.Add(info);    
+            }
+        }
+        return builder.MoveToImmutable();
     }
 
     public async Task NodeFailureObservedAsync(NodeId nodeId, CancellationToken cancellationToken)
     {
         if (_thisNode.Id == nodeId)
         {
-            _logger.LogWarning("This should not be reachable - \"detected\" remote failure in itself, no-op");
+            _logger.LogCritical("This should not be reachable - \"detected\" remote failure in itself, no-op");
+            return;
         }
 
         var traceId = $"{_thisNode.Id}-observed-{nodeId}-fail";
         var context = new OperationContext(_thisNode.Id, -1, traceId, cancellationToken);
-        ImmutableArray<NodeInfoSet.DeltaDto> deltas; 
+        ImmutableArray<NodeInfoSet.DeltaDto> nodesDeltas;
+        var infosDeltas = new List<ImmutableArray<CrdtInfos.DeltaDto>>(_crdtInfos.Count);
+
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
@@ -243,14 +262,22 @@ internal sealed class Cluster : ICluster, INodeFailureObserver, IClusterMetadata
 
             _logger.LogInformation("TraceId '{TraceId}': Failure in node '{NodeId}' detected, removing from NodeSet", 
                 traceId, nodeId);
-            deltas = _nodeSet.Remove(nodeInfo);
+            nodesDeltas = _nodeSet.Remove(nodeInfo);
+            foreach (var replicaId in _crdtInfos.Keys)
+            {
+                if (_crdtInfos.TryRemoveNodeAsHolderOfReadReplica(nodeId, replicaId, out var infoDeltas))
+                {
+                    infosDeltas.Add(infoDeltas);
+                }
+            }
         }
         finally
         {
             _semaphore.Release();
         }
         
-        await PropagateNodeDeltasAsync(deltas, _nodeSet.Values.ToImmutableArray(), context);
+        await PropagateNodeDeltasAsync(nodesDeltas, _nodeSet.Values.ToImmutableArray(), context);
+        await PropagateInfosAsync(infosDeltas.SelectMany(deltas => deltas), context);
         await DistributeShardsAsync(cancellationToken);
     }
 

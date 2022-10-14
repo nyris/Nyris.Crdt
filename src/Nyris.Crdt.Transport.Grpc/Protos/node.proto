@@ -2,16 +2,17 @@ syntax = "proto3";
 
 service Node {
   rpc JoinToCluster (AddNodeMessage) returns (stream MetadataDelta);
-  rpc MergeDeltas (DeltaBatch) returns (Empty);
+  rpc MergeDeltas (CrdtBytesMsg) returns (Empty);
   rpc MergeMetadataDeltas (MetadataDelta) returns (Empty);
-  rpc Sync (stream DeltaBatch) returns (stream DeltaBatch);
+  rpc Sync (stream CrdtBytesMsg) returns (stream CrdtBytesMsg);
   rpc SyncMetadata (stream MetadataDelta) returns (stream MetadataDelta);
+  rpc Reroute (CrdtBytesMsg) returns (CrdtBytesMsg);
 }
 
-message DeltaBatch {
+message CrdtBytesMsg {
   string InstanceId = 1;
   uint32 ShardId = 2;
-  bytes Deltas = 3;
+  bytes Value = 3;
   OperationContextMessage Context = 4;
 }
 

@@ -3,21 +3,22 @@ using Nyris.Contracts.Exceptions;
 
 namespace Nyris.Crdt.Managed.Exceptions;
 
-public class BaseException : NyrisException 
+[Serializable]
+public abstract class BaseException : NyrisException 
 {
-    public BaseException()
+    protected BaseException()
     {
     }
 
-    public BaseException(string? message) : base(message)
+    protected BaseException(string? message) : base(message)
     {
     }
 
-    public BaseException(string? message, Exception? inner) : base(message, inner)
+    protected BaseException(string? message, Exception? inner) : base(message, inner)
     {
     }
 
-    public BaseException(SerializationInfo info, StreamingContext context) : base(info, context)
+    protected BaseException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

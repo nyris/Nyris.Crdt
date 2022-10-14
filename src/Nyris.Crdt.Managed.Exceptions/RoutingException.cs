@@ -2,7 +2,8 @@ using System.Runtime.Serialization;
 
 namespace Nyris.Crdt.Managed.Exceptions;
 
-internal sealed class RoutingException : BaseException
+[Serializable]
+public sealed class RoutingException : BaseException
 {
     public RoutingException()
     {

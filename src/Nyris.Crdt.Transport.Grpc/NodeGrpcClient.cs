@@ -15,32 +15,6 @@ internal sealed class NodeGrpcClient : INodeClient
     {
         _client = client;
     }
-    
-    public async Task MergeAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> deltas,
-        OperationContext context)
-    {
-        await _client.MergeDeltasAsync(new DeltaBatch
-        {
-            InstanceId = instanceId.ToString(),
-            ShardId = shardId.AsUint,
-            Deltas = UnsafeByteOperations.UnsafeWrap(deltas),
-            Context = GetContextMessage(context)
-        }, cancellationToken: context.CancellationToken);
-    }
-
-    public async Task MergeMetadataAsync(MetadataKind kind, ReadOnlyMemory<byte> data,
-        OperationContext context)
-    {
-        await _client.MergeMetadataDeltasAsync(new MetadataDelta
-        {
-            Kind = (int)kind,
-            Deltas = UnsafeByteOperations.UnsafeWrap(data),
-            Context = GetContextMessage(context)
-        }, cancellationToken: context.CancellationToken);
-    }
-
-    public IDuplexMetadataDeltasStream GetMetadataDuplexStream() => new GrpcDuplexMetadataDeltasStream(_client);
-    public IDuplexDeltasStream GetDeltaDuplexStream() => new GrpcDuplexDeltasStream(_client);
 
     public async IAsyncEnumerable<(MetadataKind, ReadOnlyMemory<byte>)> JoinToClusterAsync(
         NodeInfo nodeInfo, 
@@ -57,6 +31,44 @@ internal sealed class NodeGrpcClient : INodeClient
         {
             yield return ((MetadataKind)delta.Kind, delta.Deltas.Memory);
         }
+    }
+    
+    public async Task MergeAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> deltas,
+        OperationContext context)
+    {
+        await _client.MergeDeltasAsync(new CrdtBytesMsg
+        {
+            InstanceId = instanceId.ToString(),
+            ShardId = shardId.AsUint,
+            Value = UnsafeByteOperations.UnsafeWrap(deltas),
+            Context = GetContextMessage(context)
+        }, cancellationToken: context.CancellationToken);
+    }
+
+    public async Task MergeMetadataAsync(MetadataKind kind, ReadOnlyMemory<byte> data,
+        OperationContext context)
+    {
+        await _client.MergeMetadataDeltasAsync(new MetadataDelta
+        {
+            Kind = (int)kind,
+            Deltas = UnsafeByteOperations.UnsafeWrap(data),
+            Context = GetContextMessage(context)
+        }, cancellationToken: context.CancellationToken);
+    }
+
+    public IDuplexDeltasStream GetDeltaDuplexStream() => new GrpcDuplexDeltasStream(_client);
+    public IDuplexMetadataDeltasStream GetMetadataDuplexStream() => new GrpcDuplexMetadataDeltasStream(_client);
+
+    public async Task<ReadOnlyMemory<byte>> RerouteAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> operation, OperationContext context)
+    {
+        var result = await _client.RerouteAsync(new CrdtBytesMsg
+        {
+            InstanceId = instanceId.ToString(),
+            ShardId = shardId.AsUint,
+            Value = UnsafeByteOperations.UnsafeWrap(operation),
+            Context = GetContextMessage(context)
+        }, cancellationToken: context.CancellationToken);
+        return result.Value.Memory;
     }
 
     private static OperationContextMessage GetContextMessage(OperationContext context) =>

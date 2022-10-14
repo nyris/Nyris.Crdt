@@ -11,7 +11,7 @@ namespace Nyris.Crdt.Transport.Grpc;
 
 internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
 {
-    private AsyncDuplexStreamingCall<DeltaBatch, DeltaBatch>? _call;
+    private AsyncDuplexStreamingCall<CrdtBytesMsg, CrdtBytesMsg>? _call;
     private readonly Node.NodeClient _client;
 
     
@@ -44,9 +44,9 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
         
         await foreach (var delta in deltas.WithCancellation(cancellationToken))
         {
-            await _call.RequestStream.WriteAsync(new DeltaBatch
+            await _call.RequestStream.WriteAsync(new CrdtBytesMsg
             {
-                Deltas = UnsafeByteOperations.UnsafeWrap(delta)
+                Value = UnsafeByteOperations.UnsafeWrap(delta)
             }, cancellationToken);
         }
 
@@ -62,7 +62,7 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
         
         await foreach (var batch in _call.ResponseStream.ReadAllAsync(cancellationToken: cancellationToken))
         {
-            yield return batch.Deltas.Memory;
+            yield return batch.Value.Memory;
         }
     }
 

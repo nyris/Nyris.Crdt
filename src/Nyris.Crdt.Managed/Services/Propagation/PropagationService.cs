@@ -7,11 +7,11 @@ namespace Nyris.Crdt.Managed.Services.Propagation;
 internal sealed class PropagationService : IPropagationService
 {
     private readonly IReplicaDistributor _distributor;
-    private readonly INodeSelectionStrategy _selectionStrategy;
+    private readonly INodesSelectionStrategy _selectionStrategy;
     private readonly INodeClientFactory _clientFactory;
     
     public PropagationService(IReplicaDistributor distributor,
-        INodeSelectionStrategy selectionStrategy,
+        INodesSelectionStrategy selectionStrategy,
         INodeClientFactory clientFactory)
     {
         _distributor = distributor;

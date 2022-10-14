@@ -14,19 +14,19 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
 
     private readonly Cluster _cluster;
     private readonly INodeClientFactory _clientFactory;
-    private readonly INodeSelectionStrategy _nodeSelectionStrategy;
+    private readonly INodesSelectionStrategy _nodesSelectionStrategy;
     private readonly NodeInfo _thisNode;
     private readonly ILogger<SynchronizationAndRelocationService> _logger;
 
     public SynchronizationAndRelocationService(Cluster cluster, 
         INodeClientFactory clientFactory,
-        INodeSelectionStrategy nodeSelectionStrategy, 
+        INodesSelectionStrategy nodesSelectionStrategy, 
         NodeInfo thisNode, 
         ILogger<SynchronizationAndRelocationService> logger)
     {
         _cluster = cluster;
         _clientFactory = clientFactory;
-        _nodeSelectionStrategy = nodeSelectionStrategy;
+        _nodesSelectionStrategy = nodesSelectionStrategy;
         _thisNode = thisNode;
         _logger = logger;
     }
@@ -115,7 +115,7 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
         OperationContext context,
         InstanceId instanceId)
     {
-        var nodesToSync = _nodeSelectionStrategy.SelectNodes(nodesWithReplica);
+        var nodesToSync = _nodesSelectionStrategy.SelectNodes(nodesWithReplica);
         var timestamp = crdt.GetCausalTimestamp(shardId);
         
         foreach (var node in nodesToSync)
@@ -165,7 +165,7 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
     {
         // _logger.LogDebug("Starting to sync node metadata");
         var nodes = await _cluster.GetNodesAsync(context.CancellationToken);
-        var targetNodes = _nodeSelectionStrategy.SelectNodes(nodes);
+        var targetNodes = _nodesSelectionStrategy.SelectNodes(nodes);
         var timestamps = _cluster.GetCausalTimestamps(context.CancellationToken);
         
         foreach (var node in targetNodes)
