@@ -1,8 +1,7 @@
+using Nyris.Crdt.Managed.Metadata;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Serialization.MessagePack.Formatters;
 using Nyris.Crdt.Sets;
-using Nyris.ManagedCrdtsV2;
-using Nyris.ManagedCrdtsV2.Metadata;
 using InstanceId = Nyris.Crdt.Managed.Model.InstanceId;
 using Range = Nyris.Crdt.Model.Range;
 
@@ -13,12 +12,12 @@ internal static class CustomResolverGetFormatterHelper
     // If type is concrete type, use type-formatter map
     private static readonly Dictionary<Type, object> FormatterMap = new()
     {
-        {typeof(NodeInfoSet.Dto), new NodeInfoSetDtoFormatter()},
+        {typeof(OptimizedObservedRemoveSetV2<NodeId, NodeInfo>.Dto), new NodeInfoSetDtoFormatter()},
         {typeof(NodeId), NodeIdFormatter.Instance},
         {typeof(Range), new RangeFormatter()},
         {typeof(NodeInfo), new NodeInfoFormatter()},
-        {typeof(CrdtInfo.DeltaDto), new CrdtInfoDeltaDtoFormatter()},
-        {typeof(CrdtConfig.DeltaDto), new CrdtConfigDeltaDtoFormatter()},
+        {typeof(CrdtInfoDelta), new CrdtInfoDeltaDtoFormatter()},
+        {typeof(CrdtConfigDelta), new CrdtConfigDeltaDtoFormatter()},
         {typeof(ReplicaId), new GlobalShardIdFormatter()},
         {typeof(InstanceId), new InstanceIdFormatter()}
     };

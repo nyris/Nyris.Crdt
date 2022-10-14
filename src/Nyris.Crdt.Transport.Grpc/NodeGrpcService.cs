@@ -54,7 +54,7 @@ internal sealed class NodeGrpcService : Node.NodeBase
     public override Task<Empty> MergeMetadataDeltas(MetadataDelta request, ServerCallContext context)
     {
         var operationContext = GetOperationContext(request.Context, context.CancellationToken);
-        _clusterMetadata.MergeAsync((MetadataDto)request.Kind, request.Deltas.Memory, operationContext);
+        _clusterMetadata.MergeAsync((MetadataKind)request.Kind, request.Deltas.Memory, operationContext);
         return Task.FromResult(Empty);
     }
 
@@ -143,12 +143,12 @@ internal sealed class NodeGrpcService : Node.NodeBase
     {
         await foreach (var deltas in requestStream.ReadAllAsync())
         {
-            await _clusterMetadata.MergeAsync((MetadataDto)deltas.Kind, deltas.Deltas.Memory, context);
+            await _clusterMetadata.MergeAsync((MetadataKind)deltas.Kind, deltas.Deltas.Memory, context);
         }
     }
 
     private async Task WriteMetadataDeltasToResponse(IAsyncStreamWriter<MetadataDelta> responseStream,
-        ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> timestamps,
+        ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>> timestamps,
         CancellationToken cancellationToken)
     {
         foreach (var (kind, timestamp) in timestamps)

@@ -28,7 +28,7 @@ internal sealed class NodeGrpcClient : INodeClient
         }, cancellationToken: context.CancellationToken);
     }
 
-    public async Task MergeMetadataAsync(MetadataDto kind, ReadOnlyMemory<byte> data,
+    public async Task MergeMetadataAsync(MetadataKind kind, ReadOnlyMemory<byte> data,
         OperationContext context)
     {
         await _client.MergeMetadataDeltasAsync(new MetadataDelta
@@ -42,7 +42,7 @@ internal sealed class NodeGrpcClient : INodeClient
     public IDuplexMetadataDeltasStream GetMetadataDuplexStream() => new GrpcDuplexMetadataDeltasStream(_client);
     public IDuplexDeltasStream GetDeltaDuplexStream() => new GrpcDuplexDeltasStream(_client);
 
-    public async IAsyncEnumerable<(MetadataDto, ReadOnlyMemory<byte>)> JoinToClusterAsync(
+    public async IAsyncEnumerable<(MetadataKind, ReadOnlyMemory<byte>)> JoinToClusterAsync(
         NodeInfo nodeInfo, 
         OperationContext context)
     {
@@ -55,7 +55,7 @@ internal sealed class NodeGrpcClient : INodeClient
 
         await foreach (var delta in response.ResponseStream.ReadAllAsync())
         {
-            yield return ((MetadataDto)delta.Kind, delta.Deltas.Memory);
+            yield return ((MetadataKind)delta.Kind, delta.Deltas.Memory);
         }
     }
 

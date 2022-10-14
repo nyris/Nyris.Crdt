@@ -11,4 +11,8 @@
       <PackageReference Include="StronglyTypedId" Version="0.2.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Nyris.Crdt\Nyris.Crdt.csproj" />
+    </ItemGroup>
+
 </Project>

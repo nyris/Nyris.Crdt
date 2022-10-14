@@ -11,7 +11,6 @@
       <ProjectReference Include="..\Nyris.Crdt.Managed.Model\Nyris.Crdt.Managed.Model.csproj" />
       <ProjectReference Include="..\Nyris.Crdt.Serialization.Abstractions\Nyris.Crdt.Serialization.Abstractions.csproj" />
       <ProjectReference Include="..\Nyris.Crdt\Nyris.Crdt.csproj" />
-      <ProjectReference Include="..\Nyris.ManagedCrdtsV2\Nyris.ManagedCrdtsV2.csproj" />
     </ItemGroup>
 
     <ItemGroup>

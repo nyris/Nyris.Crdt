@@ -1,26 +1,25 @@
 using System.Collections.Immutable;
 using MessagePack;
 using MessagePack.Formatters;
+using Nyris.Crdt.Managed.Metadata;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Sets;
-using Nyris.ManagedCrdtsV2;
-using Nyris.ManagedCrdtsV2.Metadata;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
-public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfo.DeltaDto>
+public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfoDelta>
 {
-    public void Serialize(ref MessagePackWriter writer, CrdtInfo.DeltaDto value, MessagePackSerializerOptions options)
+    public void Serialize(ref MessagePackWriter writer, CrdtInfoDelta value, MessagePackSerializerOptions options)
     {
         switch (value)
         {
-            case CrdtInfo.NodesWithReplicaDto nodesWithReplicaDto:
+            case CrdtInfoNodesWithReplicaDelta nodesWithReplicaDto:
                 writer.Write(true);
                 var deltaFormatter = options.Resolver
                     .GetFormatterWithVerify<ImmutableArray<OptimizedObservedRemoveSetV2<NodeId, NodeId>.DeltaDto>>();
                 deltaFormatter.Serialize(ref writer, nodesWithReplicaDto.Delta, options);
                 break;
-            case CrdtInfo.StorageSizeDto storageSizeDto:
+            case CrdtInfoStorageSizeDelta storageSizeDto:
                 writer.Write(false);
                 writer.WriteUInt64(storageSizeDto.Value);
                 writer.Write(storageSizeDto.DateTime);
@@ -30,7 +29,7 @@ public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfo.DeltaDto
         }
     }
 
-    public CrdtInfo.DeltaDto Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
+    public CrdtInfoDelta Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
     {
         switch (reader.ReadBoolean())
         {
@@ -38,9 +37,9 @@ public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfo.DeltaDto
                 var deltaFormatter = options.Resolver
                     .GetFormatterWithVerify<ImmutableArray<OptimizedObservedRemoveSetV2<NodeId, NodeId>.DeltaDto>>();
                 var deltas = deltaFormatter.Deserialize(ref reader, options);
-                return new CrdtInfo.NodesWithReplicaDto(deltas);
+                return new CrdtInfoNodesWithReplicaDelta(deltas);
             case false:
-                return new CrdtInfo.StorageSizeDto(reader.ReadUInt64(), reader.ReadDateTime());
+                return new CrdtInfoStorageSizeDelta(reader.ReadUInt64(), reader.ReadDateTime());
         }
     }
 }

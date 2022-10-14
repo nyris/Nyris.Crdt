@@ -18,12 +18,12 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         _client = client;
     }
 
-    public static ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> TimestampsFromHeaders(Metadata responseHeaders)
+    public static ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>> TimestampsFromHeaders(Metadata responseHeaders)
     {
-        var builder = ImmutableDictionary.CreateBuilder<MetadataDto, ReadOnlyMemory<byte>>();
+        var builder = ImmutableDictionary.CreateBuilder<MetadataKind, ReadOnlyMemory<byte>>();
         foreach (var header in responseHeaders)
         {
-            if (Enum.TryParse<MetadataDto>(header.Key, out var kind))
+            if (Enum.TryParse<MetadataKind>(header.Key, out var kind))
             {
                 builder.Add(kind, Convert.FromBase64String(header.Value));
             }
@@ -32,7 +32,7 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         return builder.ToImmutable();
     }
 
-    public static Metadata ToHeaders(ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> timestamps)
+    public static Metadata ToHeaders(ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>> timestamps)
     {
         var headers = new Metadata();
         foreach (var (kind, timestamp) in timestamps)
@@ -44,8 +44,8 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         return headers;
     }
 
-    public async Task<ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>>> ExchangeMetadataTimestampsAsync(
-        ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> timestamps,
+    public async Task<ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>>> ExchangeMetadataTimestampsAsync(
+        ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>> timestamps,
         OperationContext context)
     {
         var headers = ToHeaders(timestamps).WithOrigin(context.Origin).WithTraceId(context.TraceId);
@@ -54,7 +54,7 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         return TimestampsFromHeaders(responseHeaders);
     }
 
-    public async Task SendDeltasAsync(MetadataDto kind, IAsyncEnumerable<ReadOnlyMemory<byte>> deltas, CancellationToken cancellationToken)
+    public async Task SendDeltasAsync(MetadataKind kind, IAsyncEnumerable<ReadOnlyMemory<byte>> deltas, CancellationToken cancellationToken)
     {
         if (_call is null)
         {
@@ -71,7 +71,7 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         }
     }
 
-    public async IAsyncEnumerable<(MetadataDto kind, ReadOnlyMemory<byte>)> GetDeltasAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<(MetadataKind kind, ReadOnlyMemory<byte>)> GetDeltasAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (_call is null)
         {
@@ -80,7 +80,7 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         
         await foreach (var batch in _call.ResponseStream.ReadAllAsync(cancellationToken: cancellationToken))
         {
-            yield return ((MetadataDto)batch.Kind, batch.Deltas.Memory);
+            yield return ((MetadataKind)batch.Kind, batch.Deltas.Memory);
         }
     }
 

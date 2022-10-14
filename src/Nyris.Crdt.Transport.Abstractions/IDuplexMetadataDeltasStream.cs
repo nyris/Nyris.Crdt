@@ -5,13 +5,13 @@ namespace Nyris.Crdt.Transport.Abstractions;
 
 public interface IDuplexMetadataDeltasStream : IDisposable
 {
-    Task<ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>>> ExchangeMetadataTimestampsAsync(
-        ImmutableDictionary<MetadataDto, ReadOnlyMemory<byte>> timestamps, OperationContext context);
+    Task<ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>>> ExchangeMetadataTimestampsAsync(
+        ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>> timestamps, OperationContext context);
 
-    Task SendDeltasAsync(MetadataDto kind, IAsyncEnumerable<ReadOnlyMemory<byte>> deltas,
+    Task SendDeltasAsync(MetadataKind kind, IAsyncEnumerable<ReadOnlyMemory<byte>> deltas,
         CancellationToken cancellationToken);
 
-    IAsyncEnumerable<(MetadataDto kind, ReadOnlyMemory<byte>)> GetDeltasAsync(CancellationToken cancellationToken);
+    IAsyncEnumerable<(MetadataKind kind, ReadOnlyMemory<byte>)> GetDeltasAsync(CancellationToken cancellationToken);
 
     Task FinishSendingAsync();
 }
