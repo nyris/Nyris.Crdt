@@ -39,7 +39,7 @@ public class ObservedRemoveMapDeltaDtoFormatter<TActorId, TKey, TValue, TValueDe
                 writer.WriteUInt64(version);
                 break;
             case ObservedRemoveMap<TActorId, TKey, TValue, TValueDelta, TValueTimestamp>.DeltaDtoDeletedRange (var actorId, var range):
-                writer.WriteUInt8(RemovalDelta);
+                writer.WriteUInt8(RemovalRangeDelta);
                 actorFormatter.Serialize(ref writer, actorId, options);
                 writer.WriteUInt64(range.From);
                 writer.WriteUInt64(range.To);

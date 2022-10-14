@@ -1,10 +1,11 @@
 using System.Runtime.CompilerServices;
 using Google.Protobuf;
 using Grpc.Core;
-using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Exceptions;
-using Nyris.ManagedCrdtsV2;
-using ShardId = Nyris.ManagedCrdtsV2.ShardId;
+using Nyris.Crdt.Managed.Exceptions;
+using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Transport.Abstractions;
+using InstanceId = Nyris.Crdt.Managed.Model.InstanceId;
+using ShardId = Nyris.Crdt.Managed.Model.ShardId;
 
 namespace Nyris.Crdt.Transport.Grpc;
 
@@ -38,7 +39,7 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
     {
         if (_call is null)
         {
-            throw new AssumptionsViolatedException($"{nameof(ExchangeTimestampsAsync)} method must be called before {nameof(SendDeltasAndFinishAsync)}");
+            throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeTimestampsAsync)} method must be called before {nameof(SendDeltasAndFinishAsync)}");
         } 
         
         await foreach (var delta in deltas.WithCancellation(cancellationToken))
@@ -56,7 +57,7 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
     {
         if (_call is null)
         {
-            throw new AssumptionsViolatedException($"{nameof(ExchangeTimestampsAsync)} method must be called before {nameof(GetDeltasAsync)}");
+            throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeTimestampsAsync)} method must be called before {nameof(GetDeltasAsync)}");
         } 
         
         await foreach (var batch in _call.ResponseStream.ReadAllAsync(cancellationToken: cancellationToken))

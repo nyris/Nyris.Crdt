@@ -1,7 +1,9 @@
-using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Serialization.MessagePack.Formatters;
 using Nyris.Crdt.Sets;
 using Nyris.ManagedCrdtsV2;
+using Nyris.ManagedCrdtsV2.Metadata;
+using InstanceId = Nyris.Crdt.Managed.Model.InstanceId;
 using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt.Serialization.MessagePack;
@@ -15,12 +17,9 @@ internal static class CustomResolverGetFormatterHelper
         {typeof(NodeId), NodeIdFormatter.Instance},
         {typeof(Range), new RangeFormatter()},
         {typeof(NodeInfo), new NodeInfoFormatter()},
-        // {typeof(NodeInfoSet.DeltaDto), new NodeInfoSetDeltaFormatter()},
         {typeof(CrdtInfo.DeltaDto), new CrdtInfoDeltaDtoFormatter()},
         {typeof(CrdtConfig.DeltaDto), new CrdtConfigDeltaDtoFormatter()},
-        {typeof(GlobalShardId), new GlobalShardIdFormatter()},
-        // {typeof(CrdtConfigs.DeltaDto), new CrdtConfigsDeltaDtoFormatter()},
-        // {typeof(CrdtInfos.DeltaDto), new CrdtInfosDeltaDtoFormatter()},
+        {typeof(ReplicaId), new GlobalShardIdFormatter()},
         {typeof(InstanceId), new InstanceIdFormatter()}
     };
     

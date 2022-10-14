@@ -2,10 +2,8 @@ using System.Collections.Immutable;
 using Google.Protobuf;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Nyris.Crdt.Distributed.Model;
-using Nyris.ManagedCrdtsV2;
-using ShardId = Nyris.ManagedCrdtsV2.ShardId;
+using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Transport.Abstractions;
 
 namespace Nyris.Crdt.Transport.Grpc;
 
@@ -26,11 +24,11 @@ internal sealed class NodeGrpcService : Node.NodeBase
 
     public override async Task<Empty> MergeDeltas(DeltaBatch request, ServerCallContext context)
     {
-        var instanceId = InstanceId.FromChars(request.InstanceId);
+        var instanceId = InstanceId.FromString(request.InstanceId);
         if (!_crdts.TryGet(instanceId, out var crdt))
         {
             _logger.LogWarning("TraceId '{TraceId}': Received delta batch for a non-existent crdt with instanceId '{InstanceId}', ignoring it", 
-                request.Context.TraceId, instanceId);
+                request.Context.TraceId, instanceId.ToString());
             return Empty;
         }
         var shardId = ShardId.FromUint(request.ShardId);
@@ -41,7 +39,7 @@ internal sealed class NodeGrpcService : Node.NodeBase
 
     public override async Task JoinToCluster(AddNodeMessage request, IServerStreamWriter<MetadataDelta> responseStream, ServerCallContext context)
     {
-        var nodeInfo = new NodeInfo(new Uri(request.Address), NodeId.FromChars(request.NodeId));
+        var nodeInfo = new NodeInfo(new Uri(request.Address), NodeId.FromString(request.NodeId));
         var operationContext = GetOperationContext(request.Context, context.CancellationToken);
         await foreach (var (kind, bin) in _clusterMetadata.AddNewNodeAsync(nodeInfo, operationContext))
         {
@@ -65,8 +63,9 @@ internal sealed class NodeGrpcService : Node.NodeBase
         // first exchange headers
         var headers = context.RequestHeaders;
         var traceId = headers.GetTraceId();
+        var instanceId = headers.GetInstanceId();
         
-        if (!_crdts.TryGet(headers.GetInstanceId(), out var crdt))
+        if (!_crdts.TryGet(instanceId, out var crdt))
         {
             throw new KeyNotFoundException($"TraceId '{traceId}': Received instance id was not found");
         }
@@ -78,8 +77,8 @@ internal sealed class NodeGrpcService : Node.NodeBase
 
         // then exchange deltas
         var operationContextLocal = new OperationContext(headers.GetOrigin(), 0, traceId, context.CancellationToken);
-        await Task.WhenAll(MergeIncomingDeltas(requestStream, crdt, shardId, operationContextLocal), 
-            WriteDeltasToResponse(responseStream, crdt, shardId, headers.GetTimestamp(), traceId, context.CancellationToken));
+        await Task.WhenAll(MergeIncomingDeltas(requestStream, crdt, instanceId, shardId, operationContextLocal), 
+            WriteDeltasToResponse(responseStream, crdt, instanceId, shardId, headers.GetTimestamp(), traceId, context.CancellationToken));
     }
 
     public override async Task SyncMetadata(IAsyncStreamReader<MetadataDelta> requestStream, IServerStreamWriter<MetadataDelta> responseStream, ServerCallContext context)
@@ -101,31 +100,29 @@ internal sealed class NodeGrpcService : Node.NodeBase
             WriteMetadataDeltasToResponse(responseStream, timestamps, context.CancellationToken));
     }
 
-    private OperationContext GetOperationContext(OperationContextMessage? contextDto, CancellationToken cancellationToken)
+    private static OperationContext GetOperationContext(OperationContextMessage? contextDto, CancellationToken cancellationToken)
     {
-        if (contextDto is null)
-        {
-            return new OperationContext(NodeId.Empty, 0, "", cancellationToken);
-        }
-        
-        var origin = string.IsNullOrEmpty(contextDto.Origin) ? NodeId.Empty : NodeId.FromChars(contextDto.Origin);
+        if (contextDto is null) return new OperationContext(NodeId.Empty, 0, "", cancellationToken);
+
+        var origin = string.IsNullOrEmpty(contextDto.Origin) ? NodeId.Empty : NodeId.FromString(contextDto.Origin);
         var operationContext = new OperationContext(origin, contextDto.AwaitPropagationToNNodes,
             contextDto.TraceId, cancellationToken);
         return operationContext;
     }
 
-    private async Task MergeIncomingDeltas(IAsyncStreamReader<DeltaBatch> requestStream, ManagedCrdt crdt, ShardId shardId, OperationContext context)
+    private async Task MergeIncomingDeltas(IAsyncStreamReader<DeltaBatch> requestStream, IManagedCrdt crdt, InstanceId instanceId, ShardId shardId, OperationContext context)
     {
         await foreach (var deltas in requestStream.ReadAllAsync(cancellationToken: context.CancellationToken))
         {
             _logger.LogDebug("TraceId '{TraceId}': Received delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes", 
-                context.TraceId, crdt.InstanceId, shardId, deltas.Deltas.Length);
+                context.TraceId, instanceId.ToString(), shardId.ToString(), deltas.Deltas.Length.ToString());
             await crdt.MergeAsync(shardId, deltas.Deltas.Memory, context);
         }
     }
     
     private async Task WriteDeltasToResponse(IAsyncStreamWriter<DeltaBatch> responseStream,
-        ManagedCrdt crdt, 
+        IManagedCrdt crdt,
+        InstanceId instanceId,
         ShardId shardId,
         ReadOnlyMemory<byte> timestamp,
         string traceId,
@@ -134,7 +131,7 @@ internal sealed class NodeGrpcService : Node.NodeBase
         await foreach (var deltas in crdt.EnumerateDeltaBatchesAsync(shardId, timestamp, cancellationToken))
         {
             _logger.LogDebug("TraceId '{TraceId}': Writing to stream a delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes", 
-                traceId, crdt.InstanceId, shardId, deltas.Length);
+                traceId, instanceId.ToString(), shardId.ToString(), deltas.Length.ToString());
             await responseStream.WriteAsync(new DeltaBatch
             {
                 Deltas = UnsafeByteOperations.UnsafeWrap(deltas)

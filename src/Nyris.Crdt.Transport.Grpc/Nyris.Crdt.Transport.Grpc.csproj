@@ -20,7 +20,10 @@
     </ItemGroup>
     
     <ItemGroup>
-      <ProjectReference Include="..\Nyris.ManagedCrdtsV2\Nyris.ManagedCrdtsV2.csproj" />
+      <ProjectReference Include="..\Nyris.Crdt.Managed.DependencyInjection\Nyris.Crdt.Managed.DependencyInjection.csproj" />
+      <ProjectReference Include="..\Nyris.Crdt.Managed.Exceptions\Nyris.Crdt.Managed.Exceptions.csproj" />
+      <ProjectReference Include="..\Nyris.Crdt.Managed.Model\Nyris.Crdt.Managed.Model.csproj" />
+      <ProjectReference Include="..\Nyris.Crdt.Transport.Abstractions\Nyris.Crdt.Transport.Abstractions.csproj" />
     </ItemGroup>
 
 </Project>

@@ -2,8 +2,9 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using Google.Protobuf;
 using Grpc.Core;
-using Nyris.Crdt.Exceptions;
-using Nyris.ManagedCrdtsV2;
+using Nyris.Crdt.Managed.Exceptions;
+using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Transport.Abstractions;
 
 namespace Nyris.Crdt.Transport.Grpc;
 
@@ -57,7 +58,7 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
     {
         if (_call is null)
         {
-            throw new AssumptionsViolatedException($"{nameof(ExchangeMetadataTimestampsAsync)} method must be called before {nameof(SendDeltasAsync)}");
+            throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeMetadataTimestampsAsync)} method must be called before {nameof(SendDeltasAsync)}");
         } 
             
         await foreach (var delta in deltas.WithCancellation(cancellationToken))
@@ -74,7 +75,7 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
     {
         if (_call is null)
         {
-            throw new AssumptionsViolatedException($"{nameof(ExchangeMetadataTimestampsAsync)} method must be called before {nameof(GetDeltasAsync)}");
+            throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeMetadataTimestampsAsync)} method must be called before {nameof(GetDeltasAsync)}");
         } 
         
         await foreach (var batch in _call.ResponseStream.ReadAllAsync(cancellationToken: cancellationToken))

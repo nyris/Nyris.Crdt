@@ -1,7 +1,11 @@
 using Microsoft.Extensions.Logging;
-using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Exceptions;
+using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Serialization.Abstractions;
+using Nyris.Crdt.Transport.Abstractions;
+using Nyris.ManagedCrdtsV2.ManagedCrdts;
+using Nyris.ManagedCrdtsV2.Services;
+using Nyris.ManagedCrdtsV2.Strategies.NodeSelection;
 
 namespace Nyris.ManagedCrdtsV2;
 
@@ -17,21 +21,21 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
     };
 
     private readonly INodeSelectionStrategy _nodeSelectionStrategy;
-    private readonly INodeClientPool _nodeClientPool;
+    private readonly INodeClientFactory _nodeClientFactory;
     private readonly ISerializer _serializer;
     private readonly ILogger<ManagedCrdtFactory> _logger;
     private readonly NodeInfo _thisNode;
     private readonly ILoggerFactory _loggerFactory;
 
     public ManagedCrdtFactory(INodeSelectionStrategy nodeSelectionStrategy,
-        INodeClientPool nodeClientPool,
+        INodeClientFactory nodeClientFactory,
         ISerializer serializer, 
         ILogger<ManagedCrdtFactory> logger,
         NodeInfo thisNode,
         ILoggerFactory loggerFactory)
     {
         _nodeSelectionStrategy = nodeSelectionStrategy;
-        _nodeClientPool = nodeClientPool;
+        _nodeClientFactory = nodeClientFactory;
         _serializer = serializer;
         _logger = logger;
         _thisNode = thisNode;
@@ -79,7 +83,7 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
             {
                 1 => instanceId,
                 2 => _serializer,
-                3 => new PropagationService(distributor, _nodeSelectionStrategy, _nodeClientPool),
+                3 => new PropagationService(distributor, _nodeSelectionStrategy, _nodeClientFactory),
                 4 => _thisNode.Id,
                 5 => _thisNode,
                 _ => throw new ArgumentOutOfRangeException()

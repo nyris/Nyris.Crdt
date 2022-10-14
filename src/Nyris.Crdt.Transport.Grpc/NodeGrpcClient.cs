@@ -1,8 +1,9 @@
 using Google.Protobuf;
 using Grpc.Core;
-using Nyris.Crdt.Distributed.Model;
-using Nyris.ManagedCrdtsV2;
-using ShardId = Nyris.ManagedCrdtsV2.ShardId;
+using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Transport.Abstractions;
+using InstanceId = Nyris.Crdt.Managed.Model.InstanceId;
+using ShardId = Nyris.Crdt.Managed.Model.ShardId;
 
 namespace Nyris.Crdt.Transport.Grpc;
 

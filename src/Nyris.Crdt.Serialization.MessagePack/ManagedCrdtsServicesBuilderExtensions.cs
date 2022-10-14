@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Nyris.Crdt.Managed.DependencyInjection;
 using Nyris.Crdt.Serialization.Abstractions;
-using Nyris.ManagedCrdtsV2;
 
 namespace Nyris.Crdt.Serialization.MessagePack;
 

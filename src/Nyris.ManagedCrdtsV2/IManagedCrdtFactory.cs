@@ -1,4 +1,5 @@
-using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Managed.Model;
+using Nyris.ManagedCrdtsV2.ManagedCrdts;
 
 namespace Nyris.ManagedCrdtsV2;
 

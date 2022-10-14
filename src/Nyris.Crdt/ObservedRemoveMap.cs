@@ -141,7 +141,7 @@ namespace Nyris.Crdt
         }
 
         // TODO: updates of retrieved value will lead to lost deltas - how to deal with that?
-        public bool TryGet(TKey key, out TValue? value)
+        public bool TryGet(TKey key, [NotNullWhen(true)] out TValue? value)
         {
             if (!_items.TryGetValue(key, out var dottedValue))
             {

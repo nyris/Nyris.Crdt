@@ -1,6 +1,5 @@
 using Grpc.Core;
-using Nyris.Crdt.Distributed.Model;
-using ShardId = Nyris.ManagedCrdtsV2.ShardId;
+using Nyris.Crdt.Managed.Model;
 
 namespace Nyris.Crdt.Transport.Grpc;
 
@@ -29,8 +28,8 @@ internal static class MetadataExtensions
     }
     
     public static string GetTraceId(this Metadata headers) => headers.GetString(TraceIdHeaderKey);
-    public static NodeId GetOrigin(this Metadata headers) => NodeId.FromChars(headers.GetString(NodeIdHeaderKey));
-    public static InstanceId GetInstanceId(this Metadata headers) => InstanceId.FromChars(headers.GetString(InstanceIdHeaderKey));
+    public static NodeId GetOrigin(this Metadata headers) => NodeId.FromString(headers.GetString(NodeIdHeaderKey));
+    public static InstanceId GetInstanceId(this Metadata headers) => InstanceId.FromString(headers.GetString(InstanceIdHeaderKey));
     public static ShardId GetShardId(this Metadata headers) => ShardId.FromString(headers.GetString(ShardIdHeaderKey));
 
     private static string GetString(this Metadata headers, string key)

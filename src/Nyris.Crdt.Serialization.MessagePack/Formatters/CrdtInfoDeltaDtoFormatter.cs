@@ -1,9 +1,10 @@
 using System.Collections.Immutable;
 using MessagePack;
 using MessagePack.Formatters;
-using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Sets;
 using Nyris.ManagedCrdtsV2;
+using Nyris.ManagedCrdtsV2.Metadata;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 

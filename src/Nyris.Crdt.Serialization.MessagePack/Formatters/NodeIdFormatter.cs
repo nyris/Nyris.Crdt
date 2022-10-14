@@ -1,6 +1,6 @@
 using MessagePack;
 using MessagePack.Formatters;
-using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Managed.Model;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
@@ -10,9 +10,9 @@ public class NodeIdFormatter : IMessagePackFormatter<NodeId>
     
     public void Serialize(ref MessagePackWriter writer, NodeId value, MessagePackSerializerOptions options)
     {
-        writer.Write(value.AsReadOnlySpan);
+        writer.Write(value.ToString());
     }
 
     public NodeId Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options) 
-        => NodeId.FromChars(reader.ReadString());
+        => NodeId.FromString(reader.ReadString());
 }

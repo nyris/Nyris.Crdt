@@ -1,6 +1,6 @@
 using MessagePack;
 using MessagePack.Formatters;
-using Nyris.Crdt.Distributed.Model;
+using Nyris.Crdt.Managed.Model;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 

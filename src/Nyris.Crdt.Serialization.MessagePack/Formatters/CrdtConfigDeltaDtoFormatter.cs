@@ -1,6 +1,7 @@
 using MessagePack;
 using MessagePack.Formatters;
 using Nyris.ManagedCrdtsV2;
+using Nyris.ManagedCrdtsV2.Metadata;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
