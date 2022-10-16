@@ -21,7 +21,11 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
     }
 
 
-    public async Task<ReadOnlyMemory<byte>> ExchangeTimestampsAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> timestamp, OperationContext context)
+    public async Task<ReadOnlyMemory<byte>> ExchangeTimestampsAsync(InstanceId instanceId,
+        ShardId shardId,
+        ReadOnlyMemory<byte> timestamp,
+        bool doNotSendDeltas,
+        OperationContext context)
     {
         var headers = new Metadata()
             .WithTimestamp(timestamp)
@@ -29,6 +33,8 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
             .With(instanceId)
             .With(shardId)
             .WithTraceId(context.TraceId);
+
+        if (doNotSendDeltas) headers.DoNotSendDeltas();
         
         _call = _client.Sync(headers, null, context.CancellationToken);
         var responseHeaders = await _call.ResponseHeadersAsync;

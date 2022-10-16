@@ -78,8 +78,12 @@ internal sealed class NodeGrpcService : Node.NodeBase
 
         // then exchange deltas
         var operationContextLocal = new OperationContext(headers.GetOrigin(), 0, traceId, context.CancellationToken);
-        await Task.WhenAll(MergeIncomingDeltas(requestStream, crdt, instanceId, shardId, operationContextLocal), 
-            WriteDeltasToResponse(responseStream, crdt, instanceId, shardId, headers.GetTimestamp(), traceId, context.CancellationToken));
+        var task = MergeIncomingDeltas(requestStream, crdt, instanceId, shardId, operationContextLocal);
+        if (headers.DeltasRequested())
+        {
+            await WriteDeltasToResponse(responseStream, crdt, instanceId, shardId, headers.GetTimestamp(), traceId, context.CancellationToken);
+        }
+        await task;
     }
 
     public override async Task SyncMetadata(IAsyncStreamReader<MetadataDelta> requestStream, IServerStreamWriter<MetadataDelta> responseStream, ServerCallContext context)

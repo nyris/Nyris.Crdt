@@ -10,6 +10,7 @@ internal static class MetadataExtensions
     private const string NodeIdHeaderKey = "n";
     private const string InstanceIdHeaderKey = "i";
     private const string ShardIdHeaderKey = "s";
+    private static readonly Metadata.Entry DoNotSendDeltasEntry = new("f", "1");
     
     public static Metadata WithTimestamp(this Metadata headers, in ReadOnlyMemory<byte> value)
     {
@@ -21,11 +22,19 @@ internal static class MetadataExtensions
     public static Metadata With(this Metadata headers, in InstanceId instanceId) => headers.With(InstanceIdHeaderKey, instanceId.ToString());
     public static Metadata With(this Metadata headers, in ShardId shardId) => headers.With(ShardIdHeaderKey, shardId.ToString());
 
+    public static Metadata DoNotSendDeltas(this Metadata headers)
+    {
+        headers.Add(DoNotSendDeltasEntry);
+        return headers;
+    }
+    
     public static ReadOnlyMemory<byte> GetTimestamp(this Metadata headers)
     {
         var value = headers.GetValue(TimestampHeaderKey);
         return value is null ? ReadOnlyMemory<byte>.Empty : Convert.FromBase64String(value);
     }
+
+    public static bool DeltasRequested(this Metadata headers) => !headers.Contains(DoNotSendDeltasEntry);
     
     public static string GetTraceId(this Metadata headers) => headers.GetString(TraceIdHeaderKey);
     public static NodeId GetOrigin(this Metadata headers) => NodeId.FromString(headers.GetString(NodeIdHeaderKey));

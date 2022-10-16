@@ -115,6 +115,7 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
         OperationContext context,
         InstanceId instanceId)
     {
+        var doNotRequestDeltas = !nodesWithReplica.Contains(_thisNode);
         var nodesToSync = _nodesSelectionStrategy.SelectNodes(nodesWithReplica);
         var timestamp = crdt.GetCausalTimestamp(shardId);
         
@@ -127,7 +128,12 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
             var client = _clientFactory.GetClient(node);
             using var duplexStream = client.GetDeltaDuplexStream();
 
-            var otherTimestamp = await ExchangeCausalTimestampsAsync(duplexStream, instanceId, shardId, timestamp, context);
+            var otherTimestamp = await ExchangeCausalTimestampsAsync(duplexStream,
+                instanceId,
+                shardId,
+                timestamp,
+                doNotRequestDeltas,
+                context);
             await ExchangeDeltasAsync(duplexStream, crdt, shardId, otherTimestamp, context);
 
             _logger.LogDebug(
@@ -152,10 +158,15 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
         InstanceId instanceId,
         ShardId shardId,
         ReadOnlyMemory<byte> timestamp,
+        bool doNotRequestDeltas,
         OperationContext context)
     {
         var timestampsExchangeStart = DateTime.Now;
-        var otherTimestamp = await duplexStream.ExchangeTimestampsAsync(instanceId, shardId, timestamp, context);
+        var otherTimestamp = await duplexStream.ExchangeTimestampsAsync(instanceId,
+            shardId,
+            timestamp,
+            doNotRequestDeltas,
+            context);
         _logger.LogDebug("TraceId '{TraceId}': Exchanged timestamps for ({InstanceId}, {ShardId}) in {Duration}",
             context.TraceId, instanceId, shardId, DateTime.Now - timestampsExchangeStart);
         return otherTimestamp;
