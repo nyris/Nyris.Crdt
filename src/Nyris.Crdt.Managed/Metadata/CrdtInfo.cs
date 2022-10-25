@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using Nyris.Crdt.Interfaces;
 using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Managed.Model.Deltas;
 using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.Managed.Metadata;
@@ -48,8 +49,8 @@ internal sealed class CrdtInfo : IDeltaCrdt<CrdtInfoDelta, CrdtInfoCausalTimesta
             var localRef = dto;
             yield return new CrdtInfoNodesWithReplicaDelta(
                 Unsafe.As<
-                    OptimizedObservedRemoveSetV2<NodeId,NodeId>.DeltaDto[], 
-                    ImmutableArray<OptimizedObservedRemoveSetV2<NodeId,NodeId>.DeltaDto>>(ref localRef));
+                    ObservedRemoveDtos<NodeId, NodeId>.DeltaDto[], 
+                    ImmutableArray<ObservedRemoveDtos<NodeId, NodeId>.DeltaDto>>(ref localRef));
         }
     }
 

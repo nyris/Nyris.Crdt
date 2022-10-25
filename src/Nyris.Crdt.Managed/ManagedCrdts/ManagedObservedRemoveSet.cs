@@ -10,8 +10,8 @@ namespace Nyris.Crdt.Managed.ManagedCrdts;
 public class ManagedObservedRemoveSet<TItem> 
     : ManagedCrdt<
         OptimizedObservedRemoveSetV2<NodeId, TItem>,
-        OptimizedObservedRemoveSetV2<NodeId, TItem>.DeltaDto, 
-        OptimizedObservedRemoveSetV2<NodeId, TItem>.CausalTimestamp>
+        ObservedRemoveDtos<NodeId, TItem>.DeltaDto, 
+        ObservedRemoveDtos<NodeId, TItem>.CausalTimestamp>
     where TItem : IEquatable<TItem>, IComparable<TItem>
 {
     private readonly NodeId _thisNode;
@@ -31,7 +31,7 @@ public class ManagedObservedRemoveSet<TItem>
     {
         // Logger.LogDebug("Adding {Item} to set", item.ToString());
         var shardId = ShardId.FromUint((uint)Math.Abs(item.GetHashCode()) % 3);
-        ImmutableArray<OptimizedObservedRemoveSetV2<NodeId, TItem>.DeltaDto> deltas;
+        ImmutableArray<ObservedRemoveDtos<NodeId, TItem>.DeltaDto> deltas;
         
         await WriteLock.WaitAsync(cancellationToken);
         try
@@ -53,7 +53,7 @@ public class ManagedObservedRemoveSet<TItem>
     public async Task RemoveAsync(TItem item, CancellationToken cancellationToken)
     {
         var shardId = ShardId.FromUint((uint)Math.Abs(item.GetHashCode()) % 3);
-        var deltas = ImmutableArray<OptimizedObservedRemoveSetV2<NodeId, TItem>.DeltaDto>.Empty;
+        var deltas = ImmutableArray<ObservedRemoveDtos<NodeId, TItem>.DeltaDto>.Empty;
         
         await WriteLock.WaitAsync(cancellationToken);
         try

@@ -61,10 +61,6 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
         await SyncManagedCrdtsAsync(context);
         _logger.LogDebug("TraceId '{TraceId}': Sync run finished in {Duration}, next run in {Delay}", 
             context.TraceId, DateTime.Now - start, DelayTime);
-        
-        // TODO: (3) add asymmetry to sync, so that nodes can ask not to send deltas if they should not have them 
-        
-        // TODO: allow callbacks for added/removed/updated elements in crdt set/map 
     }
 
     private async Task SyncManagedCrdtsAsync(OperationContext context)

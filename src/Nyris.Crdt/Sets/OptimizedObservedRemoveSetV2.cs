@@ -21,9 +21,9 @@ namespace Nyris.Crdt.Sets
     /// <typeparam name="TItem"></typeparam>
     [SuppressMessage("ReSharper", "LoopCanBeConvertedToQuery", Justification = "Performance")]
     public class OptimizedObservedRemoveSetV2<TActorId, TItem>
-        : ICRDT<OptimizedObservedRemoveSetV2<TActorId, TItem>.Dto>,
-          IDeltaCrdt<OptimizedObservedRemoveSetV2<TActorId, TItem>.DeltaDto, 
-              OptimizedObservedRemoveSetV2<TActorId,TItem>.CausalTimestamp>
+        : SetChangesNotifier<TItem>,
+          ICRDT<ObservedRemoveDtos<TActorId, TItem>.Dto>,
+          IDeltaCrdt<ObservedRemoveDtos<TActorId, TItem>.DeltaDto, ObservedRemoveDtos<TActorId, TItem>.CausalTimestamp>
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
@@ -64,23 +64,38 @@ namespace Nyris.Crdt.Sets
         }
 
         #region Mutations
-        public ImmutableArray<DeltaDto> Add(TItem item, TActorId actor)
+        public ImmutableArray<ObservedRemoveDtos<TActorId,TItem>.DeltaDto> Add(TItem item, TActorId actor)
         {
             Debug.Assert(item is not null);
             Debug.Assert(actor is not null);
             _lock.EnterWriteLock();
             try
             {
+                var itemAlreadyPresent = Contains(item); 
+                
+                // we add item even if already present, cause of potential concurrent complications
+                // For example, think of a case when current item was added long time ago,
+                // AND there was a concurrent removal that was not yet propagated.
+                // In this case if we do not add an item, once removal is propagated, item will be gone.
+                // Checking if item is present in the set before operation is needed only to notify 
+                // observers about state change
+                
                 var version = _versionContext.Increment(actor);
                 if (!_items.TryGetValue(actor, out var actorsDottedItems))
                 {
                     _items[actor] = actorsDottedItems = VersionedItemList<TItem>.New();
                 }
                 actorsDottedItems.TryAdd(item, version, out var removedVersion, true);
+
+                if (!itemAlreadyPresent)
+                {
+                    NotifyAdded(item);
+                }
+                
                 return removedVersion.HasValue 
-                           ? ImmutableArray.Create(DeltaDto.Added(item, actor, version), 
-                                                   DeltaDto.Removed(actor, removedVersion.Value)) 
-                           : ImmutableArray.Create(DeltaDto.Added(item, actor, version));
+                           ? ImmutableArray.Create(ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Added(item, actor, version), 
+                                                   ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Removed(actor, removedVersion.Value)) 
+                           : ImmutableArray.Create(ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Added(item, actor, version));
             }
             finally
             {
@@ -88,21 +103,26 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        public ImmutableArray<DeltaDto> Remove(TItem item)
+        public ImmutableArray<ObservedRemoveDtos<TActorId,TItem>.DeltaDto> Remove(TItem item)
         {
             Debug.Assert(item is not null);
             _lock.EnterWriteLock(); // although _versionContext is not updated, we need to update multiple dottedLists atomically 
             try
             {
-                var dtos = ImmutableArray.CreateBuilder<DeltaDto>(_items.Count);
+                var dtos = ImmutableArray.CreateBuilder<ObservedRemoveDtos<TActorId,TItem>.DeltaDto>(_items.Count);
                 foreach (var (actorId, actorsDottedItems) in _items)
                 {
                     if (actorsDottedItems.TryRemove(item, out var removedDot))
                     {
-                        dtos.Add(DeltaDto.Removed(actorId, removedDot));
+                        dtos.Add(ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Removed(actorId, removedDot));
                     }
                 }
 
+                if (dtos.Count > 0)
+                {
+                    NotifyRemoved(item);
+                }
+                
                 return dtos.ToImmutable();
             }
             finally
@@ -113,7 +133,7 @@ namespace Nyris.Crdt.Sets
 #endregion
 
         #region Crdt
-        public MergeResult Merge(Dto other)
+        public MergeResult Merge(ObservedRemoveDtos<TActorId, TItem>.Dto other)
         {
             _lock.EnterWriteLock();
             try
@@ -125,10 +145,21 @@ namespace Nyris.Crdt.Sets
                     // if we have not seen this actor, just take everything for this actor from other
                     if (!_versionContext.TryGetValue(actorId, out var myRange))
                     {
+                        var newItems = new List<TItem>();
+                        foreach (var item in otherItems.Keys)
+                        {
+                            if(!Contains(item)) newItems.Add(item);
+                        }
+                        
                         _items[actorId] = new VersionedItemList<TItem>(otherItems);
                         foreach (var range in other.VersionContext[actorId])
                         {
                             _versionContext.Merge(actorId, range);
+                        }
+
+                        foreach (var item in newItems)
+                        {
+                            NotifyAdded(item);
                         }
                         continue;
                     }
@@ -138,10 +169,12 @@ namespace Nyris.Crdt.Sets
                     // check which items to add or which dots to update
                     foreach (var (item, otherDot) in otherItems)
                     {
-                        // if 'other' has items with we have not seen (i.e. their dot is bigger then value from our version vector), take that item 
+                        // if 'other' has items which we have not seen (i.e. their dot is bigger then value from our version vector), take that item 
                         if (!myRange.Contains(otherDot))
                         {
+                            var itemInSet = Contains(item); // check if item anywhere in set
                             myItems.TryAdd(item, otherDot);
+                            if(!itemInSet) NotifyAdded(item);
                         }
                         // if 'other' has items that we seen and our dot is lower, update the dot
                         else if (myItems.TryGetValue(item, out var myDot) && myDot < otherDot)
@@ -161,11 +194,12 @@ namespace Nyris.Crdt.Sets
                         var span = batch.Span;
                         for (var i = 0; i < batch.Length; ++i)
                         {
-                            if (otherRanges.Contains(span[i].Dot) && !otherItems.ContainsKey(span[i].Item))
+                            var item = span[i].Item;
+                            if (otherRanges.Contains(span[i].Dot) && !otherItems.ContainsKey(item))
                             {
-                                myItems.TryRemove(span[i].Item, out _);
+                                myItems.TryRemove(item, out _);
+                                if(!Contains(item)) NotifyRemoved(item);
                             }
-                            
                         }
                     }
 
@@ -183,7 +217,7 @@ namespace Nyris.Crdt.Sets
             return MergeResult.ConflictSolved;
         }
 
-        public Dto ToDto()
+        public ObservedRemoveDtos<TActorId, TItem>.Dto ToDto()
         {
             _lock.EnterReadLock();
             try
@@ -194,7 +228,7 @@ namespace Nyris.Crdt.Sets
                                                 pair => pair.Value
                                                             .SelectMany(batch => batch.ToArray())
                                                             .ToImmutableDictionary(p => p.Item, p => p.Dot));
-                return new Dto(versionVector, items);
+                return new ObservedRemoveDtos<TActorId, TItem>.Dto(versionVector, items);
             }
             finally
             {
@@ -205,16 +239,16 @@ namespace Nyris.Crdt.Sets
 
         #region DeltaCrdt
 
-        public CausalTimestamp GetLastKnownTimestamp()
+        public ObservedRemoveDtos<TActorId,TItem>.CausalTimestamp GetLastKnownTimestamp()
         {
-            return new CausalTimestamp(_versionContext.ToDictionary(pair =>
+            return new ObservedRemoveDtos<TActorId,TItem>.CausalTimestamp(_versionContext.ToDictionary(pair =>
             {
                 var array = pair.Value.ToArray();
                 return Unsafe.As<Range[], ImmutableArray<Range>>(ref array);
             }));
         }
 
-        public IEnumerable<DeltaDto> EnumerateDeltaDtos(CausalTimestamp? timestamp = default)
+        public IEnumerable<ObservedRemoveDtos<TActorId,TItem>.DeltaDto> EnumerateDeltaDtos(ObservedRemoveDtos<TActorId,TItem>.CausalTimestamp? timestamp = default)
         {
             var since = timestamp?.Since ?? ImmutableDictionary<TActorId, ImmutableArray<Range>>.Empty;
             
@@ -232,7 +266,7 @@ namespace Nyris.Crdt.Sets
                     for (var i = batch.Offset; i < batch.Count; ++i)
                     {
                         var (item, version) = innerArray[i];
-                        yield return DeltaDto.Added(item, actorId, version);
+                        yield return ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Added(item, actorId, version);
                     }
                 }
 
@@ -240,12 +274,12 @@ namespace Nyris.Crdt.Sets
                 var emptyRanges = GetEmptyRanges(myItems, myDotRanges);
                 for (var i = 0; i < emptyRanges.Length; ++i)
                 {
-                    yield return DeltaDto.Removed(actorId, emptyRanges[i]);
+                    yield return ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Removed(actorId, emptyRanges[i]);
                 }
             }
         }
 
-        public DeltaMergeResult Merge(DeltaDto delta)
+        public DeltaMergeResult Merge(ObservedRemoveDtos<TActorId,TItem>.DeltaDto delta)
         {
             _lock.EnterWriteLock();
             try
@@ -258,7 +292,7 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        public DeltaMergeResult Merge(ImmutableArray<DeltaDto> deltas)
+        public DeltaMergeResult Merge(ImmutableArray<ObservedRemoveDtos<TActorId,TItem>.DeltaDto> deltas)
         {
             _lock.EnterWriteLock();
             try
@@ -277,27 +311,49 @@ namespace Nyris.Crdt.Sets
             }
         }
 
-        private DeltaMergeResult MergeInternal(DeltaDto delta)
+        private DeltaMergeResult MergeInternal(ObservedRemoveDtos<TActorId,TItem>.DeltaDto delta)
         {
             var actorId = delta.Actor;
             var actorsDottedItems = _items.GetOrAdd(actorId, _ => VersionedItemList<TItem>.New());
             var observedRanges = _versionContext.GetOrAdd(actorId);
             switch (delta)
             {
-                case DeltaDtoAddition(var item, _, var version):
+                case ObservedRemoveDtos<TActorId,TItem>.DeltaDtoAddition(var item, _, var version):
                     // first check if version is new. If already observed by context, ignore  
                     if (observedRanges.Contains(version)) return DeltaMergeResult.StateNotChanged;
+
+                    // item may be also "observed" by another actor - this is important for notifications 
+                    var itemAlreadyPresent = Contains(item);
                     
                     actorsDottedItems.TryAdd(item, version);
                     _versionContext.Merge(actorId, version);
+                    
+                    if(itemAlreadyPresent) NotifyAdded(item);
                     break;
-                case DeltaDtoDeletedDot(_, var version):
+                case ObservedRemoveDtos<TActorId,TItem>.DeltaDtoDeletedDot(_, var version):
                     // state is updated if we removed something, but also if removal failed because we never observed the addition
-                    // (in which case VersionContext is updated and Merge returns true) 
-                    var stateUpdated = actorsDottedItems.TryRemove(version) | observedRanges.Merge(version);
+                    // (in which case VersionContext is updated and Merge returns true)
+                    var versionContextUpdated = observedRanges.Merge(version);
+                    var itemRemoved = actorsDottedItems.TryRemove(version, out var removedItem);
+                    
+                    // if item is removed from actorsDottedItems, check if it's present in another actor
+                    // if not, then notify observers
+                    if (itemRemoved && !Contains(removedItem!)) NotifyRemoved(removedItem!);
+
+                    var stateUpdated = versionContextUpdated || itemRemoved;
                     return stateUpdated ? DeltaMergeResult.StateUpdated : DeltaMergeResult.StateNotChanged;
-                case DeltaDtoDeletedRange(_, var range):
-                    stateUpdated = actorsDottedItems.TryRemove(range) | observedRanges.Merge(range);;
+                case ObservedRemoveDtos<TActorId,TItem>.DeltaDtoDeletedRange(_, var range):
+                    stateUpdated = actorsDottedItems.TryRemove(range, out var removedItems) | observedRanges.Merge(range);
+                    
+                    // this piece is probably the best argument in favor of item-centered design of the set
+                    // (in contrast to actor centered used here)
+                    if (removedItems is not null)
+                    {
+                        foreach (var item in removedItems)
+                        {
+                            if(!Contains(item)) NotifyRemoved(item);
+                        }
+                    }
                     return stateUpdated ? DeltaMergeResult.StateUpdated : DeltaMergeResult.StateNotChanged;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(delta));
@@ -318,31 +374,6 @@ namespace Nyris.Crdt.Sets
                 _lock.ExitReadLock();
             }
         }
-
-#endregion
-
-        #region DtoRecords
-
-        public sealed record Dto(ImmutableDictionary<TActorId, ImmutableArray<Range>> VersionContext, 
-                                 ImmutableDictionary<TActorId, ImmutableDictionary<TItem, ulong>> Items);
-
-        public sealed record CausalTimestamp(ImmutableDictionary<TActorId, ImmutableArray<Range>> Since);
-        
-        public abstract record DeltaDto(TActorId Actor)
-        {
-            public static DeltaDto Added(TItem item, TActorId actor, ulong version) 
-                => new DeltaDtoAddition(item, actor, version);
-            public static DeltaDto Removed(TActorId actor, Range range) 
-                => new DeltaDtoDeletedRange(actor, range);
-            public static DeltaDto Removed(TActorId actor, ulong version) 
-                => new DeltaDtoDeletedDot(actor, version);
-        }
-        
-        public sealed record DeltaDtoAddition(TItem Item, TActorId Actor, ulong Version) : DeltaDto(Actor);
-        
-        public sealed record DeltaDtoDeletedDot(TActorId Actor, ulong Version) : DeltaDto(Actor);
-        
-        public sealed record DeltaDtoDeletedRange(TActorId Actor, Range Range) : DeltaDto(Actor);
 
 #endregion
     }

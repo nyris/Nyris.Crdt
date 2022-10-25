@@ -5,5 +5,5 @@ namespace Nyris.Crdt.Managed.Strategies.Distribution;
 
 public interface IDistributionStrategy
 {
-    ImmutableDictionary<ReplicaId, ImmutableArray<NodeInfo>> Distribute(in ImmutableArray<ReplicaInfo> orderedShardInfos, in ImmutableArray<NodeInfo> orderedNodes);
+    ImmutableDictionary<ReplicaId, ImmutableArray<NodeInfo>> Distribute(in ImmutableArray<ReplicaInfo> orderedReplicaInfos, in ImmutableArray<NodeInfo> orderedNodes);
 }

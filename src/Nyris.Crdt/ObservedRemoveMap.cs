@@ -251,20 +251,20 @@ namespace Nyris.Crdt
                     var (_, version, key, valueDeltas) = deltaDtoAddition;
                     if (!context.TryInsert(key, version)) return DeltaMergeResult.StateNotChanged; // if context already observed this dot - do nothing
                     
-                    var dottedValue = _items.GetOrAdd(key, _ => new DottedValue(new TValue()));
-                    dottedValue.Merge(actorId, version, valueDeltas, out var oldVersion);
+                    var dottedValue = _items.GetOrAdd(key, _ => new DottedValue(new TValue()));   // abstract AddDot(TItem item, TActorId a, ulong v, out long? oldVersion)
+                    dottedValue.Merge(actorId, version, valueDeltas, out var oldVersion);              // ^ 
                     context.MaybeClearVersion(oldVersion);
                     return DeltaMergeResult.StateUpdated;
                 case DeltaDtoDeletedDot deltaDtoDeletedDot:
                     version = deltaDtoDeletedDot.Version;
                     // either dot was new, or there is a non-null key
-                    var removedKey = context.ObserveAndClear(version, out var newVersionWasInserted);
+                    var removedKey = context.ObserveAndClear(version, out var newVersionWasInserted);   
                     if (removedKey is null || removedKey.Equals(default))
                     {
                         return newVersionWasInserted ? DeltaMergeResult.StateUpdated : DeltaMergeResult.StateNotChanged; 
                     } 
 
-                    dottedValue = _items.GetOrAdd(removedKey, _ => new DottedValue(new TValue()));
+                    dottedValue = _items.GetOrAdd(removedKey, _ => new DottedValue(new TValue()));   // abstract RemoveDot(TItem item, TActorId a, ulong v)  
                     dottedValue.RemoveDot(actorId, version);
                     return DeltaMergeResult.StateUpdated;
                 case DeltaDtoDeletedRange deltaDtoDeletedRange: 
@@ -310,6 +310,9 @@ namespace Nyris.Crdt
             }
         }
         
+        /// <summary>
+        /// See https://www.notion.so/Quest-for-Delta-CRDT-Map-7e97492a57a64a48885d54cd5fe00859#acd5ab9a0f2b4370b01492dce7828873
+        /// </summary>
         private sealed class DottedValue
         {
             private bool _conflictingDeltas;

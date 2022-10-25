@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using MessagePack;
 using MessagePack.Formatters;
-using Nyris.Crdt.Managed.Metadata;
 using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Managed.Model.Deltas;
 using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
@@ -16,7 +16,7 @@ public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfoDelta>
             case CrdtInfoNodesWithReplicaDelta nodesWithReplicaDto:
                 writer.Write(true);
                 var deltaFormatter = options.Resolver
-                    .GetFormatterWithVerify<ImmutableArray<OptimizedObservedRemoveSetV2<NodeId, NodeId>.DeltaDto>>();
+                    .GetFormatterWithVerify<ImmutableArray<ObservedRemoveDtos<NodeId, NodeId>.DeltaDto>>();
                 deltaFormatter.Serialize(ref writer, nodesWithReplicaDto.Delta, options);
                 break;
             case CrdtInfoStorageSizeDelta storageSizeDto:
@@ -35,7 +35,7 @@ public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfoDelta>
         {
             case true:
                 var deltaFormatter = options.Resolver
-                    .GetFormatterWithVerify<ImmutableArray<OptimizedObservedRemoveSetV2<NodeId, NodeId>.DeltaDto>>();
+                    .GetFormatterWithVerify<ImmutableArray<ObservedRemoveDtos<NodeId, NodeId>.DeltaDto>>();
                 var deltas = deltaFormatter.Deserialize(ref reader, options);
                 return new CrdtInfoNodesWithReplicaDelta(deltas);
             case false:

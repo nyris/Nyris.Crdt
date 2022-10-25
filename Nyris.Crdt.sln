@@ -55,7 +55,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Node1", "samples\Node1\Node
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Node2", "samples\Node2\Node2.csproj", "{B972CD7E-A55A-4A36-BFF9-879F2621042B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.ManagedCrdtsV2", "src\Nyris.ManagedCrdtsV2\Nyris.ManagedCrdtsV2.csproj", "{D9D3A5E2-627F-49A4-9360-CA2D1FCC89DD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Managed", "src\Nyris.Crdt.Managed\Nyris.Crdt.Managed.csproj", "{D9D3A5E2-627F-49A4-9360-CA2D1FCC89DD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Benchmarks", "test\Nyris.Crdt.Benchmarks\Nyris.Crdt.Benchmarks.csproj", "{AF182107-E5B4-4204-8A66-1FD7645B63A4}"
 EndProject
@@ -66,6 +66,18 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Serialization.MessagePack", "src\Nyris.Crdt.Serialization.MessagePack\Nyris.Crdt.Serialization.MessagePack.csproj", "{391AF3F4-3E5B-4F48-9650-8A4EB089D984}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Serialization.Abstractions", "src\Nyris.Crdt.Serialization.Abstractions\Nyris.Crdt.Serialization.Abstractions.csproj", "{DE61EFB9-6842-4518-8558-A65C96E6181E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Managed.Model", "src\Nyris.Crdt.Managed.Model\Nyris.Crdt.Managed.Model.csproj", "{CEC3010A-21A9-499B-B4A2-E3D4BA34A286}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Managed.Discovery.Abstractions", "src\Nyris.Crdt.Managed.Discovery.Abstractions\Nyris.Crdt.Managed.Discovery.Abstractions.csproj", "{8FA0B526-C1F2-44A9-AEF3-3FC5056E93A7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Managed.Discovery.Kubernetes", "src\Nyris.Crdt.Managed.Discovery.Kubernetes\Nyris.Crdt.Managed.Discovery.Kubernetes.csproj", "{36AC57FB-618B-4767-BB7A-CFE06E99DC3E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Managed.DependencyInjection", "src\Nyris.Crdt.Managed.DependencyInjection\Nyris.Crdt.Managed.DependencyInjection.csproj", "{29F7A1A5-9A63-4610-A95A-6DA4EC097679}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Transport.Abstractions", "src\Nyris.Crdt.Transport.Abstractions\Nyris.Crdt.Transport.Abstractions.csproj", "{99DD3522-8E19-473C-9287-09B8DB3D337F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nyris.Crdt.Managed.Exceptions", "src\Nyris.Crdt.Managed.Exceptions\Nyris.Crdt.Managed.Exceptions.csproj", "{9353270C-5AA1-4A6F-8A89-80A7E7009C2A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -133,6 +145,30 @@ Global
 		{DE61EFB9-6842-4518-8558-A65C96E6181E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DE61EFB9-6842-4518-8558-A65C96E6181E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DE61EFB9-6842-4518-8558-A65C96E6181E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CEC3010A-21A9-499B-B4A2-E3D4BA34A286}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CEC3010A-21A9-499B-B4A2-E3D4BA34A286}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CEC3010A-21A9-499B-B4A2-E3D4BA34A286}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CEC3010A-21A9-499B-B4A2-E3D4BA34A286}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8FA0B526-C1F2-44A9-AEF3-3FC5056E93A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8FA0B526-C1F2-44A9-AEF3-3FC5056E93A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8FA0B526-C1F2-44A9-AEF3-3FC5056E93A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8FA0B526-C1F2-44A9-AEF3-3FC5056E93A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36AC57FB-618B-4767-BB7A-CFE06E99DC3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36AC57FB-618B-4767-BB7A-CFE06E99DC3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36AC57FB-618B-4767-BB7A-CFE06E99DC3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36AC57FB-618B-4767-BB7A-CFE06E99DC3E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29F7A1A5-9A63-4610-A95A-6DA4EC097679}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29F7A1A5-9A63-4610-A95A-6DA4EC097679}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29F7A1A5-9A63-4610-A95A-6DA4EC097679}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29F7A1A5-9A63-4610-A95A-6DA4EC097679}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99DD3522-8E19-473C-9287-09B8DB3D337F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99DD3522-8E19-473C-9287-09B8DB3D337F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99DD3522-8E19-473C-9287-09B8DB3D337F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99DD3522-8E19-473C-9287-09B8DB3D337F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9353270C-5AA1-4A6F-8A89-80A7E7009C2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9353270C-5AA1-4A6F-8A89-80A7E7009C2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9353270C-5AA1-4A6F-8A89-80A7E7009C2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9353270C-5AA1-4A6F-8A89-80A7E7009C2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -156,6 +192,12 @@ Global
 		{A98D36CC-DBA5-44DC-ADA7-61B4B5985C86} = {6B8C04E5-DE4A-49CF-BDDF-23A846D44770}
 		{391AF3F4-3E5B-4F48-9650-8A4EB089D984} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
 		{DE61EFB9-6842-4518-8558-A65C96E6181E} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{CEC3010A-21A9-499B-B4A2-E3D4BA34A286} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{8FA0B526-C1F2-44A9-AEF3-3FC5056E93A7} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{36AC57FB-618B-4767-BB7A-CFE06E99DC3E} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{29F7A1A5-9A63-4610-A95A-6DA4EC097679} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{99DD3522-8E19-473C-9287-09B8DB3D337F} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
+		{9353270C-5AA1-4A6F-8A89-80A7E7009C2A} = {3ABFBA00-F00A-42DD-9945-FFB165156740}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {91F8266A-0098-4288-8192-CCBDE65BC63B}

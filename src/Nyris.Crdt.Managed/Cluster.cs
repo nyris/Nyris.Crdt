@@ -13,7 +13,6 @@ using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Managed.Services.Propagation;
 using Nyris.Crdt.Managed.Strategies.Distribution;
 using Nyris.Crdt.Serialization.Abstractions;
-using Nyris.Crdt.Sets;
 using Nyris.Crdt.Transport.Abstractions;
 
 namespace Nyris.Crdt.Managed;
@@ -125,7 +124,7 @@ internal sealed class Cluster : ICluster, INodeFailureObserver, IClusterMetadata
         {
             case MetadataKind.NodeSetFull:
             case MetadataKind.NodeSet:
-                var nodesTimestamp = _serializer.Deserialize<NodeInfoSet.CausalTimestamp>(timestamp);
+                var nodesTimestamp = _serializer.Deserialize<ObservedRemoveDtos<NodeId, NodeInfo>.CausalTimestamp>(timestamp);
                 foreach (var deltaDto in _nodeSet.EnumerateDeltaDtos(nodesTimestamp).Chunk(100))
                 {
                     yield return _serializer.Serialize(deltaDto);
@@ -251,7 +250,7 @@ internal sealed class Cluster : ICluster, INodeFailureObserver, IClusterMetadata
 
         var traceId = $"{_thisNode.Id}-observed-{nodeId}-fail";
         var context = new OperationContext(_thisNode.Id, -1, traceId, cancellationToken);
-        ImmutableArray<NodeInfoSet.DeltaDto> nodesDeltas;
+        ImmutableArray<ObservedRemoveDtos<NodeId, NodeInfo>.DeltaDto> nodesDeltas;
         var infosDeltas = new List<ImmutableArray<CrdtInfos.DeltaDto>>(_crdtInfos.Count);
 
         await _semaphore.WaitAsync(cancellationToken);
@@ -324,13 +323,13 @@ internal sealed class Cluster : ICluster, INodeFailureObserver, IClusterMetadata
         switch (kind)
         {
             case MetadataKind.NodeSet:
-                var nodeDeltas = _serializer.Deserialize<ImmutableArray<NodeInfoSet.DeltaDto>>(dto);
+                var nodeDeltas = _serializer.Deserialize<ImmutableArray<ObservedRemoveDtos<NodeId, NodeInfo>.DeltaDto>>(dto);
                 _logger.LogDebug("TraceId '{TraceId}': Received nodeSet deltas: {Deltas}", traceId, JsonConvert.SerializeObject(nodeDeltas));
                 result = _nodeSet.Merge(nodeDeltas);
                 break;
             case MetadataKind.NodeSetFull:
                 // merging a full dto for a NodeSet is a special case used for Discovery, which should not trigger propagation
-                var nodeDto = _serializer.Deserialize<NodeInfoSet.Dto>(dto);
+                var nodeDto = _serializer.Deserialize<ObservedRemoveDtos<NodeId, NodeInfo>.Dto>(dto);
                 _logger.LogDebug("TraceId '{TraceId}': Received nodeSet dto: {Dto}", traceId, JsonConvert.SerializeObject(nodeDto));
                 _nodeSet.Merge(nodeDto);
                 break;
@@ -398,7 +397,7 @@ internal sealed class Cluster : ICluster, INodeFailureObserver, IClusterMetadata
         _desiredDistribution = _distributionStrategy.Distribute(replicaInfosBuilder.MoveToImmutable(), nodeInfosBuilder.MoveToImmutable());
     }
     
-    private async Task<ImmutableArray<OptimizedObservedRemoveSetV2<NodeId, NodeInfo>.DeltaDto>> AddNodeInfoAsync(NodeInfo nodeInfo, CancellationToken cancellationToken)
+    private async Task<ImmutableArray<ObservedRemoveDtos<NodeId, NodeInfo>.DeltaDto>> AddNodeInfoAsync(NodeInfo nodeInfo, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
@@ -463,6 +462,6 @@ internal sealed class Cluster : ICluster, INodeFailureObserver, IClusterMetadata
             _nodeSet.Values.ToImmutableArray(),
             context);
     
-    private Task PropagateNodeDeltasAsync(ImmutableArray<NodeInfoSet.DeltaDto> deltas, ImmutableArray<NodeInfo> nodes, OperationContext context) 
+    private Task PropagateNodeDeltasAsync(ImmutableArray<ObservedRemoveDtos<NodeId, NodeInfo>.DeltaDto> deltas, ImmutableArray<NodeInfo> nodes, OperationContext context) 
         => _propagationService.PropagateAsync(MetadataKind.NodeSet, _serializer.Serialize(deltas), nodes, context);
 }

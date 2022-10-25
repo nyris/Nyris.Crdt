@@ -1,4 +1,33 @@
-### Everything CRDTs
+# Everything CRDTs
+
+## Open TODOs:
+
+ - Add buffering to the PropagationService 
+ - Add callbacks to crdts
+ - Add indexes on top of callbacks
+ - Optimize GetWriteReplicas and GetReadReplicas methods of Cluster 
+(currently they are calculating dictionaries every time, but those can be pre-calculated)
+ - Plan persistence layer
+
+### Maybe important, but hard(er)
+ - Inverse data structure used ObservedRemoveSet and ObservedRemoveMap currently using a SortedList, 
+but it would be better to write a custom tree-based structure. 
+See [VersionedItemList](../../src/Nyris.Crdt/Model/VersionedItemList.cs) for details
+ - Is there some better way of organizing solution into projects?
+ - Currently metadata and other crdts are propagated separately, but they using a lot of code that potentially 
+_could_ be shared. Is there benefits in refactoring this part? How can this be done?
+ - Usage of locks in ObservedRemoveMap and set is not tested to be minial or necessary. 
+There are benefits in investigating which locks can be removed or changed (or which must be added)  
+ 
+### Relatively simple and straightforward 
+ - In the spirit of extendability, grpc exceptions should be wrapped in a project defined ones, which can then be caught and handled in internal services.
+ - Lots of allocations thanks to logging, great opportunity for [high-performance logging with source generators](https://learn.microsoft.com/en-us/dotnet/core/extensions/logger-message-generator)
+
+### Nice to have
+ - Add benchmarking to all crdts - additions and merging of ObservedRemove Set and Map are the most obvious target for optimization
+ - Add benchmarking to a sample application, with tests for "real usage" performance metrics  
+ - Identify other hot paths. How to best measure memory and execution time in different code parts?
+ - Improve visibility. Perhaps a nice frontend with visualization of cluster metadata
 
 So far there are two parts to the repo:
 

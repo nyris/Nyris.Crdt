@@ -22,7 +22,7 @@ internal sealed class DistributionStrategy : IDistributionStrategy
     // Dict<int, int> mean - in a sorted array of nodes, which index (key) have how many shards (value) 
     private readonly Dictionary<InstanceId, Dictionary<int, int>> _instanceIdsToNodeIndexesToReplicaCounts = new();
 
-    public ImmutableDictionary<ReplicaId, ImmutableArray<NodeInfo>> Distribute(in ImmutableArray<ReplicaInfo> orderedShardInfos, in ImmutableArray<NodeInfo> orderedNodes)
+    public ImmutableDictionary<ReplicaId, ImmutableArray<NodeInfo>> Distribute(in ImmutableArray<ReplicaInfo> orderedReplicaInfos, in ImmutableArray<NodeInfo> orderedNodes)
     {
         // Idea for how this works:
         // 1. All replicas that should be on all nodes just get a copy of all nodes
@@ -51,7 +51,7 @@ internal sealed class DistributionStrategy : IDistributionStrategy
         var orderedNodeIdHashes = ArrayPool<ulong>.Shared.Rent(length);
         GetNodeHashes(orderedNodes, orderedNodeIdHashes);
         
-        foreach (var replicaInfo in orderedShardInfos)
+        foreach (var replicaInfo in orderedReplicaInfos)
         { 
             var replicaId = replicaInfo.Id;
             var requestedReplicaCount = replicaInfo.RequestedReplicaCount;

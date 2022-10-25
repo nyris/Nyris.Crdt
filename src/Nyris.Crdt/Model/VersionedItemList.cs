@@ -220,13 +220,16 @@ namespace Nyris.Crdt.Model
                 _lock.ExitReadLock();
             }
         }
-        
+
         /// <summary>
         /// 
         /// </summary>
         /// <param name="range"></param>
+        /// <param name="removedItems"></param>
         /// <returns>True if ANY state change occured, false otherwise</returns>
-        public bool TryRemove(in Range range)
+        /// TODO: understand the reasoning behind this warning...
+        [SuppressMessage("Design", "CA1002:Do not expose generic lists")]
+        public bool TryRemove(in Range range, [NotNullWhen(true)] out List<TItem>? removedItems)
         {
             _lock.EnterWriteLock();
             try
@@ -235,8 +238,12 @@ namespace Nyris.Crdt.Model
                 var i = _inverse.GetIndexOfFirstGreaterOrEqualKey(range.From);
                 var keys = _inverse.Keys;
                 var values = _inverse.Values;
+                removedItems = null;
                 while(i < keys.Count && keys[i] < range.To)
                 {
+                    removedItems ??= new List<TItem>(); // assuming actual removals are more rare then no-ops
+                    removedItems.Add(values[i]);
+                    
                     result |= _dict.Remove(values[i]);
                     _inverse.RemoveAt(i); // rare occasion when end of list comes closer to i and not the other way around
                 }
@@ -249,12 +256,12 @@ namespace Nyris.Crdt.Model
             }
         }
         
-        public bool TryRemove(ulong dot)
+        public bool TryRemove(ulong dot, [NotNullWhen(true)] out TItem? item)
         {
             _lock.EnterWriteLock();
             try
             {
-                return _inverse.Remove(dot, out var item) && _dict.Remove(item);
+                return _inverse.Remove(dot, out item) && _dict.Remove(item);
             }
             finally
             {

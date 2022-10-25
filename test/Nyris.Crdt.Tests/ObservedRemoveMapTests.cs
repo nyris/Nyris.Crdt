@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Newtonsoft.Json;
 using Nyris.Crdt.Interfaces;
 using Nyris.Crdt.Sets;
 using Xunit;
@@ -414,8 +413,8 @@ public sealed class ObservedRemoveMapTests
     private void MakeRandomOperation(ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> map, 
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp> map, 
         Guid actorId, 
         int? useKeyIfPresent = null)
     {
@@ -468,8 +467,8 @@ public sealed class ObservedRemoveMapTests
     private void DropRandomKeys(ObservedRemoveMap<Guid,
         int,
         OptimizedObservedRemoveSetV2<Guid, double>,
-        OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto,
-        OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> map, int nDeletes)
+        ObservedRemoveDtos<Guid, double>.DeltaDto,
+        ObservedRemoveDtos<Guid, double>.CausalTimestamp> map, int nDeletes)
     {
         nDeletes.Should().BeLessOrEqualTo(map.Count, "can't remove more keys then are present in map");
         var keys = map.Keys.ToArray();
@@ -484,13 +483,13 @@ public sealed class ObservedRemoveMapTests
     private ObservedRemoveMap<Guid,
         int,
         OptimizedObservedRemoveSetV2<Guid, double>,
-        OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto,
-        OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> NewMap()
+        ObservedRemoveDtos<Guid, double>.DeltaDto,
+        ObservedRemoveDtos<Guid, double>.CausalTimestamp> NewMap()
         => new(_output.BuildLoggerFor<ObservedRemoveMap<Guid,
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp>>());
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp>>());
             // NullLogger<ObservedRemoveMap<Guid, int, OptimizedObservedRemoveSetV2<Guid, double>,
             //     OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto,
             //     OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp>>.Instance);  
@@ -509,8 +508,8 @@ public sealed class ObservedRemoveMapTests
     private ObservedRemoveMap<Guid,
         int,
         OptimizedObservedRemoveSetV2<Guid, double>,
-        OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto,
-        OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> GetMapSequentialIntKeys(
+        ObservedRemoveDtos<Guid, double>.DeltaDto,
+        ObservedRemoveDtos<Guid, double>.CausalTimestamp> GetMapSequentialIntKeys(
         int nKeys, int nElements, int nActors, bool addPopulated = true, int startKeysAt = 0)
     {
         
@@ -552,13 +551,13 @@ public sealed class ObservedRemoveMapTests
         ObservedRemoveMap<TActorId, 
             TKey, 
             OptimizedObservedRemoveSetV2<TActorId, TValue>, 
-            OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<TActorId, TValue>.CausalTimestamp> map1,
+            ObservedRemoveDtos<TActorId, TValue>.DeltaDto, 
+            ObservedRemoveDtos<TActorId, TValue>.CausalTimestamp> map1,
         ObservedRemoveMap<TActorId, 
             TKey, 
             OptimizedObservedRemoveSetV2<TActorId, TValue>, 
-            OptimizedObservedRemoveSetV2<TActorId, TValue>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<TActorId, TValue>.CausalTimestamp> map2)
+            ObservedRemoveDtos<TActorId, TValue>.DeltaDto, 
+            ObservedRemoveDtos<TActorId, TValue>.CausalTimestamp> map2)
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
         where TKey : IEquatable<TKey>
         where TValue : IEquatable<TValue>
@@ -613,8 +612,8 @@ public sealed class ObservedRemoveMapTests
     private async Task AddAndRemoveContinuouslyAsync(ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> map,
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp> map,
         IReadOnlyCollection<int> keys,
         Guid actorId,
         TimeSpan duration,
@@ -641,13 +640,13 @@ public sealed class ObservedRemoveMapTests
     private async Task DeltaMergeContinuouslyAsync(ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> map1,
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp> map1,
         ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> map2,
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp> map2,
         TimeSpan duration,
         TimeSpan pauseLength)
     {
@@ -668,13 +667,13 @@ public sealed class ObservedRemoveMapTests
     private void DeltaMerge(ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> map1, 
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp> map1, 
         ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp> map2,
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp> map2,
         bool log = false,
         bool drops = false, 
         bool duplicates = true, 
@@ -683,13 +682,13 @@ public sealed class ObservedRemoveMapTests
         var delayedMessagesTo1 = new List<ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp>.DeltaDto>();
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp>.DeltaDto>();
         var delayedMessagesTo2 = new List<ObservedRemoveMap<Guid, 
             int, 
             OptimizedObservedRemoveSetV2<Guid, double>, 
-            OptimizedObservedRemoveSetV2<Guid, double>.DeltaDto, 
-            OptimizedObservedRemoveSetV2<Guid, double>.CausalTimestamp>.DeltaDto>();
+            ObservedRemoveDtos<Guid, double>.DeltaDto, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp>.DeltaDto>();
         
         var timestamp = map2.GetLastKnownTimestamp();
         foreach (var dto in map1.EnumerateDeltaDtos(timestamp))

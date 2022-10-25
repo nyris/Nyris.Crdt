@@ -1,6 +1,5 @@
-using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Sets;
 
-namespace Nyris.Crdt.Managed.Metadata;
+namespace Nyris.Crdt.Managed.Model.Deltas;
 
-public sealed record CrdtInfoCausalTimestamp(DateTime StorageSize, OptimizedObservedRemoveSetV2<NodeId, NodeId>.CausalTimestamp Nodes);
+public sealed record CrdtInfoCausalTimestamp(DateTime StorageSize, ObservedRemoveDtos<NodeId, NodeId>.CausalTimestamp Nodes);

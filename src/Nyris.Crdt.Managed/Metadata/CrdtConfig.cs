@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Managed.Model.Deltas;
 
 namespace Nyris.Crdt.Managed.Metadata;
 

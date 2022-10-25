@@ -20,8 +20,6 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
     
     protected readonly ILogger Logger;
 
-    // ReSharper disable once StaticMemberInGenericType
-    protected static readonly ShardId DefaultShard = default;
     internal sealed override ICollection<ShardId> Shards => _shards.Keys;
 
     protected ManagedCrdt(InstanceId instanceId,

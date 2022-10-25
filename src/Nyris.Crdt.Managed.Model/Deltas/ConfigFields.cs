@@ -1,4 +1,4 @@
-namespace Nyris.Crdt.Managed.Metadata;
+namespace Nyris.Crdt.Managed.Model.Deltas;
 
 public enum ConfigFields
 {

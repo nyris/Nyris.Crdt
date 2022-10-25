@@ -1,6 +1,6 @@
 using MessagePack;
 using MessagePack.Formatters;
-using Nyris.Crdt.Managed.Metadata;
+using Nyris.Crdt.Managed.Model.Deltas;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 

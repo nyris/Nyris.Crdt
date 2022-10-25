@@ -12,7 +12,7 @@ namespace Nyris.Crdt.Tests;
 public sealed class ObservedRemoveSetV2Tests
 {
     private readonly ITestOutputHelper _output;
-    private readonly Random _random = new Random(42);
+    private readonly Random _random = new(42);
 
     public ObservedRemoveSetV2Tests(ITestOutputHelper output)
     {
@@ -469,8 +469,8 @@ public sealed class ObservedRemoveSetV2Tests
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
         where TItem : IEquatable<TItem>
     {
-        var delayedMessagesTo1 = new List<OptimizedObservedRemoveSetV2<TActorId, TItem>.DeltaDto>();
-        var delayedMessagesTo2 = new List<OptimizedObservedRemoveSetV2<TActorId, TItem>.DeltaDto>();
+        var delayedMessagesTo1 = new List<ObservedRemoveDtos<TActorId, TItem>.DeltaDto>();
+        var delayedMessagesTo2 = new List<ObservedRemoveDtos<TActorId, TItem>.DeltaDto>();
         foreach (var dto in set1.EnumerateDeltaDtos(set2.GetLastKnownTimestamp()))
         {
             if (!networkProblems)

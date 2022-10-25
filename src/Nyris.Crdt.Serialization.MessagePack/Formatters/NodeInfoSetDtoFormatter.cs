@@ -8,9 +8,9 @@ using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
-public sealed class NodeInfoSetDtoFormatter : IMessagePackFormatter<OptimizedObservedRemoveSetV2<NodeId, NodeInfo>.Dto>
+public sealed class NodeInfoSetDtoFormatter : IMessagePackFormatter<ObservedRemoveDtos<NodeId, NodeInfo>.Dto>
 {
-    public void Serialize(ref MessagePackWriter writer, OptimizedObservedRemoveSetV2<NodeId, NodeInfo>.Dto value, MessagePackSerializerOptions options)
+    public void Serialize(ref MessagePackWriter writer, ObservedRemoveDtos<NodeId, NodeInfo>.Dto value, MessagePackSerializerOptions options)
     {
         writer.WriteArrayHeader(2);
         
@@ -23,7 +23,7 @@ public sealed class NodeInfoSetDtoFormatter : IMessagePackFormatter<OptimizedObs
         itemsFormatter.Serialize(ref writer, value.Items, options);
     }
 
-    public OptimizedObservedRemoveSetV2<NodeId, NodeInfo>.Dto Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
+    public ObservedRemoveDtos<NodeId, NodeInfo>.Dto Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
     {
         var count = reader.ReadArrayHeader();
         Debug.Assert(count == 2);
@@ -35,6 +35,6 @@ public sealed class NodeInfoSetDtoFormatter : IMessagePackFormatter<OptimizedObs
 
         var versionContext = versionContextFormatter.Deserialize(ref reader, options);
         var items = itemsFormatter.Deserialize(ref reader, options);
-        return new OptimizedObservedRemoveSetV2<NodeId, NodeInfo>.Dto(versionContext, items);
+        return new ObservedRemoveDtos<NodeId, NodeInfo>.Dto(versionContext, items);
     }
 }

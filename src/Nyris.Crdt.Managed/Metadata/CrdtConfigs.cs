@@ -1,4 +1,5 @@
 using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Managed.Model.Deltas;
 
 namespace Nyris.Crdt.Managed.Metadata;
 
