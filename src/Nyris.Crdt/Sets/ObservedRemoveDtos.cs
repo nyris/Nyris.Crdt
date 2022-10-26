@@ -2,7 +2,7 @@ using System;
 using System.Collections.Immutable;
 using Range = Nyris.Crdt.Model.Range;
 
-namespace Nyris.Crdt
+namespace Nyris.Crdt.Sets
 {
     public static class ObservedRemoveDtos<TActorId, TItem>
         where TActorId : IEquatable<TActorId> 

@@ -464,12 +464,12 @@ namespace Nyris.Crdt
         
         private void DecreaseLength()
         {
-            if (Interlocked.Decrement(ref _length) > _lowLengthLimit) return;
+            if (Interlocked.Decrement(ref _length) >= _lowLengthLimit) return;
 
             lock (_heightChangeLock)
             {
                 // check if condition still holds. Prevents multiple decreases due to lock contention
-                if (_length > _lowLengthLimit) return;
+                if (_length >= _lowLengthLimit) return;
                 
                 // by simply forgetting about the pointer to current head, the entire top layer can be garbage collected eventually
                 _head = _head.Down!;

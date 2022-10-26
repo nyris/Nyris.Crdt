@@ -32,7 +32,7 @@ namespace Nyris.Crdt.Sets
         
         // lock is used for operations, that rely on _items and _versionContext being in sync 
         private readonly ReaderWriterLockSlim _lock = new();
-        
+
         public HashSet<TItem> Values
         {
             get

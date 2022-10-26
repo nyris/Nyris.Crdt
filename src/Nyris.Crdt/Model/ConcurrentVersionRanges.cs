@@ -47,8 +47,6 @@ namespace Nyris.Crdt.Model
                 }
             }
         }
-
-        public IntersectionEnumerator IntersectWith(ImmutableArray<Range> ranges) => new(_lock, _ranges, ranges);
         
         public bool Contains(ulong dot)
         {
@@ -157,13 +155,12 @@ namespace Nyris.Crdt.Model
             }
         }
 
-        public ulong GetFirstUnknown()
+        public ulong PeekNext()
         {
             _lock.EnterReadLock();
             try
             {
-                if (_ranges.Count == 0 || _ranges[0].From > 1) return 1;
-                return _ranges[0].To;
+                return _ranges.Count == 0 ? 1 : _ranges[^1].To;
             }
             finally
             {
@@ -452,70 +449,6 @@ namespace Nyris.Crdt.Model
             }
             
             return r;
-        }
-
-        public struct IntersectionEnumerator : IEnumerator<Range>, IEnumerable<Range>
-        {
-            private readonly ReaderWriterLockSlim _lock;
-            private readonly List<Range> _ranges;
-            private readonly ImmutableArray<Range> _other;
-            private int _i;
-            private int _j;
-
-            [SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "Enumeration of lists is more efficient")]
-            public IntersectionEnumerator(ReaderWriterLockSlim @lock, List<Range> ranges, ImmutableArray<Range> other)
-            {
-                _lock = @lock;
-                _ranges = ranges;
-                _other = other;
-                Current = new Range(0, 1);
-                _i = 0;
-                _j = 0;
-            }
-
-            public bool MoveNext()
-            {
-                _lock.EnterReadLock();
-                try
-                {
-                    if (_i == _ranges.Count || _j == _other.Length) return false;
-
-                    while (_i < _ranges.Count && _j < _other.Length)
-                    {
-                        var currentRange = _ranges[_i];
-                        var currentOtherRange = _other[_j];
-                        var from = Math.Max(currentRange.From, currentOtherRange.From);
-                        var to = Math.Min(currentRange.To, currentOtherRange.To);
-
-                        if (from < to)
-                        {
-                            Current = new Range(from, to);
-                            return true;
-                        }
-
-                        if (currentRange.To < currentOtherRange.To) ++_i;
-                        else ++_j;
-                    }
-
-                    return false;
-                }
-                finally
-                {
-                    _lock.ExitReadLock();
-                }
-            }
-
-            public void Reset() => throw new System.NotImplementedException();
-
-            public Range Current { get; private set; }
-
-            object IEnumerator.Current => Current;
-
-            public IntersectionEnumerator GetEnumerator() => this;
-            IEnumerator<Range> IEnumerable<Range>.GetEnumerator() => GetEnumerator();
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-            public void Dispose() { }
         }
     }
 }

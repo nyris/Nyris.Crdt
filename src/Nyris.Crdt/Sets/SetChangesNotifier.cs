@@ -6,14 +6,14 @@ namespace Nyris.Crdt.Sets
     {
         // keep everything in array for slightly faster indexing - it is assumed that adding observers
         // is a very rare operation, while notifications happen all the time 
-        private ISetChangeObserver<TItem>[] _observers = Array.Empty<ISetChangeObserver<TItem>>();
+        private ISetObserver<TItem>[] _observers = Array.Empty<ISetObserver<TItem>>();
         private readonly object _lock = new();
         
-        public void SubscribeToChanges(ISetChangeObserver<TItem> observer)
+        public void SubscribeToChanges(ISetObserver<TItem> observer)
         {
             lock(_lock)
             {
-                var newArray = new ISetChangeObserver<TItem>[_observers.Length + 1];
+                var newArray = new ISetObserver<TItem>[_observers.Length + 1];
                 Array.Copy(_observers, newArray, _observers.Length);
                 newArray[_observers.Length] = observer;
                 _observers = newArray;

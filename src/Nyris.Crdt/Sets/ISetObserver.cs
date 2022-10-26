@@ -1,6 +1,6 @@
 namespace Nyris.Crdt.Sets
 {
-    public interface ISetChangeObserver<in TItem>
+    public interface ISetObserver<in TItem>
     {
         void ElementAdded(TItem item);
         void ElementRemoved(TItem item);

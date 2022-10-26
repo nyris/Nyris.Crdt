@@ -10,6 +10,6 @@ public class Program
         // BenchmarkRunner.Run(typeof(Program).Assembly);
         // BenchmarkRunner.Run<SkipListMapBenchmark>();
         
-        BenchmarkRunner.Run<DictionaryBenchmark>();
+        BenchmarkRunner.Run<ObservedRemoveSetBenchmark>();
     }
 }

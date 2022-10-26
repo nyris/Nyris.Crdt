@@ -13,6 +13,7 @@ using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Managed.Services.Propagation;
 using Nyris.Crdt.Managed.Strategies.Distribution;
 using Nyris.Crdt.Serialization.Abstractions;
+using Nyris.Crdt.Sets;
 using Nyris.Crdt.Transport.Abstractions;
 
 namespace Nyris.Crdt.Managed;
