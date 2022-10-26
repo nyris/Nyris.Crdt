@@ -19,7 +19,7 @@ namespace Nyris.Crdt.Sets
     /// </summary>
     /// <typeparam name="TActorId"></typeparam>
     /// <typeparam name="TItem"></typeparam>
-    [SuppressMessage("ReSharper", "LoopCanBeConvertedToQuery", Justification = "Performance")]
+    [Obsolete("Please use OptimizedObservedRemoveSetV3 instead", false)]
     public class OptimizedObservedRemoveSetV2<TActorId, TItem>
         : SetChangesNotifier<TItem>,
           ICRDT<ObservedRemoveDtos<TActorId, TItem>.Dto>,

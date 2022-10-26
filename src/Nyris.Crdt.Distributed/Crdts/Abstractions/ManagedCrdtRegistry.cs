@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
 using Nyris.Crdt.Extensions;
 using Nyris.Crdt.Interfaces;
+#pragma warning disable CS0618
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 

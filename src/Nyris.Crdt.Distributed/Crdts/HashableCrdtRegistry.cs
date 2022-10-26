@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Nyris.Crdt.Extensions;
 using Nyris.Crdt.Interfaces;
+#pragma warning disable CS0618
 
 namespace Nyris.Crdt.Distributed.Crdts;
 

@@ -17,6 +17,7 @@ namespace Nyris.Crdt.Sets;
 /// It is O(E*n + n), where E is the number of elements and n is the number of actors.
 /// </summary>
 [DebuggerDisplay("{_items.Count < 10 ? string.Join(';', _items) : \"... a lot of items ...\"}")]
+[Obsolete("Please use OptimizedObservedRemoveSetV3 instead", false)]
 public class OptimizedObservedRemoveSet<TActorId, TItem>
     : ICRDT<OptimizedObservedRemoveSet<TActorId, TItem>.OptimizedObservedRemoveSetDto>
     where TItem : IEquatable<TItem>

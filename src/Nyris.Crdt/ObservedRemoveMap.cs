@@ -15,6 +15,7 @@ using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt;
 
+[Obsolete("Please use ObservedRemoveMapV2 instead", false)]
 public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>
     : IDeltaCrdt<ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.DeltaDto,
         ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.CausalTimestamp>
