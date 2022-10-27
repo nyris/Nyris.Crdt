@@ -10,21 +10,21 @@ namespace Nyris.Crdt.Managed.Metadata;
 internal sealed class CrdtInfo : IDeltaCrdt<CrdtInfoDelta, CrdtInfoCausalTimestamp>
 {
     private TimestampedValue<ulong> _storageSize = new(0, DateTime.MinValue);
-    private readonly OptimizedObservedRemoveSetV2<NodeId, NodeId> _nodesWithReadReplica = new();
+    private readonly OptimizedObservedRemoveSetV3<NodeId, NodeId> _nodesWithReadReplica = new();
 
     public ulong StorageSize => _storageSize.Value;
 
-    public HashSet<NodeId> ReadReplicas => _nodesWithReadReplica.Values;
+    public HashSet<NodeId> ReadReplicas => _nodesWithReadReplica.Values.ToHashSet();
 
-    public ImmutableArray<CrdtInfoDelta> AddNode(NodeId nodeId)
+    public ImmutableArray<CrdtInfoDelta> AddNodeAsHoldingReadReplica(NodeId nodeId, NodeId actor)
     {
-        var deltas = _nodesWithReadReplica.Add(nodeId, nodeId);
+        var deltas = _nodesWithReadReplica.Add(nodeId, actor);
         return deltas.IsEmpty 
             ? ImmutableArray<CrdtInfoDelta>.Empty 
             : ImmutableArray.Create<CrdtInfoDelta>(new CrdtInfoNodesWithReplicaDelta(deltas));
     }
 
-    public ImmutableArray<CrdtInfoDelta> RemoveNode(NodeId nodeId)
+    public ImmutableArray<CrdtInfoDelta> RemoveNodeFromReadReplicas(NodeId nodeId)
     {
         var deltas = _nodesWithReadReplica.Remove(nodeId);
         return deltas.IsEmpty 
@@ -49,8 +49,8 @@ internal sealed class CrdtInfo : IDeltaCrdt<CrdtInfoDelta, CrdtInfoCausalTimesta
             var localRef = dto;
             yield return new CrdtInfoNodesWithReplicaDelta(
                 Unsafe.As<
-                    ObservedRemoveDtos<NodeId, NodeId>.DeltaDto[], 
-                    ImmutableArray<ObservedRemoveDtos<NodeId, NodeId>.DeltaDto>>(ref localRef));
+                    OptimizedObservedRemoveCore<NodeId, NodeId>.DeltaDto[], 
+                    ImmutableArray<OptimizedObservedRemoveCore<NodeId, NodeId>.DeltaDto>>(ref localRef));
         }
     }
 

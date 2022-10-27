@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Nyris.Crdt.Exceptions;
 using Nyris.Crdt.Managed.Model;
+using Nyris.Crdt.Managed.Services;
 using Nyris.Crdt.Managed.Services.Propagation;
 using Nyris.Crdt.Managed.Strategies.NodeSelection;
 using Nyris.Crdt.Serialization.Abstractions;
@@ -16,24 +17,28 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
         [typeof(ISerializer)] = 2,
         [typeof(IPropagationService)] = 3,
         [typeof(NodeId)] = 4,
-        [typeof(NodeInfo)] = 5
+        [typeof(NodeInfo)] = 5,
+        [typeof(IReroutingService)] = 6
     };
 
-    private readonly INodesSelectionStrategy _nodesSelectionStrategy;
+    private readonly INodeSubsetSelectionStrategy _nodeSubsetSelectionStrategy;
+    private readonly INodeSelectionStrategy _nodeSelectionStrategy;
     private readonly INodeClientFactory _nodeClientFactory;
     private readonly ISerializer _serializer;
     private readonly ILogger<ManagedCrdtFactory> _logger;
     private readonly NodeInfo _thisNode;
     private readonly ILoggerFactory _loggerFactory;
 
-    public ManagedCrdtFactory(INodesSelectionStrategy nodesSelectionStrategy,
+    public ManagedCrdtFactory(INodeSubsetSelectionStrategy nodeSubsetSelectionStrategy,
+        INodeSelectionStrategy nodeSelectionStrategy,
         INodeClientFactory nodeClientFactory,
         ISerializer serializer, 
         ILogger<ManagedCrdtFactory> logger,
         NodeInfo thisNode,
         ILoggerFactory loggerFactory)
     {
-        _nodesSelectionStrategy = nodesSelectionStrategy;
+        _nodeSubsetSelectionStrategy = nodeSubsetSelectionStrategy;
+        _nodeSelectionStrategy = nodeSelectionStrategy;
         _nodeClientFactory = nodeClientFactory;
         _serializer = serializer;
         _logger = logger;
@@ -43,7 +48,6 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
 
     public ManagedCrdt Create(string typeName, InstanceId instanceId, IReplicaDistributor replicaDistributor)
     {
-        _logger.LogDebug("Creating ManagedCrdt based on type name {TypeName}", typeName);
         var type = Type.GetType(typeName) ?? throw new AssumptionsViolatedException($"Could not find type {typeName}");
         return (ManagedCrdt)Create(type, instanceId, replicaDistributor);
     }
@@ -82,13 +86,16 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
             {
                 1 => instanceId,
                 2 => _serializer,
-                3 => new PropagationService(distributor, _nodesSelectionStrategy, _nodeClientFactory),
+                3 => new PropagationService(distributor, _nodeSubsetSelectionStrategy, _nodeClientFactory),
                 4 => _thisNode.Id,
                 5 => _thisNode,
+                6 => new ReroutingService(distributor, _nodeClientFactory, _nodeSelectionStrategy, _thisNode),
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
 
-        return Activator.CreateInstance(type, args) ?? throw new InvalidOperationException();
+        _logger.LogDebug("Running Activator with {Type} and constructor parameters: {Args}", 
+            type, string.Join(", ", args));
+        return Activator.CreateInstance(type, args) ?? throw new InvalidOperationException("Activator returned null");
     }
 }

@@ -32,16 +32,33 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
         Logger = logger;
     }
 
-    internal sealed override ulong GetShardSize(ShardId shardId)
+    internal sealed override void MarkLocalShardAsReadReplica(ShardId shardId)
+    {
+        _shards.AddOrUpdate(shardId, 
+            _ => new ValueTuple<bool, TCrdt>(true, new TCrdt()),
+            (_, tuple) => new ValueTuple<bool, TCrdt>(true, tuple.Shard));
+    }
+
+    internal sealed override Dictionary<ShardId, int> GetShardSizes()
     {
         // TODO: this was used for debugging, remove 
-        if (!TryGetShard(shardId, out var shard, out _)) return 0;
-        if (shard is OptimizedObservedRemoveSetV2<NodeId, int> set)
+
+        var result = new Dictionary<ShardId, int>();
+
+        foreach (var (shardId, (_, shard)) in _shards)
         {
-            return (ulong)set.Values.Count;
+            if (shard is OptimizedObservedRemoveSetV2<NodeId, int> set)
+            {
+                result[shardId] = set.Values.Count;
+            }
+
+            if (shard is OptimizedObservedRemoveSetV3<NodeId, double> setV3)
+            {
+                result[shardId] = setV3.Count;
+            }
         }
 
-        return 0;
+        return result;
     }
 
     public sealed override async Task MergeAsync(ShardId shardId, ReadOnlyMemory<byte> batch, OperationContext context)

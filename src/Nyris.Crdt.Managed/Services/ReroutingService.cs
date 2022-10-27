@@ -23,6 +23,11 @@ internal sealed class ReroutingService : IReroutingService
     public async Task<ReadOnlyMemory<byte>> RerouteAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> operation, OperationContext context)
     {
         var nodesThatShouldHaveReplica = _distributor.GetNodesWithReadReplicas(instanceId, shardId);
+        if (nodesThatShouldHaveReplica.IsDefaultOrEmpty)
+        {
+            throw new RoutingException($"TraceId '{context.TraceId}': can not reroute - read replicas list is empty");
+        }
+        
         var targetNode = _selectionStrategy.SelectNode(nodesThatShouldHaveReplica);
 
         if (targetNode == _thisNode)
@@ -37,6 +42,8 @@ internal sealed class ReroutingService : IReroutingService
         }
         
         var client = _clientFactory.GetClient(targetNode);
+        
+        // TODO: wrap grpc exceptions into transport exceptions and catch them here
         return await client.RerouteAsync(instanceId, shardId, operation, context);
     }
 }

@@ -3,4 +3,4 @@ using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.Managed.Metadata;
 
-internal sealed class NodeInfoSet : OptimizedObservedRemoveSetV2<NodeId, NodeInfo> {}
+internal sealed class NodeInfoSet : OptimizedObservedRemoveSetV3<NodeId, NodeInfo> {}

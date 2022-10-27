@@ -25,9 +25,12 @@ internal static class CustomResolverGetFormatterHelper
     private static readonly Dictionary<Type, Type> GenericFormatters = new()
     {
         [typeof(ObservedRemoveDtos<,>.DeltaDto)] = typeof(ObservedRemoveSetDeltaDtoFormatter<,>),
-        [typeof(ObservedRemoveMap<,,,,>.DeltaDto)] = typeof(ObservedRemoveMapDeltaDtoFormatter<,,,,>),
         [typeof(ObservedRemoveDtos<,>.CausalTimestamp)] = typeof(ObservedRemoveSetCausalTimestampFormatter<,>),
+        [typeof(ObservedRemoveMap<,,,,>.DeltaDto)] = typeof(ObservedRemoveMapDeltaDtoFormatter<,,,,>),
         [typeof(ObservedRemoveMap<,,,,>.CausalTimestamp)] = typeof(ObservedRemoveMapCausalTimestampFormatter<,,,,>),
+        [typeof(OptimizedObservedRemoveCore<,>.DeltaDto)] = typeof(ObservedRemoveCoreDeltaDtoFormatter<,>),
+        [typeof(OptimizedObservedRemoveCore<,>.CausalTimestamp)] = typeof(ObservedRemoveCoreCausalTimestampFormatter<,>),
+        [typeof(ObservedRemoveMapV2<,,,,>.MapDeltaItem)] = typeof(MapDeltaItemFormatter<,,,,>)
     };
 
     internal static object? GetFormatter(Type t)

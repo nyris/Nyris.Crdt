@@ -1,9 +1,10 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Nyris.Crdt.Managed.Model;
 
 namespace Nyris.Crdt.Managed.Strategies.NodeSelection;
 
-internal sealed class NextInRingSelectionStrategy : INodesSelectionStrategy, INodeSelectionStrategy
+internal sealed class NextInRingSelectionStrategy : INodeSubsetSelectionStrategy, INodeSelectionStrategy
 {
     private readonly NodeInfo _thisNode;
 
@@ -15,14 +16,13 @@ internal sealed class NextInRingSelectionStrategy : INodesSelectionStrategy, INo
     /// <inheritdoc />
     public ImmutableArray<NodeInfo> SelectNodes(in ImmutableArray<NodeInfo> nodes)
     {
-        return nodes.Length <= 1 ? ImmutableArray<NodeInfo>.Empty : ImmutableArray.Create(SelectNode(nodes));
+        return nodes.Length == 0 ? ImmutableArray<NodeInfo>.Empty : ImmutableArray.Create(SelectNode(nodes));
     }
 
     public NodeInfo SelectNode(in ImmutableArray<NodeInfo> nodes)
     {
+        Debug.Assert(nodes.Length > 0);
         var orderedList = nodes.OrderBy(info => info.Id).ToList();
-        if (orderedList.Count <= 1) return _thisNode;
-
         try
         {
             var thisNodePosition = orderedList.BinarySearch(_thisNode);

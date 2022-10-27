@@ -9,10 +9,10 @@ internal sealed class CrdtConfig : IDeltaCrdt<CrdtConfigDelta, CrdtConfigCausalT
     private readonly Dictionary<ConfigFields, TimestampedValue<uint>> _uintValues = new();
     private readonly Dictionary<ConfigFields, TimestampedValue<string>> _stringValues = new();
 
-    public string FullTypeName
+    public string AssemblyQualifiedName
     {
-        get => _stringValues.GetValueOrDefault(ConfigFields.FullTypeName);
-        set => _stringValues[ConfigFields.FullTypeName] = new TimestampedValue<string>(value, DateTime.UtcNow);
+        get => _stringValues.GetValueOrDefault(ConfigFields.AssemblyQualifiedName);
+        set => _stringValues[ConfigFields.AssemblyQualifiedName] = new TimestampedValue<string>(value, DateTime.UtcNow);
     }
 
     public uint RequestedReplicasCount

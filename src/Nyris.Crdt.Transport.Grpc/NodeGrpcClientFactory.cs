@@ -29,8 +29,8 @@ internal sealed class NodeGrpcClientFactory : INodeClientFactory, INodeFailureNo
                     RetryPolicy = new RetryPolicy
                     {
                         MaxAttempts = 5,
-                        InitialBackoff = TimeSpan.FromSeconds(1),
-                        MaxBackoff = TimeSpan.FromSeconds(5),
+                        InitialBackoff = TimeSpan.FromMilliseconds(500),
+                        MaxBackoff = TimeSpan.FromSeconds(3),
                         BackoffMultiplier = 1.5,
                         RetryableStatusCodes = { StatusCode.Unavailable }
                     }

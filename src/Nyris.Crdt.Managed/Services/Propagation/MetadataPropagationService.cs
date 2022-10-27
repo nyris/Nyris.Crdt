@@ -7,10 +7,10 @@ namespace Nyris.Crdt.Managed.Services.Propagation;
 
 internal sealed class MetadataPropagationService : IMetadataPropagationService
 {
-    private readonly INodesSelectionStrategy _selectionStrategy;
+    private readonly INodeSubsetSelectionStrategy _selectionStrategy;
     private readonly INodeClientFactory _clientFactory;
 
-    public MetadataPropagationService(INodesSelectionStrategy selectionStrategy, INodeClientFactory clientFactory)
+    public MetadataPropagationService(INodeSubsetSelectionStrategy selectionStrategy, INodeClientFactory clientFactory)
     {
         _selectionStrategy = selectionStrategy;
         _clientFactory = clientFactory;

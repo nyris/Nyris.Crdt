@@ -21,7 +21,7 @@ public static class ManagedCrdtsServiceCollectionExtensions
             .AddHostedService<SynchronizationAndRelocationService>()
             .AddSingleton<IManagedCrdtFactory, ManagedCrdtFactory>()
             .AddSingleton<INodeInfoProvider, NodeInfoProvider>()
-            .AddSingleton<INodesSelectionStrategy, NextInRingSelectionStrategy>()
+            .AddSingleton<INodeSubsetSelectionStrategy, NextInRingSelectionStrategy>()
             .AddSingleton<INodeSelectionStrategy, NextInRingSelectionStrategy>()
             .AddSingleton<IDistributionStrategy, DistributionStrategy>()
             .AddSingleton<IMetadataPropagationService, MetadataPropagationService>()

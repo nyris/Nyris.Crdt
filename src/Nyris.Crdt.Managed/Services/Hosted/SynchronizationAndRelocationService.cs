@@ -10,30 +10,30 @@ namespace Nyris.Crdt.Managed.Services.Hosted;
 
 internal sealed class SynchronizationAndRelocationService : BackgroundService
 {
-    private static readonly TimeSpan DelayTime = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan DelayTime = TimeSpan.FromSeconds(30);
 
     private readonly Cluster _cluster;
     private readonly INodeClientFactory _clientFactory;
-    private readonly INodesSelectionStrategy _nodesSelectionStrategy;
+    private readonly INodeSubsetSelectionStrategy _nodeSubsetSelectionStrategy;
     private readonly NodeInfo _thisNode;
     private readonly ILogger<SynchronizationAndRelocationService> _logger;
 
     public SynchronizationAndRelocationService(Cluster cluster, 
         INodeClientFactory clientFactory,
-        INodesSelectionStrategy nodesSelectionStrategy, 
+        INodeSubsetSelectionStrategy nodeSubsetSelectionStrategy, 
         NodeInfo thisNode, 
         ILogger<SynchronizationAndRelocationService> logger)
     {
         _cluster = cluster;
         _clientFactory = clientFactory;
-        _nodesSelectionStrategy = nodesSelectionStrategy;
+        _nodeSubsetSelectionStrategy = nodeSubsetSelectionStrategy;
         _thisNode = thisNode;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(DelayTime, stoppingToken);
+        await Task.Delay(DelayTime * (0.75 + 0.5 * Random.Shared.NextDouble()), stoppingToken);
         var i = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -45,7 +45,7 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "TraceId '{TraceId}': Sync could not finish due to an unhandled exception. Next try in {Delay}",
+                _logger.LogError(e, "TraceId '{TraceId}': Sync could not finish due to an unhandled exception. Next try in ~{Delay}",
                     traceId, DelayTime);
             }
             
@@ -59,8 +59,8 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
         var start = DateTime.Now;
         await SyncMetadataAsync(context);
         await SyncManagedCrdtsAsync(context);
-        _logger.LogDebug("TraceId '{TraceId}': Sync run finished in {Duration}, next run in {Delay}", 
-            context.TraceId, DateTime.Now - start, DelayTime);
+        // _logger.LogDebug("TraceId '{TraceId}': Sync run finished in {Duration}, next run in {Delay}", 
+        //     context.TraceId, DateTime.Now - start, DelayTime);
     }
 
     private async Task SyncManagedCrdtsAsync(OperationContext context)
@@ -82,9 +82,9 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
                 }
                 else
                 {
-                    await SyncShardAsync(crdt, shardId, nodesWithReplica, context, instanceId);
+                    var syncedNodes = await SyncShardAsync(crdt, shardId, nodesWithReplica, context, instanceId);
+                    await _cluster.ReportSyncSuccessfulAsync(instanceId, shardId, syncedNodes, context); 
                 }
-                await _cluster.ReportSyncSuccessfulAsync(instanceId, shardId, context); 
             }
         }
     }
@@ -93,11 +93,12 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
     private async Task RelocateAsync(ManagedCrdt crdt, InstanceId instanceId, ShardId shardId,
         ImmutableArray<NodeInfo> nodesWithReplica, OperationContext context)
     {
+        _logger.LogDebug("Starting relocation of replica {ReplicaId}", instanceId.With(shardId));
         await crdt.WriteLock.WaitAsync(context.CancellationToken);
         try
         {
-            await SyncShardAsync(crdt, shardId, nodesWithReplica, context, instanceId);
-            await crdt.DropShardAsync(shardId);  // shard is dropped here and not in ClusterManager cause of locking requirement
+            var syncedNodes = await SyncShardAsync(crdt, shardId, nodesWithReplica, context, instanceId);
+            await _cluster.ReportSyncSuccessfulAsync(instanceId, shardId, syncedNodes, context);  
         }
         finally
         {
@@ -105,14 +106,14 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
         }
     }
 
-    private async Task SyncShardAsync(ManagedCrdt crdt,
+    private async Task<ImmutableArray<NodeInfo>> SyncShardAsync(ManagedCrdt crdt,
         ShardId shardId,
         ImmutableArray<NodeInfo> nodesWithReplica,
         OperationContext context,
         InstanceId instanceId)
     {
         var doNotRequestDeltas = !nodesWithReplica.Contains(_thisNode);
-        var nodesToSync = _nodesSelectionStrategy.SelectNodes(nodesWithReplica);
+        var nodesToSync = _nodeSubsetSelectionStrategy.SelectNodes(nodesWithReplica);
         var timestamp = crdt.GetCausalTimestamp(shardId);
         
         foreach (var node in nodesToSync)
@@ -132,10 +133,12 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
                 context);
             await ExchangeDeltasAsync(duplexStream, crdt, shardId, otherTimestamp, context);
 
-            _logger.LogDebug(
-                "TraceId '{TraceId}': Syncing of crdt ({InstanceId}, {ShardId}) with node '{NodeId}' finished in {Duration}",
-                context.TraceId, instanceId, shardId, node.Id, DateTime.Now - start);
+            // _logger.LogDebug(
+            //     "TraceId '{TraceId}': Syncing of crdt ({InstanceId}, {ShardId}) with node '{NodeId}' finished in {Duration}",
+            //     context.TraceId, instanceId, shardId, node.Id, DateTime.Now - start);
         }
+
+        return nodesToSync;
     }
 
     private async Task ExchangeDeltasAsync(IDuplexDeltasStream duplexStream,
@@ -163,8 +166,8 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
             timestamp,
             doNotRequestDeltas,
             context);
-        _logger.LogDebug("TraceId '{TraceId}': Exchanged timestamps for ({InstanceId}, {ShardId}) in {Duration}",
-            context.TraceId, instanceId, shardId, DateTime.Now - timestampsExchangeStart);
+        // _logger.LogDebug("TraceId '{TraceId}': Exchanged timestamps for ({InstanceId}, {ShardId}) in {Duration}",
+        //     context.TraceId, instanceId, shardId, DateTime.Now - timestampsExchangeStart);
         return otherTimestamp;
     }
 
@@ -172,7 +175,7 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
     {
         // _logger.LogDebug("Starting to sync node metadata");
         var nodes = await _cluster.GetNodesAsync(context.CancellationToken);
-        var targetNodes = _nodesSelectionStrategy.SelectNodes(nodes);
+        var targetNodes = _nodeSubsetSelectionStrategy.SelectNodes(nodes);
         var timestamps = _cluster.GetCausalTimestamps(context.CancellationToken);
         
         foreach (var node in targetNodes)
@@ -185,8 +188,8 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
             var otherTimestamps = await ExchangeMetadataTimestampsAsync(duplexStream, timestamps, context);
             await ExchangeMetadataDeltasAsync(duplexStream, otherTimestamps, context);
             
-            _logger.LogDebug("TraceId '{TraceId}': Metadata sync with node '{NodeId}' completed in {Duration}", 
-                context.TraceId, node.Id, DateTime.Now - start);
+            // _logger.LogDebug("TraceId '{TraceId}': Metadata sync with node '{NodeId}' completed in {Duration}", 
+            //     context.TraceId, node.Id, DateTime.Now - start);
         }
     }
 
@@ -196,8 +199,8 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
     {
         var nodeStart = DateTime.Now;
         var otherTimestamps = await duplexStream.ExchangeMetadataTimestampsAsync(timestamps, context);
-        _logger.LogDebug("TraceId '{TraceId}': Metadata causal timestamps exchanged in {Duration}", 
-            context.TraceId, DateTime.Now - nodeStart);
+        // _logger.LogDebug("TraceId '{TraceId}': Metadata causal timestamps exchanged in {Duration}", 
+        //     context.TraceId, DateTime.Now - nodeStart);
         return otherTimestamps;
     }
 
@@ -230,8 +233,8 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
             await crdt.MergeAsync(shardId, deltas, context);
         }
 
-        _logger.LogDebug("TraceId '{TraceId}': Received {Count} new delta batches, process took {Duration}", 
-            context.TraceId, batchCount, DateTime.Now - startReceivingBatches);
+        // _logger.LogDebug("TraceId '{TraceId}': Received {Count} new delta batches, process took {Duration}", 
+        //     context.TraceId, batchCount, DateTime.Now - startReceivingBatches);
     }
     
     private async Task ConsumeMetadataDeltasFromOtherNodeAsync(IDuplexMetadataDeltasStream duplexStream,
@@ -246,7 +249,7 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
             await _cluster.MergeAsync(kind, deltas, context);
         }
 
-        _logger.LogDebug("TraceId: '{TraceId}': Received {Count} new metadata delta batches, process took {Duration}", 
-            context.TraceId, batchCount, DateTime.Now - startReceivingBatches);
+        // _logger.LogDebug("TraceId: '{TraceId}': Received {Count} new metadata delta batches, process took {Duration}", 
+        //     context.TraceId, batchCount, DateTime.Now - startReceivingBatches);
     }
 }

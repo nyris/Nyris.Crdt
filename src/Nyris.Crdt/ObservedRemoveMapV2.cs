@@ -22,6 +22,11 @@ namespace Nyris.Crdt
         private readonly ConcurrentDictionary<TKey, DottedValue> _items = new();
         // private readonly object _writeLock = new();
         
+        // keep everything in array for slightly faster indexing - it is assumed that adding observers
+        // is a very rare operation, while notifications happen all the time 
+        private IMapObserver<TKey, TValue>[] _observers = Array.Empty<IMapObserver<TKey, TValue>>();
+        private readonly object _observersLock = new();
+
         public int Count => _items.Count;
         public ICollection<TKey> Keys => _items.Keys;
         
@@ -41,11 +46,13 @@ namespace Nyris.Crdt
                 {
                     // merge value, add new version to value's dot list and maybe remove old version (if there is one for this actor)
                     valueDeltas = dottedValue.MergeValueAndUpdateDot(actorId, value, newVersion, out oldVersion);
+                    NotifyUpdated(key, dottedValue.Value);
                 } 
                 else // if the key is new one, simply add the value and get all it's dtos into one array
                 {
                     valueDeltas = value.EnumerateDeltaDtos().ToImmutableArray();
                     _items[key] = new DottedValue(value, new DotWithDeltas(actorId, newVersion, valueDeltas));
+                    NotifyAdded(key, value);
                 }
                 
                 deltaItem = new MapDeltaItem(key, valueDeltas);
@@ -77,6 +84,8 @@ namespace Nyris.Crdt
                     RemoveFromInverse(actor, version);
                 }
 
+                NotifyRemoved(key);
+                
                 deltas = deltasBuilder.MoveToImmutable();
                 return true;
             }
@@ -99,6 +108,7 @@ namespace Nyris.Crdt
 
                 newVersion = GetNewVersion(actorId);
                 valueDeltas = dottedValue.MutateValueAndUpdateDot(actorId, func, newVersion, out oldVersion);
+                NotifyUpdated(key, dottedValue.Value);
             }
             
             var deltaItem = new MapDeltaItem(key, valueDeltas);
@@ -135,17 +145,32 @@ namespace Nyris.Crdt
             value = dottedValue.Value;
             return true;
         }
-    
+        
+        public void SubscribeToChanges(IMapObserver<TKey, TValue> observer)
+        {
+            lock(_observersLock)
+            {
+                var newArray = new IMapObserver<TKey, TValue>[_observers.Length + 1];
+                Array.Copy(_observers, newArray, _observers.Length);
+                newArray[_observers.Length] = observer;
+                _observers = newArray;
+            }
+        }
+
         protected sealed override ulong? AddDot(TActorId actorId, ulong version, MapDeltaItem item)
         {
-            if (_items.TryGetValue(item.Key, out var dottedValue))
+            var itemKey = item.Key;
+            if (_items.TryGetValue(itemKey, out var dottedValue))
             {
-                return dottedValue.Merge(actorId, version, item.ValueDeltas);
+                var oldVersion = dottedValue.Merge(actorId, version, item.ValueDeltas);
+                NotifyUpdated(itemKey, dottedValue.Value);
+                return oldVersion;
             }
 
             dottedValue = new DottedValue(new TValue());
             dottedValue.Merge(actorId, version, item.ValueDeltas);
-            _items[item.Key] = dottedValue;
+            _items[itemKey] = dottedValue;
+            NotifyAdded(itemKey, dottedValue.Value);
             return null;
         }
 
@@ -157,9 +182,26 @@ namespace Nyris.Crdt
             if (dottedValue.InnerDotList.Count == 0)
             {
                 _items.TryRemove(item.Key, out _);
+                NotifyRemoved(item.Key);
             }
         }
-    
+        
+        private void NotifyAdded(TKey key, TValue value)
+        {
+            foreach (var observer in _observers) observer.ElementAdded(key, value);
+        }
+        
+        private void NotifyUpdated(TKey key, TValue newValue)
+        {
+            foreach (var observer in _observers) observer.ElementUpdated(key, newValue);
+        }
+
+        private void NotifyRemoved(TKey key)
+        {
+            foreach (var observer in _observers) observer.ElementRemoved(key);
+        }
+
+        
         private readonly struct DotWithDeltas
         {
             public readonly TActorId Actor;
