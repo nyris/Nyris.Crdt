@@ -69,7 +69,7 @@ internal sealed class SynchronizationAndRelocationService : BackgroundService
         {
             if (!_cluster.TryGet<ManagedCrdt>(instanceId, out var crdt)) continue;
 
-            foreach (var shardId in crdt.Shards)
+            foreach (var shardId in crdt.ShardIds)
             {
                 // _logger.LogDebug("TraceId '{TraceId}': Starting to sync crdt ({InstanceId}, {ShardId})",
                 //     traceId, instanceId, shardId);

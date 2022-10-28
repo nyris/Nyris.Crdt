@@ -36,6 +36,15 @@ services:
     ports:
       - "5040:80"
       - "5041:8080"
+  node-4:
+    build:
+      context: .
+      dockerfile: samples/Nyris.Crdt.AspNetExampleV2/Dockerfile
+    environment:
+      - NODE_NAME=node-4
+    ports:
+      - "5050:80"
+      - "5051:8080"
 #  prometheus:
 #    image: ubuntu/prometheus
 #    container_name: dev_prometheus

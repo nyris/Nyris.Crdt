@@ -10,7 +10,7 @@ using Nyris.Crdt.Interfaces;
 namespace Nyris.Crdt
 {
     public class ObservedRemoveMapV2<TActorId, TKey, TValue, TValueDto, TValueTimestamp>
-        : OptimizedObservedRemoveCore<TActorId, ObservedRemoveMapV2<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.MapDeltaItem>
+        : ObservedRemoveCore<TActorId, ObservedRemoveMapV2<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.MapDeltaItem>
         where TKey : IEquatable<TKey>
         where TValue : class, IDeltaCrdt<TValueDto, TValueTimestamp>, new()
         where TActorId : IEquatable<TActorId>

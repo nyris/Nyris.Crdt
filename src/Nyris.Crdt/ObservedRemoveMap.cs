@@ -15,6 +15,17 @@ using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt;
 
+// setV2:
+// (actorId, version, *something*)
+// {actorId => {item => version}}   ALSO { actorId => {version => item} }
+
+// map:
+// {key => [ (actorId, version)] }
+
+
+// set: something -> item
+// map: somrehting -> (key, value)
+
 [Obsolete("Please use ObservedRemoveMapV2 instead", false)]
 public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>
     : IDeltaCrdt<ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.DeltaDto,

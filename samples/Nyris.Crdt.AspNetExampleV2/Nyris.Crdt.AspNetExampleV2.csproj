@@ -13,4 +13,8 @@
       <ProjectReference Include="..\..\src\Nyris.Crdt.Serialization.MessagePack\Nyris.Crdt.Serialization.MessagePack.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Nyris.Model.Ids" Version="1.4.2" />
+    </ItemGroup>
+
 </Project>

@@ -1,3 +1,4 @@
+using MessagePack.Formatters;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Managed.Model.Deltas;
 using Nyris.Crdt.Serialization.MessagePack.Formatters;
@@ -7,10 +8,11 @@ using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt.Serialization.MessagePack;
 
-internal static class CustomResolverGetFormatterHelper
+
+public static class CustomResolverGetFormatterHelper
 {
     // If type is concrete type, use type-formatter map
-    private static readonly Dictionary<Type, object> FormatterMap = new()
+    public static readonly Dictionary<Type, object> FormatterMap = new()
     {
         {typeof(ObservedRemoveDtos<NodeId, NodeInfo>.Dto), new NodeInfoSetDtoFormatter()},
         {typeof(NodeId), NodeIdFormatter.Instance},
@@ -28,8 +30,8 @@ internal static class CustomResolverGetFormatterHelper
         [typeof(ObservedRemoveDtos<,>.CausalTimestamp)] = typeof(ObservedRemoveSetCausalTimestampFormatter<,>),
         [typeof(ObservedRemoveMap<,,,,>.DeltaDto)] = typeof(ObservedRemoveMapDeltaDtoFormatter<,,,,>),
         [typeof(ObservedRemoveMap<,,,,>.CausalTimestamp)] = typeof(ObservedRemoveMapCausalTimestampFormatter<,,,,>),
-        [typeof(OptimizedObservedRemoveCore<,>.DeltaDto)] = typeof(ObservedRemoveCoreDeltaDtoFormatter<,>),
-        [typeof(OptimizedObservedRemoveCore<,>.CausalTimestamp)] = typeof(ObservedRemoveCoreCausalTimestampFormatter<,>),
+        [typeof(ObservedRemoveCore<,>.DeltaDto)] = typeof(ObservedRemoveCoreDeltaDtoFormatter<,>),
+        [typeof(ObservedRemoveCore<,>.CausalTimestamp)] = typeof(ObservedRemoveCoreCausalTimestampFormatter<,>),
         [typeof(ObservedRemoveMapV2<,,,,>.MapDeltaItem)] = typeof(MapDeltaItemFormatter<,,,,>)
     };
 

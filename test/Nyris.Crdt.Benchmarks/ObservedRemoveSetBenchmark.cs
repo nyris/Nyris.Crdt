@@ -160,8 +160,8 @@ public class ObservedRemoveSetBenchmark
     {
         var finished1 = false;
         var finished2 = false;
-        var set1 = new OptimizedObservedRemoveSetV3<Guid, double>();
-        var set2 = new OptimizedObservedRemoveSetV3<Guid, double>();
+        var set1 = new ObservedRemoveSetV3<Guid, double>();
+        var set2 = new ObservedRemoveSetV3<Guid, double>();
         var thread1 = new Thread(() => OperateOnSetInLoop(set1, Guid.NewGuid(), ref finished1));
         var thread2 = new Thread(() => OperateOnSetInLoop(set2, Guid.NewGuid(), ref finished2));
         var thread3 = new Thread(() => MergeSetsInLoop(set1, set2, ref finished1, ref finished2));
@@ -182,10 +182,10 @@ public class ObservedRemoveSetBenchmark
     }
 
     private void MergeSetsInLoop(
-        IDeltaCrdt<OptimizedObservedRemoveCore<Guid, double>.DeltaDto,
-            OptimizedObservedRemoveCore<Guid, double>.CausalTimestamp> set1,
-        IDeltaCrdt<OptimizedObservedRemoveCore<Guid, double>.DeltaDto,
-            OptimizedObservedRemoveCore<Guid, double>.CausalTimestamp> set2, 
+        IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto,
+            ObservedRemoveCore<Guid, double>.CausalTimestamp> set1,
+        IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto,
+            ObservedRemoveCore<Guid, double>.CausalTimestamp> set2, 
         ref bool finished1, 
         ref bool finished2)
     {
@@ -196,7 +196,7 @@ public class ObservedRemoveSetBenchmark
         }
     }
     
-    private void OperateOnSetInLoop(OptimizedObservedRemoveSetV3<Guid, double> set, Guid actor, ref bool finished)
+    private void OperateOnSetInLoop(ObservedRemoveSetV3<Guid, double> set, Guid actor, ref bool finished)
     {
         for (var i = 0; i < Count; ++i)
         {
@@ -219,8 +219,8 @@ public class ObservedRemoveSetBenchmark
         finished = true;
     }
     
-    private static void MergeToRight(IDeltaCrdt<OptimizedObservedRemoveCore<Guid, double>.DeltaDto, OptimizedObservedRemoveCore<Guid, double>.CausalTimestamp> left, 
-        IDeltaCrdt<OptimizedObservedRemoveCore<Guid, double>.DeltaDto, OptimizedObservedRemoveCore<Guid, double>.CausalTimestamp> right)
+    private static void MergeToRight(IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto, ObservedRemoveCore<Guid, double>.CausalTimestamp> left, 
+        IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto, ObservedRemoveCore<Guid, double>.CausalTimestamp> right)
     {
         foreach (var delta in left.EnumerateDeltaDtos(right.GetLastKnownTimestamp()))
         {

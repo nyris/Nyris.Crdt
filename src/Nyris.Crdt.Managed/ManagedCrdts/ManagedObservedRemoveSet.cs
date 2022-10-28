@@ -22,7 +22,7 @@ public class ManagedObservedRemoveSet<TItem>
         ISerializer serializer, 
         IPropagationService propagationService,
         ILogger logger) 
-        : base(instanceId, serializer, propagationService, logger)
+        : base(instanceId, serializer, propagationService)
     {
         _thisNode = thisNode;
     }

@@ -2,23 +2,36 @@
 
 ## Open TODOs:
 
- - Add buffering to the PropagationService 
- - Add callbacks to crdts
- - Add indexes on top of callbacks
+ - Add buffering to the PropagationService
+ - Add indexes on top of callbacks (think of search indexes on top of ObservedRemoveMap with {imageUuid => vector} )
  - Optimize GetWriteReplicas and GetReadReplicas methods of Cluster 
 (currently they are calculating dictionaries every time, but those can be pre-calculated)
  - Plan persistence layer
 
 ### Maybe important, but hard(er)
- - Inverse data structure used ObservedRemoveSet and ObservedRemoveMap currently using a SortedList, 
-but it would be better to write a custom tree-based structure. 
-See [VersionedItemList](../../src/Nyris.Crdt/Model/VersionedItemList.cs) for details
+
+ - There is an implementation of a [ConcurrentSkipListMap](src/Nyris.Crdt/ConcurrentSkipListMap.cs) for Inverse data 
+   structure within [ObservedRemoveCore](src/Nyris.Crdt/OptimizedObservedRemoveCore.cs) abstract class. 
+   It is an open question if usage of that list is better then a simple
+   SortedList, which was [used in the set before](src/Nyris.Crdt/Sets/OptimizedObservedRemoveSetV2.cs). 
+   [Benchmarks](test/Nyris.Crdt.Benchmarks/ObservedRemoveSet.md) of V2 and V3 implementation does not provide a 
+   definitive answer. The overall task is - how best to optimize the ObservedRemoveSet?
+
+ - Usage of locks in ObservedRemove [map](src/Nyris.Crdt/ObservedRemoveMapV2.cs) and [set](src/Nyris.Crdt/Sets/OptimizedObservedRemoveSetV3.cs) 
+   is not proven to be minimal or necessary. There are benefits in investigating which locks can be removed or changed (or which must be added) 
+
+ - Current design of [ObservedRemoveMap](src/Nyris.Crdt/ObservedRemoveMapV2.cs) forces it to accumulate a growing number of value deltas within a single dot. 
+   Each update to a key is done by calculating delta dtos produced by that update and then appending them to an array of dtos already present in the dot 
+   (of the same actor). This is making an ObservedRemoveMap silently inefficient in case a lot of updates happen on the same keys (which is the common case actually).
+   I don't know if there exist a design that is better, but I can't prove there is no such design either. 
+
  - Is there some better way of organizing solution into projects?
+
  - Currently metadata and other crdts are propagated separately, but they using a lot of code that potentially 
-_could_ be shared. Is there benefits in refactoring this part? How can this be done?
- - Usage of locks in ObservedRemoveMap and set is not tested to be minial or necessary. 
-There are benefits in investigating which locks can be removed or changed (or which must be added)  
- 
+   _could_ be shared. Is there benefits in refactoring this part? How can this be done?  
+
+ - Distribution strategy should probably take shard size into account (see [this example](src/Nyris.Crdt.Distributed/Strategies/PartialReplication/SimplePartialReplicationStrategy.cs))    
+
 ### Relatively simple and straightforward 
  - In the spirit of extendability, grpc exceptions should be wrapped in a project defined ones, which can then be caught and handled in internal services.
  - Lots of allocations thanks to logging, great opportunity for [high-performance logging with source generators](https://learn.microsoft.com/en-us/dotnet/core/extensions/logger-message-generator)
@@ -27,7 +40,12 @@ There are benefits in investigating which locks can be removed or changed (or wh
  - Add benchmarking to all crdts - additions and merging of ObservedRemove Set and Map are the most obvious target for optimization
  - Add benchmarking to a sample application, with tests for "real usage" performance metrics  
  - Identify other hot paths. How to best measure memory and execution time in different code parts?
- - Improve visibility. Perhaps a nice frontend with visualization of cluster metadata
+ - Improve visibility. Perhaps a nice frontend with visualization of cluster metadata 
+
+
+
+
+# Left from Version 1 - deprecated!!!
 
 So far there are two parts to the repo:
 

@@ -16,8 +16,8 @@ namespace Nyris.Crdt
     /// </summary>
     /// <typeparam name="TActorId"></typeparam>
     /// <typeparam name="TDeltaItem"></typeparam>
-    public abstract class OptimizedObservedRemoveCore<TActorId, TDeltaItem> 
-        : IDeltaCrdt<OptimizedObservedRemoveCore<TActorId, TDeltaItem>.DeltaDto, OptimizedObservedRemoveCore<TActorId, TDeltaItem>.CausalTimestamp>
+    public abstract class ObservedRemoveCore<TActorId, TDeltaItem> 
+        : IDeltaCrdt<ObservedRemoveCore<TActorId, TDeltaItem>.DeltaDto, ObservedRemoveCore<TActorId, TDeltaItem>.CausalTimestamp>
         where TActorId : IEquatable<TActorId>
     {
         // To partially avoid locking, I enforce the order of operations. For _adding_ new data

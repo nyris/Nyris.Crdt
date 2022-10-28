@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Nyris.Crdt.Exceptions;
 using Nyris.Crdt.Managed.Metadata;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Transport.Abstractions;
@@ -157,11 +159,27 @@ internal sealed partial class Cluster : IClusterMetadataManager
         foreach (var replicaId in _crdtInfos.Keys)
         {
             _crdtInfos.TryGet(replicaId, info => info.ReadReplicas, out var readReplicas);
+            Debug.Assert(readReplicas is not null);
             _crdts.TryGetValue(replicaId.InstanceId, out var crdt);
-            if (readReplicas!.Contains(_thisNode.Id))
+            Debug.Assert(crdt is not null);
+            
+            if (readReplicas.Contains(_thisNode.Id))
             {
-                _logger.LogDebug("Marking local replica {ReplicaId} as read replica", replicaId);
-                crdt!.MarkLocalShardAsReadReplica(replicaId.ShardId);
+                // _logger.LogDebug("Marking local replica {ReplicaId} as read replica", replicaId);
+                crdt.MarkLocalShardAsReadReplica(replicaId.ShardId);
+            }
+
+            // Emergency measure. Read replicas are empty only if all nodes containing them went down in quick succession
+            // This means data might have been lost. Mark first write replica as read replicas to keep things operational
+            if (readReplicas.Count == 0)
+            {
+                if (!_desiredDistribution.TryGetValue(replicaId, out var nodeInfos))
+                {
+                    throw new AssumptionsViolatedException(
+                        "Replica should not exist without being in the desired distribution");
+                }
+                Debug.Assert(!nodeInfos.IsDefaultOrEmpty, "desired distribution of a replica can not be empty");
+                _crdtInfos.TryUpsertNodeAsHolderOfReadReplica(_thisNode.Id, nodeInfos[0].Id, replicaId, out _);
             }
         }
     }
@@ -176,7 +194,6 @@ internal sealed partial class Cluster : IClusterMetadataManager
             Debug.Assert(typeName is not null);
 
             _crdts[instanceId] = _crdtFactory.Create(typeName, instanceId, this);
-            // _logger.LogDebug("A new managed crdt was created, instanceId: '{InstanceId}'", instanceId);
         }
     }
 

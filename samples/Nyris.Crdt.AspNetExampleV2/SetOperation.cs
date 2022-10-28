@@ -1,7 +1,14 @@
 using MessagePack;
+using Nyris.Crdt.Serialization.Abstractions;
 
 namespace Nyris.Crdt.AspNetExampleV2;
 
+  
+/// <summary>
+/// If you need custom types be usable within Managed Crdt, they need to be serializable with <see cref="ISerializer"/>
+/// If you are using default <see cref="Nyris.Crdt.Serialization.MessagePack.MessagePackSerializer"/>, then its enough
+/// to annotate your types with Message Pack attributes (see https://github.com/neuecc/MessagePack-CSharp)
+/// </summary>
 [Union(0, typeof(Contains))]
 [Union(1, typeof(Remove))]
 [Union(2, typeof(Add))]

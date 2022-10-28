@@ -12,5 +12,5 @@ public interface IManagedCrdt
         ReadOnlyMemory<byte> causalTimestampBin,
         CancellationToken cancellationToken);
 
-    ReadOnlyMemory<byte> GetCausalTimestamp(ShardId shardId);
+    ReadOnlyMemory<byte> GetCausalTimestamp(in ShardId shardId);
 }

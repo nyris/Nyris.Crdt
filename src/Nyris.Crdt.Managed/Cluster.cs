@@ -72,7 +72,7 @@ internal sealed partial class Cluster : ICluster, IManagedCrdtProvider
         }
         finally
         {
-            _semaphore.Release();
+            _semaphore.Release(); 
         }
         var deltasBin = _serializer.Serialize(deltas);
         var nodes = _nodeSet.Values.ToImmutableArray();

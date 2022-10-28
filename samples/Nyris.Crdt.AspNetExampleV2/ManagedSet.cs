@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using MessagePack;
 using Newtonsoft.Json;
 using Nyris.Crdt.Managed.Exceptions;
 using Nyris.Crdt.Managed.ManagedCrdts;
@@ -10,13 +11,12 @@ using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.AspNetExampleV2;
 
-
 // ReSharper disable once ClassNeverInstantiated.Global
-public class ManagedSet 
+public sealed class ManagedSet 
     : ManagedCrdt<
-        OptimizedObservedRemoveSetV3<NodeId, double>,
-        OptimizedObservedRemoveCore<NodeId, double>.DeltaDto, 
-        OptimizedObservedRemoveCore<NodeId, double>.CausalTimestamp, 
+        ObservedRemoveSetV3<NodeId, double>,
+        ObservedRemoveCore<NodeId, double>.DeltaDto, 
+        ObservedRemoveCore<NodeId, double>.CausalTimestamp, 
         SetOperation,
         Bool>
 {
@@ -29,7 +29,7 @@ public class ManagedSet
         IPropagationService propagationService,
         IReroutingService reroutingService,
         ILogger<ManagedSet> logger) 
-        : base(instanceId, serializer, propagationService, logger, reroutingService)
+        : base(instanceId, serializer, propagationService, reroutingService)
     {
         _thisNode = thisNode;
         _logger = logger;
@@ -70,7 +70,7 @@ public class ManagedSet
     
     private async Task AddAsync(ShardId shardId, double item, OperationContext context)
     {
-        ImmutableArray<OptimizedObservedRemoveCore<NodeId, double>.DeltaDto> deltas;
+        ImmutableArray<ObservedRemoveCore<NodeId, double>.DeltaDto> deltas;
         await WriteLock.WaitAsync(context.CancellationToken);
         try
         {
@@ -85,7 +85,7 @@ public class ManagedSet
                 var operation = new Add(item);
                 try
                 {
-                    await RerouteAsync(shardId, operation, context);
+                    await RerouteAsync<Bool>(shardId, operation, context);
                     return;
                 }
                 catch (RoutingException)
@@ -111,7 +111,7 @@ public class ManagedSet
 
     private async Task<bool> RemoveAsync(ShardId shardId, double item, OperationContext context)
     {
-        ImmutableArray<OptimizedObservedRemoveCore<NodeId, double>.DeltaDto> deltas;
+        ImmutableArray<ObservedRemoveCore<NodeId, double>.DeltaDto> deltas;
 
         await WriteLock.WaitAsync(context.CancellationToken);
         try

@@ -6,7 +6,7 @@ using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Sets;
 
-public class OptimizedObservedRemoveSetV3<TActorId, TItem> : OptimizedObservedRemoveCore<TActorId, TItem>, ISetChangesNotifier<TItem>
+public class ObservedRemoveSetV3<TActorId, TItem> : ObservedRemoveCore<TActorId, TItem>, ISetChangesNotifier<TItem>
     where TItem : IEquatable<TItem>
     where TActorId : IEquatable<TActorId>
 {

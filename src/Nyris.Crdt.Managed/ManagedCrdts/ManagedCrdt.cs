@@ -13,11 +13,11 @@ public abstract class ManagedCrdt : IManagedCrdt
     }
     
     public InstanceId InstanceId { get; }
-    internal abstract ICollection<ShardId> Shards { get; }
+    internal abstract ICollection<ShardId> ShardIds { get; }
     internal abstract Dictionary<ShardId, int> GetShardSizes();
-    internal abstract void MarkLocalShardAsReadReplica(ShardId shardId);
+    internal abstract void MarkLocalShardAsReadReplica(in ShardId shardId);
 
-    internal abstract Task DropShardAsync(ShardId shardId);
+    protected internal abstract Task DropShardAsync(in ShardId shardId);
 
     public abstract Task MergeAsync(ShardId shardId, ReadOnlyMemory<byte> batch, OperationContext context);
     public virtual Task<ReadOnlyMemory<byte>> ApplyAsync(ShardId shardId, ReadOnlyMemory<byte> operation,
@@ -31,5 +31,5 @@ public abstract class ManagedCrdt : IManagedCrdt
         ReadOnlyMemory<byte> causalTimestampBin,
         CancellationToken cancellationToken);
 
-    public abstract ReadOnlyMemory<byte> GetCausalTimestamp(ShardId shardId);
+    public abstract ReadOnlyMemory<byte> GetCausalTimestamp(in ShardId shardId);
 }

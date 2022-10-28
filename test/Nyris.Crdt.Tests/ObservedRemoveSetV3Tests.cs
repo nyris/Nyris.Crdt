@@ -200,10 +200,10 @@ public sealed class ObservedRemoveSetV3Tests
     }
 
     private void MergeSetsInLoop(
-        IDeltaCrdt<OptimizedObservedRemoveCore<int, double>.DeltaDto,
-            OptimizedObservedRemoveCore<int, double>.CausalTimestamp> set1,
-        IDeltaCrdt<OptimizedObservedRemoveCore<int, double>.DeltaDto,
-            OptimizedObservedRemoveCore<int, double>.CausalTimestamp> set2, TimeSpan duration)
+        IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto,
+            ObservedRemoveCore<int, double>.CausalTimestamp> set1,
+        IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto,
+            ObservedRemoveCore<int, double>.CausalTimestamp> set2, TimeSpan duration)
     {
         var start = DateTime.Now;
         while (DateTime.Now - start < duration)
@@ -213,7 +213,7 @@ public sealed class ObservedRemoveSetV3Tests
         }
     }
     
-    private void OperateOnSetInLoop(OptimizedObservedRemoveSetV3<int, double> set, int actor, TimeSpan duration)
+    private void OperateOnSetInLoop(ObservedRemoveSetV3<int, double> set, int actor, TimeSpan duration)
     {
         var start = DateTime.Now;
         while (DateTime.Now - start < duration)
@@ -231,7 +231,7 @@ public sealed class ObservedRemoveSetV3Tests
         }
     }
 
-    private void AddToSets(OptimizedObservedRemoveSetV3<int, double> set, HashSet<double> referenceSet, int[] actors,
+    private void AddToSets(ObservedRemoveSetV3<int, double> set, HashSet<double> referenceSet, int[] actors,
         int count = 1)
     {
         for (var i = 0; i < count; ++i)
@@ -242,7 +242,7 @@ public sealed class ObservedRemoveSetV3Tests
         }
     }
 
-    private OptimizedObservedRemoveSetV3<int, double> GetSetWithRemovals(int nElement, int nActors, int nRemoves,
+    private ObservedRemoveSetV3<int, double> GetSetWithRemovals(int nElement, int nActors, int nRemoves,
         out HashSet<double> elementsSet)
     {
         var elements = GetRandomDoubles(nElement);
@@ -251,21 +251,21 @@ public sealed class ObservedRemoveSetV3Tests
         RemoveFromSets(set, elementsSet, nRemoves);
         return set;
     }
-    private void Merge(IDeltaCrdt<OptimizedObservedRemoveCore<int, double>.DeltaDto, OptimizedObservedRemoveCore<int, double>.CausalTimestamp> set1, 
-        IDeltaCrdt<OptimizedObservedRemoveCore<int, double>.DeltaDto, OptimizedObservedRemoveCore<int, double>.CausalTimestamp> set2)
+    private void Merge(IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> set1, 
+        IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> set2)
     {
         MergeToRight(set1, set2);
         MergeToRight(set2, set1);
     }
 
     
-    private void MergeToRight(IDeltaCrdt<OptimizedObservedRemoveCore<int, double>.DeltaDto, OptimizedObservedRemoveCore<int, double>.CausalTimestamp> left, 
-        IDeltaCrdt<OptimizedObservedRemoveCore<int, double>.DeltaDto, OptimizedObservedRemoveCore<int, double>.CausalTimestamp> right, 
+    private void MergeToRight(IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> left, 
+        IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> right, 
         bool skip = false,
         bool reorder = false,
         bool duplicate = false)
     {
-        var lateDeltas = new List<OptimizedObservedRemoveCore<int, double>.DeltaDto>();
+        var lateDeltas = new List<ObservedRemoveCore<int, double>.DeltaDto>();
         foreach (var delta in left.EnumerateDeltaDtos(right.GetLastKnownTimestamp()))
         {
             switch (_random.NextDouble())
@@ -293,7 +293,7 @@ public sealed class ObservedRemoveSetV3Tests
         }
     }
 
-    private static void RemoveFromSets(OptimizedObservedRemoveSetV3<int, double> set, HashSet<double> elementsSet, int nRemoves)
+    private static void RemoveFromSets(ObservedRemoveSetV3<int, double> set, HashSet<double> elementsSet, int nRemoves)
     {
         for (var i = 0; i < nRemoves; ++i)
         {
@@ -315,13 +315,13 @@ public sealed class ObservedRemoveSetV3Tests
             .WithoutStrictOrdering());
     }
     
-    private static void AssertEquality(OptimizedObservedRemoveSetV3<int, double> set1, OptimizedObservedRemoveSetV3<int, double> set2)
+    private static void AssertEquality(ObservedRemoveSetV3<int, double> set1, ObservedRemoveSetV3<int, double> set2)
     {
         set1.Values.ToHashSet().SetEquals(set2.Values).Should().BeTrue();
         AssertDeltasEquality(set1, set2);
     }
     
-    private static void AssertEquality(OptimizedObservedRemoveSetV3<int, double> set, IEnumerable<double> elements)
+    private static void AssertEquality(ObservedRemoveSetV3<int, double> set, IEnumerable<double> elements)
     {
         set.Values.ToHashSet().SetEquals(elements).Should().BeTrue("we expect to find elements we added");
     }
@@ -337,9 +337,9 @@ public sealed class ObservedRemoveSetV3Tests
         return actors;
     }
 
-    public static OptimizedObservedRemoveSetV3<int, double> NewSet() => new();
+    public static ObservedRemoveSetV3<int, double> NewSet() => new();
 
-    private OptimizedObservedRemoveSetV3<int, double> GetSetWith(int nActors, double[] elements)
+    private ObservedRemoveSetV3<int, double> GetSetWith(int nActors, double[] elements)
     {
         var set = NewSet();
         var actors = GetActors(nActors);

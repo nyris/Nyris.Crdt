@@ -15,7 +15,7 @@ public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfoDelta>
             case CrdtInfoNodesWithReplicaDelta nodesWithReplicaDto:
                 writer.Write(true);
                 var deltaFormatter = options.Resolver
-                    .GetFormatterWithVerify<ImmutableArray<OptimizedObservedRemoveCore<NodeId, NodeId>.DeltaDto>>();
+                    .GetFormatterWithVerify<ImmutableArray<ObservedRemoveCore<NodeId, NodeId>.DeltaDto>>();
                 deltaFormatter.Serialize(ref writer, nodesWithReplicaDto.Delta, options);
                 break;
             case CrdtInfoStorageSizeDelta storageSizeDto:
@@ -34,7 +34,7 @@ public class CrdtInfoDeltaDtoFormatter : IMessagePackFormatter<CrdtInfoDelta>
         {
             case true:
                 var deltaFormatter = options.Resolver
-                    .GetFormatterWithVerify<ImmutableArray<OptimizedObservedRemoveCore<NodeId, NodeId>.DeltaDto>>();
+                    .GetFormatterWithVerify<ImmutableArray<ObservedRemoveCore<NodeId, NodeId>.DeltaDto>>();
                 var deltas = deltaFormatter.Deserialize(ref reader, options);
                 return new CrdtInfoNodesWithReplicaDelta(deltas);
             case false:
