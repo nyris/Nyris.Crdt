@@ -6,7 +6,6 @@ using Nyris.Crdt.Distributed.Crdts.Operations;
 using Nyris.Crdt.Distributed.Crdts.Operations.Responses;
 using Nyris.Crdt.Distributed.Exceptions;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Model;
 using Nyris.Extensions.Guids;
 using System;
 using System.Collections.Concurrent;
@@ -17,20 +16,18 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed
 {
     public abstract class ManagedCrdtContext
     {
-        private readonly ConcurrentDictionary<TypeAndInstanceId, object> _managedCrdts = new();
-        private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashable> _sameManagedCrdts = new();
-        private readonly ConcurrentDictionary<Type, HashSet<TypeNameAndInstanceId>> _typeToTypeNameMapping = new();
+        private readonly ConcurrentDictionary<InstanceId, IHashable> _managedCrdts = new();
+        // private readonly ConcurrentDictionary<TypeNameAndInstanceId, IHashable> _sameManagedCrdts = new();
+        // private readonly ConcurrentDictionary<Type, HashSet<TypeNameAndInstanceId>> _typeToTypeNameMapping = new();
 
-        private readonly ConcurrentDictionary<TypeNameAndInstanceId, INodesWithReplicaProvider> _partiallyReplicated =
-            new();
-
-        private readonly ConcurrentDictionary<TypeNameAndInstanceId, ICreateAndDeleteManagedCrdtsInside> _holders =
-            new();
+        private readonly ConcurrentDictionary<InstanceId, INodesWithReplicaProvider> _partiallyReplicated = new();
+        private readonly ConcurrentDictionary<InstanceId, ICreateAndDeleteManagedCrdtsInside> _holders = new();
 
         protected readonly ILogger<ManagedCrdtContext>? Logger;
 
@@ -59,11 +56,7 @@ namespace Nyris.Crdt.Distributed
                                                            $"Try creating concrete type, that inherits from {typeof(TCrdt)}");
             }
 
-            var typeNameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
-            var typeAndInstanceId = new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId);
-
-            if (!_managedCrdts.TryAdd(typeAndInstanceId, crdt)
-                || !_sameManagedCrdts.TryAdd(typeNameAndInstanceId, crdt))
+            if (!_managedCrdts.TryAdd(crdt.InstanceId, crdt))
             {
                 throw new ManagedCrdtContextSetupException($"Failed to add crdt of type {typeof(TCrdt)} " +
                                                            $"with id {crdt.InstanceId} to the context - crdt of that" +
@@ -71,15 +64,7 @@ namespace Nyris.Crdt.Distributed
                                                            "already added. Make sure instanceId " +
                                                            "is unique withing crdts of the same type.");
             }
-
-            _typeToTypeNameMapping.AddOrUpdate(typeof(TCrdt),
-                                               _ => new HashSet<TypeNameAndInstanceId> { typeNameAndInstanceId },
-                                               (_, nameAndId) =>
-                                               {
-                                                   nameAndId.Add(typeNameAndInstanceId);
-                                                   return nameAndId;
-                                               });
-
+            
             if (crdt is ICreateAndDeleteManagedCrdtsInside compoundCrdt)
             {
                 compoundCrdt.ManagedCrdtContext = this;
@@ -99,9 +84,8 @@ namespace Nyris.Crdt.Distributed
             where TCrdt : ManagedCRDT<TDto>
         {
             Add<TCrdt, TDto>(crdt);
-            var nameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
-            _partiallyReplicated.TryAdd(nameAndInstanceId, nodesWithReplicaProvider);
-            _holders.TryAdd(nameAndInstanceId, holder);
+            _partiallyReplicated.TryAdd(crdt.InstanceId, nodesWithReplicaProvider);
+            _holders.TryAdd(crdt.InstanceId, holder);
         }
 
         internal void Remove<TCrdt, TDto>(TCrdt crdt)
@@ -109,35 +93,22 @@ namespace Nyris.Crdt.Distributed
         {
             // Logger?.LogDebug("Instance {InstanceId} of crdt {CrdtName} is being removed from context",
             //     crdt.InstanceId, crdt.TypeName);
-            var typeNameAndInstanceId = new TypeNameAndInstanceId(crdt.TypeName, crdt.InstanceId);
-
-            _managedCrdts.TryRemove(new TypeAndInstanceId(typeof(TCrdt), crdt.InstanceId), out _);
-            _sameManagedCrdts.TryRemove(typeNameAndInstanceId, out _);
-
-            if (_typeToTypeNameMapping.TryGetValue(typeof(TCrdt), out var nameAndInstanceIds))
-            {
-                nameAndInstanceIds.Remove(typeNameAndInstanceId);
-            }
-
-            // Remove factory and mapping only if it's a last instances
-            if (_managedCrdts.Keys.Any(key => key.Type == typeof(TCrdt))) return;
-
-            _typeToTypeNameMapping.TryRemove(typeof(TCrdt), out _);
+            _managedCrdts.TryRemove(crdt.InstanceId, out _);
         }
 
         internal async Task RemoveLocallyAsync<TCrdt, TDto>(
-            TypeNameAndInstanceId nameAndInstanceId,
+            InstanceId instanceId,
             CancellationToken cancellationToken = default
         )
             where TCrdt : ManagedCRDT<TDto>
         {
-            if (_holders.TryGetValue(nameAndInstanceId, out var holder))
+            if (_holders.TryGetValue(instanceId, out var holder))
             {
-                await holder.MarkForDeletionLocallyAsync(nameAndInstanceId.InstanceId, cancellationToken);
+                await holder.MarkForDeletionLocallyAsync(instanceId, cancellationToken);
             }
 
-            _partiallyReplicated.TryRemove(nameAndInstanceId, out _);
-            if (TryGetCrdt<TCrdt, TDto>(nameAndInstanceId.InstanceId, out var crdt))
+            _partiallyReplicated.TryRemove(instanceId, out _);
+            if (TryGetCrdt<TCrdt, TDto>(instanceId, out var crdt))
             {
                 Remove<TCrdt, TDto>(crdt);
             }
@@ -295,23 +266,24 @@ namespace Nyris.Crdt.Distributed
                                                                                                     cancellationToken: cancellationToken);
         }
 
-        public ReadOnlySpan<byte> GetHash(TypeNameAndInstanceId nameAndInstanceId) =>
-            _sameManagedCrdts.TryGetValue(nameAndInstanceId, out var crdt)
+        public ReadOnlySpan<byte> GetHash(InstanceId instanceId) =>
+            _managedCrdts.TryGetValue(instanceId, out var crdt)
                 ? crdt.CalculateHash()
                 : ArraySegment<byte>.Empty;
 
         internal IEnumerable<InstanceId> GetInstanceIds<TCrdt>()
-            => _managedCrdts.Keys.Where(tid => tid.Type == typeof(TCrdt)).Select(tid => tid.InstanceId);
+            => _managedCrdts
+               .Where(pair => pair.Value.GetType() == typeof(TCrdt))
+               .Select(pair => pair.Key);
 
-        internal bool IsHashEqual(TypeNameAndInstanceId typeNameAndInstanceId, ReadOnlySpan<byte> hash)
+        internal bool IsHashEqual(InstanceId instanceId, ReadOnlySpan<byte> hash)
         {
-            if (!_sameManagedCrdts.TryGetValue(typeNameAndInstanceId, out var crdt))
+            if (!_managedCrdts.TryGetValue(instanceId, out var crdt))
             {
                 throw new ManagedCrdtContextSetupException(
-                                                           $"Checking hash for Crdt named {typeNameAndInstanceId.TypeName} " +
-                                                           $"with id {typeNameAndInstanceId.InstanceId} failed - " +
-                                                           "Crdt not found in the managed context. Check that you " +
-                                                           "Add-ed appropriate managed crdt type and that instanceId " +
+                                                           "Checking hash for Crdt with id " +
+                                                           $"{instanceId} failed - Crdt not found in the managed context. " +
+                                                           "Check that you Add-ed appropriate managed crdt type and that instanceId " +
                                                            "of that type is coordinated across servers");
             }
 
@@ -324,7 +296,7 @@ namespace Nyris.Crdt.Distributed
         )
             where TCrdt : ManagedCRDT<TDto>
         {
-            if (!_managedCrdts.TryGetValue(new TypeAndInstanceId(typeof(TCrdt), instanceId), out var crdtObject))
+            if (!_managedCrdts.TryGetValue(instanceId, out var crdtObject))
             {
                 throw new ManagedCrdtContextSetupException($"Enumerating dto of crdt type {typeof(TCrdt)} " +
                                                            $"with id {instanceId} failed due to crdt not being found." +
@@ -344,12 +316,11 @@ namespace Nyris.Crdt.Distributed
             }
         }
 
-        internal IEnumerable<NodeInfo> GetNodesThatHaveReplica(TypeNameAndInstanceId nameAndInstanceId)
+        internal IEnumerable<NodeInfo> GetNodesThatHaveReplica(InstanceId instanceId)
         {
-            if (_partiallyReplicated.TryGetValue(nameAndInstanceId, out var nodesWithReplicasProvider))
+            if (_partiallyReplicated.TryGetValue(instanceId, out var nodesWithReplicasProvider))
             {
-                return nodesWithReplicasProvider
-                    .GetNodesThatShouldHaveReplicaOfCollection(nameAndInstanceId.InstanceId);
+                return nodesWithReplicasProvider.GetNodesThatShouldHaveReplicaOfCollection(instanceId);
             }
 
             return Nodes.Value;
@@ -361,7 +332,7 @@ namespace Nyris.Crdt.Distributed
         )
             where TCrdt : ManagedCRDT<TDto>
         {
-            _managedCrdts.TryGetValue(new TypeAndInstanceId(typeof(TCrdt), instanceId), out var crdtObject);
+            _managedCrdts.TryGetValue(instanceId, out var crdtObject);
             crdt = crdtObject as TCrdt;
             return crdt != null;
         }

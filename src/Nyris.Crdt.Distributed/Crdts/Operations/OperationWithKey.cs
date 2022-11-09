@@ -1,8 +1,8 @@
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Model;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts.Operations;
 

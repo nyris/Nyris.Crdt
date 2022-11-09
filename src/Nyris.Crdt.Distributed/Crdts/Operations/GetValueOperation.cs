@@ -1,4 +1,4 @@
-using Nyris.Crdt.Model;
+using Nyris.Crdt.Interfaces;
 using ProtoBuf;
 
 namespace Nyris.Crdt.Distributed.Crdts.Operations;

@@ -43,9 +43,9 @@ namespace Nyris.Crdt.Distributed
             _logger = logger;
         }
 
-        public async Task<byte[]> GetHashAsync(TypeNameAndInstanceId nameAndInstanceId, CancellationToken cancellationToken = default)
+        public async Task<byte[]> GetHashAsync(PrimitiveWrapper<InstanceId> instanceId, CancellationToken cancellationToken = default)
         {
-            var hash = _context.GetHash(nameAndInstanceId).ToArray();
+            var hash = _context.GetHash(instanceId).ToArray();
             // _logger.LogDebug("Sending hash '{Hash}' for {CrdtName}: {InstanceId}",
             //     Convert.ToHexString(hash), nameAndInstanceId.TypeName, nameAndInstanceId.InstanceId);
             return hash;

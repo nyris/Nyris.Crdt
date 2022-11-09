@@ -3,8 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Sets;
+
+// TODO: this has some concurrency related edge cases which must be addressed
 
 /// <summary>
 /// Optimized Observed-Remove Set is a CRDT proposed by Annette Bieniusa & Co: https://softech.cs.uni-kl.de/homepage/staff/AnnetteBieniusa/paper/techrep2012-semantics.pdf
@@ -13,12 +17,13 @@ namespace Nyris.Crdt.Sets;
 /// It is O(E*n + n), where E is the number of elements and n is the number of actors.
 /// </summary>
 [DebuggerDisplay("{_items.Count < 10 ? string.Join(';', _items) : \"... a lot of items ...\"}")]
+[Obsolete("Please use OptimizedObservedRemoveSetV3 instead", false)]
 public class OptimizedObservedRemoveSet<TActorId, TItem>
     : ICRDT<OptimizedObservedRemoveSet<TActorId, TItem>.OptimizedObservedRemoveSetDto>
     where TItem : IEquatable<TItem>
     where TActorId : IEquatable<TActorId>
 {
-    protected HashSet<DottedItem<TActorId, TItem>> Items;
+    protected HashSet<DottedItemWithActor<TActorId, TItem>> Items;
     protected readonly Dictionary<TActorId, uint> VersionVectors;
     protected readonly object SetChangeLock = new();
 
@@ -60,7 +65,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
     {
         if (ReferenceEquals(other.VersionVectors, null) || other.VersionVectors.Count == 0)
             return MergeResult.NotUpdated;
-        other.Items ??= new HashSet<DottedItem<TActorId, TItem>>();
+        other.Items ??= new HashSet<DottedItemWithActor<TActorId, TItem>>();
 
         lock (SetChangeLock)
         {
@@ -119,7 +124,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
             {
                 Items = Items
                         // (isn't it the same type? transform seem unnecessary), if cloning, wouldn't the ctor work i.e new(Items)
-                        .Select(i => new DottedItem<TActorId, TItem>(i.Dot, i.Value))
+                        .Select(i => new DottedItemWithActor<TActorId, TItem>(i.Dot, i.Value))
                         .ToHashSet(),
                 VersionVectors = VersionVectors
                     .ToDictionary(pair => pair.Key, pair => pair.Value)
@@ -149,9 +154,9 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
 
             versionVector += 1;
 
-            var itemDot = new Dot<TActorId>(actorPerformingAddition, versionVector);
+            var itemDot = new IntDot<TActorId>(actorPerformingAddition, versionVector);
 
-            Items.Add(new DottedItem<TActorId, TItem>(itemDot, item));
+            Items.Add(new DottedItemWithActor<TActorId, TItem>(itemDot, item));
 
             // notice that i.Actor.Equals(actorPerformingAddition) means that there may be multiple copies of item
             // stored at the same time. This is by design
@@ -173,7 +178,7 @@ public class OptimizedObservedRemoveSet<TActorId, TItem>
     public sealed class OptimizedObservedRemoveSetDto
     {
         [ProtoMember(1)]
-        public HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
+        public HashSet<DottedItemWithActor<TActorId, TItem>>? Items { get; set; }
 
         [ProtoMember(2)]
         public Dictionary<TActorId, uint>? VersionVectors { get; set; }

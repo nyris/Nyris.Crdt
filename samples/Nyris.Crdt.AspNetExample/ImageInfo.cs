@@ -1,8 +1,8 @@
-using Nyris.Crdt.Model;
 using ProtoBuf;
 using System;
 using System.Security.Cryptography;
 using System.Text;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.AspNetExample;
 

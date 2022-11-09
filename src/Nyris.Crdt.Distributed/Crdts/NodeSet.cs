@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts;
 
@@ -48,13 +49,13 @@ public sealed class NodeSet : ManagedOptimizedObservedRemoveSet<NodeId, NodeInfo
     public sealed class NodeSetDto : OrSetDto
     {
         [ProtoMember(1)]
-        public override HashSet<DottedItem<NodeId, NodeInfo>>? Items { get; set; }
+        public override HashSet<DottedItemWithActor<NodeId, NodeInfo>>? Items { get; set; }
 
         [ProtoMember(2)]
         public override Dictionary<NodeId, uint>? VersionVectors { get; set; }
 
         [ProtoMember(3)]
-        public override Dictionary<Dot<NodeId>, HashSet<NodeId>>? Tombstones { get; set; }
+        public override Dictionary<IntDot<NodeId>, HashSet<NodeId>>? Tombstones { get; set; }
 
         [ProtoMember(4)]
         public override NodeId SourceId { get; set; }

@@ -62,12 +62,14 @@ internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
 
     private async Task TryHandleConsistencyCheckAsync(CancellationToken cancellationToken)
     {
+        // We need to a type name here for node-to-node communication. Specifically, even though InstanceId
+        // is enough to identify an instance of CRDT, it is not possible to have a instanceId-to-type mapping
+        // available statically. See ManagedCrdtServiceTemplate.sbntxt for details 
         var typeName = TypeNameCompressor.GetName<TCrdt>();
 
         foreach (var instanceId in _context.GetInstanceIds<TCrdt>())
         {
-            var nameAndInstanceId = new TypeNameAndInstanceId(typeName, instanceId);
-            var nodesThatShouldHaveReplica = _context.GetNodesThatHaveReplica(nameAndInstanceId).ToList();
+            var nodesThatShouldHaveReplica = _context.GetNodesThatHaveReplica(instanceId).ToList();
 
             // _logger.LogDebug("Crdt {CrdtName} ({InstanceId}) is expected to be at {NodeList}",
             //     typeName, instanceId, string.Join(";", nodesThatShouldHaveReplica.Select(ni => ni.Id)));
@@ -82,20 +84,21 @@ internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
             // to nodes that should have it. That is - if synchronization was successful
             foreach (var nodeId in _strategy.GetTargetNodes(nodesThatShouldHaveReplica, _thisNodeId))
             {
-                markForDeletion &= await TryHandleConsistencyCheckAsync(nameAndInstanceId, nodeId, cancellationToken);
+                markForDeletion &= await TryHandleConsistencyCheckAsync(typeName, instanceId, nodeId, cancellationToken);
             }
 
             if (markForDeletion)
             {
                 _logger.LogDebug("Crdt {CrdtName} ({InstanceId}) will be removed locally",
                                  typeName, instanceId);
-                await _context.RemoveLocallyAsync<TCrdt, TDto>(nameAndInstanceId, cancellationToken);
+                await _context.RemoveLocallyAsync<TCrdt, TDto>(instanceId, cancellationToken);
             }
         }
     }
 
     private async Task<bool> TryHandleConsistencyCheckAsync(
-        TypeNameAndInstanceId nameAndInstanceId,
+        string typeName,
+        InstanceId instanceId,
         NodeId nodeId,
         CancellationToken cancellationToken
     )
@@ -106,8 +109,8 @@ internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
             return false;
         }
 
-        var hash = await client.GetHashAsync(nameAndInstanceId, cancellationToken);
-        if (_context.IsHashEqual(nameAndInstanceId, hash))
+        var hash = await client.GetHashAsync(instanceId, cancellationToken);
+        if (_context.IsHashEqual(instanceId, hash))
         {
             // _logger.LogDebug("Crdt {CrdtType} with id {CrdtInstanceId} is consistent between " +
             // "this node ({ThisNodeId}) and node with id {NodeId}. Hash: '{MyHash}'",
@@ -122,13 +125,13 @@ internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
         _logger.LogInformation("Crdt {CrdtType} with id {CrdtInstanceId} is not consistent between " +
                                "this node ({ThisNodeId}, hash: '{MyHash}') " +
                                "and node {NodeId} (hash: '{ReceivedHash}')",
-                               nameAndInstanceId.TypeName,
-                               nameAndInstanceId.InstanceId,
+                               typeof(TCrdt),
+                               instanceId,
                                _thisNodeId,
-                               Convert.ToHexString(_context.GetHash(nameAndInstanceId)),
+                               Convert.ToHexString(_context.GetHash(instanceId)),
                                nodeId,
                                Convert.ToHexString(hash));
-        return await SyncCrdtsAsync(client, nameAndInstanceId.TypeName, nameAndInstanceId.InstanceId, cancellationToken);
+        return await SyncCrdtsAsync(client, typeName, instanceId, cancellationToken);
     }
 
     private async Task<bool> SyncCrdtsAsync(

@@ -3,16 +3,16 @@ services:
   node-0:
     build:
       context: .
-      dockerfile: samples/Nyris.Crdt.AspNetExample/Dockerfile
+      dockerfile: samples/Nyris.Crdt.AspNetExampleV2/Dockerfile
     environment:
       - NODE_NAME=node-0
     ports:
-      - "5000:80"
-      - "5001:8080"
+      - "5030:80"
+      - "5031:8080"
   node-1:
     build:
       context: .
-      dockerfile: samples/Nyris.Crdt.AspNetExample/Dockerfile
+      dockerfile: samples/Nyris.Crdt.AspNetExampleV2/Dockerfile
     environment:
       - NODE_NAME=node-1
     ports:
@@ -21,26 +21,44 @@ services:
   node-2:
     build:
       context: .
-      dockerfile: samples/Nyris.Crdt.AspNetExample/Dockerfile
+      dockerfile: samples/Nyris.Crdt.AspNetExampleV2/Dockerfile
     environment:
       - NODE_NAME=node-2
     ports:
       - "5020:80"
       - "5021:8080"
-  prometheus:
-    image: ubuntu/prometheus
-    container_name: dev_prometheus
-    ports:
-      - "9090:9090"
+  node-3:
+    build:
+      context: .
+      dockerfile: samples/Nyris.Crdt.AspNetExampleV2/Dockerfile
     environment:
-      - TZ=UTC
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-
-  grafana:
-    image: grafana/grafana
-    container_name: dev_grafana
+      - NODE_NAME=node-3
     ports:
-      - "3000:3000"
-    volumes:
-      - ~/docker-volumes/grafana-data:/var/lib/grafana
+      - "5040:80"
+      - "5041:8080"
+  node-4:
+    build:
+      context: .
+      dockerfile: samples/Nyris.Crdt.AspNetExampleV2/Dockerfile
+    environment:
+      - NODE_NAME=node-4
+    ports:
+      - "5050:80"
+      - "5051:8080"
+#  prometheus:
+#    image: ubuntu/prometheus
+#    container_name: dev_prometheus
+#    ports:
+#      - "9090:9090"
+#    environment:
+#      - TZ=UTC
+#    volumes:
+#      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+#
+#  grafana:
+#    image: grafana/grafana
+#    container_name: dev_grafana
+#    ports:
+#      - "3000:3000"
+#    volumes:
+#      - ~/docker-volumes/grafana-data:/var/lib/grafana

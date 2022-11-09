@@ -1,10 +1,11 @@
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using ProtoBuf;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nyris.Crdt.Extensions;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Distributed.Crdts;
 

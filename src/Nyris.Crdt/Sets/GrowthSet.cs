@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt.Sets
 {

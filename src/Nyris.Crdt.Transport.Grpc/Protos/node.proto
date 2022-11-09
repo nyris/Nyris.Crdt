@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+service Node {
+  rpc JoinToCluster (AddNodeMessage) returns (stream MetadataDelta);
+  rpc MergeDeltas (CrdtBytesMsg) returns (Empty);
+  rpc MergeMetadataDeltas (MetadataDelta) returns (Empty);
+  rpc Sync (stream CrdtBytesMsg) returns (stream CrdtBytesMsg);
+  rpc SyncMetadata (stream MetadataDelta) returns (stream MetadataDelta);
+  rpc Reroute (CrdtBytesMsg) returns (CrdtBytesMsg);
+}
+
+message CrdtBytesMsg {
+  string InstanceId = 1;
+  uint32 ShardId = 2;
+  bytes Value = 3;
+  OperationContextMessage Context = 4;
+}
+
+message MetadataDelta {
+  int32 Kind = 1; 
+  bytes Deltas = 2;
+  OperationContextMessage Context = 3;
+}
+
+message Empty {}
+
+message AddNodeMessage {
+  string Address = 1;
+  string NodeId = 2;
+  OperationContextMessage Context = 3;
+}
+
+message OperationContextMessage {
+  string Origin = 1;
+  int32 AwaitPropagationToNNodes = 2;
+  string TraceId = 3;
+}

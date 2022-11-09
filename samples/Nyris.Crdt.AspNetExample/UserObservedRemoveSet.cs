@@ -6,6 +6,7 @@ using Nyris.Crdt.Distributed.Utils;
 using ProtoBuf;
 using System.Collections.Generic;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.AspNetExample;
 
@@ -22,13 +23,13 @@ public sealed class
     public sealed class UserSetDto : OrSetDto
     {
         [ProtoMember(1)]
-        public override HashSet<DottedItem<NodeId, User>>? Items { get; set; }
+        public override HashSet<DottedItemWithActor<NodeId, User>>? Items { get; set; }
 
         [ProtoMember(2)]
         public override Dictionary<NodeId, uint>? VersionVectors { get; set; }
 
         [ProtoMember(3)]
-        public override Dictionary<Dot<NodeId>, HashSet<NodeId>>? Tombstones { get; set; }
+        public override Dictionary<IntDot<NodeId>, HashSet<NodeId>>? Tombstones { get; set; }
 
         [ProtoMember(4)]
         public override NodeId SourceId { get; set; }

@@ -1,8 +1,8 @@
-using Nyris.Crdt.Distributed.Model;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Distributed.Model;
 
-namespace Nyris.Crdt.Distributed;
+namespace Nyris.Crdt.Distributed.Crdts.Interfaces;
 
 internal interface ICreateAndDeleteManagedCrdtsInside
 {

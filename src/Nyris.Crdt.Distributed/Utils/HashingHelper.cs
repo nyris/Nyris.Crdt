@@ -1,12 +1,13 @@
 using Microsoft.Extensions.ObjectPool;
 using Nyris.Crdt.Distributed.Exceptions;
-using Nyris.Crdt.Model;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Utils;
 
@@ -140,7 +141,7 @@ internal static class HashingHelper
     }
 
     public static ReadOnlySpan<byte> Combine<TKey, TItem, TActorId>(
-        IEnumerable<KeyValuePair<TKey, DottedItem<TActorId, TItem>>> items
+        IEnumerable<KeyValuePair<TKey, DottedItemWithActor<TActorId, TItem>>> items
     )
         where TKey : IHashable
         where TItem : IEquatable<TItem>, IHashable
@@ -192,7 +193,7 @@ internal static class HashingHelper
     }
 
     public static ReadOnlySpan<byte> Combine<TItem, TActorId>(
-        IEnumerable<DottedItem<TActorId, TItem>> items
+        IEnumerable<DottedItemWithActor<TActorId, TItem>> items
     )
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>

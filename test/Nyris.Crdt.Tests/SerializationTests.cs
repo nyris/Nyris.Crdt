@@ -7,6 +7,7 @@ using ProtoBuf;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Nyris.Crdt.Model;
 using Xunit;
 
 namespace Nyris.Crdt.Tests;
@@ -52,13 +53,13 @@ public sealed class SerializationTests
 
         TypeSerializable(new NodeSet.NodeSetDto
         {
-            Items = new HashSet<DottedItem<NodeId, NodeInfo>>
+            Items = new HashSet<DottedItemWithActor<NodeId, NodeInfo>>
             {
-                new(new Dot<NodeId>(id, 1), nodeInfo)
+                new(new IntDot<NodeId>(id, 1), nodeInfo)
             },
-            Tombstones = new Dictionary<Dot<NodeId>, HashSet<NodeId>>
+            Tombstones = new Dictionary<IntDot<NodeId>, HashSet<NodeId>>
             {
-                { new Dot<NodeId>(id, 2), new HashSet<NodeId> { id } }
+                { new IntDot<NodeId>(id, 2), new HashSet<NodeId> { id } }
             },
             VersionVectors = new Dictionary<NodeId, uint>
             {

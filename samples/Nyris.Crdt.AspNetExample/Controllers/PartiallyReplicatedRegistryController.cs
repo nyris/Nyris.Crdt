@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Nyris.Crdt.Distributed.Model;
-using Nyris.Crdt.Distributed.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.AspNetExample.Controllers;
 
@@ -48,9 +48,7 @@ public sealed class PartiallyReplicatedRegistryController : ControllerBase
         var shardId = new ShardId(id);
         if (!r.ContainsKey(shardId)) return NotFound();
 
-        var hash = Convert.ToHexString(_context.GetHash(
-            new TypeNameAndInstanceId(
-                TypeNameCompressor.GetName<ImageInfoLwwCollectionWithSerializableOperations>(), new InstanceId(id))));
+        var hash = Convert.ToHexString(_context.GetHash(new InstanceId(id)));
 
         var result = new Dictionary<ImageGuid, TimeStampedItem<ImageInfo, DateTime>>();
         foreach (var dto in r[shardId])

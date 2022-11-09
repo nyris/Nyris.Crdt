@@ -8,3 +8,4 @@ using System.Diagnostics.CodeAnalysis;
 // TODO: Fix these
 [assembly:
     SuppressMessage("Design", "CA1051:Do not declare visible instance fields", Justification = "<Pending>")]
+[assembly: SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "<Pending>", Scope = "module")]

@@ -5,6 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Nyris.Crdt.Extensions;
+using Nyris.Crdt.Interfaces;
 
 namespace Nyris.Crdt;
 
@@ -17,6 +19,7 @@ namespace Nyris.Crdt;
 /// <typeparam name="TItemValue"></typeparam>
 /// <typeparam name="TItemValueDto"></typeparam>
 /// <typeparam name="TItemValueFactory"></typeparam>
+[Obsolete("Please use ObservedRemoveMapV2 instead", false)]
 public class CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
     : ICRDT<CrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>.CrdtRegistryDto>
     where TItemKey : IEquatable<TItemKey>

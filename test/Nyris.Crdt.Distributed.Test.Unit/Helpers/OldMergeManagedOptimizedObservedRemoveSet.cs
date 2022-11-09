@@ -3,13 +3,14 @@ using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Crdts.Abstractions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Test.Unit.Helpers;
 
@@ -18,7 +19,7 @@ public class OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto> : 
     where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
     where TDto : OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
 {
-    private HashSet<DottedItem<TActorId, TItem>> _items;
+    private HashSet<DottedItemWithActor<TActorId, TItem>> _items;
     private readonly Dictionary<TActorId, uint> _versionVectors;
     private readonly SemaphoreSlim _semaphore = new(1);
 
@@ -55,7 +56,7 @@ public class OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto> : 
     {
         if (ReferenceEquals(other.VersionVectors, null) || other.VersionVectors.Count == 0)
             return MergeResult.NotUpdated;
-        other.Items ??= new HashSet<DottedItem<TActorId, TItem>>();
+        other.Items ??= new HashSet<DottedItemWithActor<TActorId, TItem>>();
 
         if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
         {
@@ -123,7 +124,7 @@ public class OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto> : 
             return new TDto
             {
                 Items = _items
-                    .Select(i => new DottedItem<TActorId, TItem>(i.Dot, i.Value))
+                    .Select(i => new DottedItemWithActor<TActorId, TItem>(i.Dot, i.Value))
                     .ToHashSet(),
                 VersionVectors = _versionVectors
                     .ToDictionary(pair => pair.Key, pair => pair.Value)
@@ -176,7 +177,7 @@ public class OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto> : 
 
             observedVersion += 1;
 
-            _items.Add(new DottedItem<TActorId, TItem>(new Dot<TActorId>(actorPerformingAddition, observedVersion), item));
+            _items.Add(new DottedItemWithActor<TActorId, TItem>(new IntDot<TActorId>(actorPerformingAddition, observedVersion), item));
 
             // notice that i.Actor.Equals(actorPerformingAddition) means that there may be multiple copies of item
             // stored at the same time. This is by design
@@ -214,7 +215,7 @@ public class OldMergeManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto> : 
 
     public abstract class OrSetDto
     {
-        public abstract HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
+        public abstract HashSet<DottedItemWithActor<TActorId, TItem>>? Items { get; set; }
         public abstract Dictionary<TActorId, uint>? VersionVectors { get; set; }
     }
 }

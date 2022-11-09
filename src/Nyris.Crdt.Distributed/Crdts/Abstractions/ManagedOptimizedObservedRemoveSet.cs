@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using Nyris.Contracts.Exceptions;
 using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
-using Nyris.Crdt.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,6 +10,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Nyris.Crdt.Distributed.Metrics;
+using Nyris.Crdt.Interfaces;
+using Nyris.Crdt.Model;
 
 namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 
@@ -27,14 +28,14 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
     where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
     where TDto : ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
 {
-    private readonly HashSet<DottedItem<TActorId, TItem>> _items;
+    private readonly HashSet<DottedItemWithActor<TActorId, TItem>> _items;
     private TDto _delta;
 
     private readonly Dictionary<TActorId, uint> _versionVectors;
 
     // NOTE: Original Tombstones term represents the whole deleted Item {TItem} in original ORSet,
     // but this field only contains {Dot}s of deleted Items, this is also referred as "DotCloud" in https://bartoszsypytkowski.com/optimizing-state-based-crdts-part-2/
-    private readonly Dictionary<Dot<TActorId>, HashSet<TActorId>> _tombstones;
+    private readonly Dictionary<IntDot<TActorId>, HashSet<TActorId>> _tombstones;
     private readonly SemaphoreSlim _semaphore = new(1);
     private readonly TActorId _thisNodeId;
     private readonly ICrdtMetricsRegistry? _metricsRegistry;
@@ -51,17 +52,17 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
     {
         _thisNodeId = thisNodeId;
         _metricsRegistry = metricsRegistry;
-        _items = new HashSet<DottedItem<TActorId, TItem>>();
+        _items = new HashSet<DottedItemWithActor<TActorId, TItem>>();
         _defaultDelta = new TDto
         {
-            Items = new HashSet<DottedItem<TActorId, TItem>>(),
-            Tombstones = new Dictionary<Dot<TActorId>, HashSet<TActorId>>(),
+            Items = new HashSet<DottedItemWithActor<TActorId, TItem>>(),
+            Tombstones = new Dictionary<IntDot<TActorId>, HashSet<TActorId>>(),
             VersionVectors = new Dictionary<TActorId, uint>(),
             SourceId = thisNodeId
         };
         _delta = _defaultDelta;
         _versionVectors = new Dictionary<TActorId, uint>();
-        _tombstones = new Dictionary<Dot<TActorId>, HashSet<TActorId>>();
+        _tombstones = new Dictionary<IntDot<TActorId>, HashSet<TActorId>>();
     }
 
     /// <inheritdoc />
@@ -92,8 +93,8 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
             (other.VersionVectors is null || other.VersionVectors.Count == 0)) return MergeResult.NotUpdated;
 
         var otherItems = other.Items is null
-                             ? new HashSet<DottedItem<TActorId, TItem>>()
-                             : new HashSet<DottedItem<TActorId, TItem>>(other.Items);
+                             ? new HashSet<DottedItemWithActor<TActorId, TItem>>()
+                             : new HashSet<DottedItemWithActor<TActorId, TItem>>(other.Items);
 
         if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken))
         {
@@ -114,7 +115,7 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
                                                         i.Dot.Version > exitingVersion))
                                             .ToHashSet();
 
-            var newerTombstones = other.Tombstones ?? new Dictionary<Dot<TActorId>, HashSet<TActorId>>();
+            var newerTombstones = other.Tombstones ?? new Dictionary<IntDot<TActorId>, HashSet<TActorId>>();
 
             // NOTE: Delta is Identical when
             // 0. There are No new items
@@ -252,7 +253,7 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
 
             version += 1;
 
-            var newItem = new DottedItem<TActorId, TItem>(new Dot<TActorId>(_thisNodeId, version), item);
+            var newItem = new DottedItemWithActor<TActorId, TItem>(new IntDot<TActorId>(_thisNodeId, version), item);
 
             _items.Add(newItem);
 
@@ -322,9 +323,9 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
 
     public abstract class OrSetDto
     {
-        public abstract HashSet<DottedItem<TActorId, TItem>>? Items { get; set; }
+        public abstract HashSet<DottedItemWithActor<TActorId, TItem>>? Items { get; set; }
         public abstract Dictionary<TActorId, uint>? VersionVectors { get; set; }
-        public abstract Dictionary<Dot<TActorId>, HashSet<TActorId>>? Tombstones { get; set; }
+        public abstract Dictionary<IntDot<TActorId>, HashSet<TActorId>>? Tombstones { get; set; }
         public abstract TActorId? SourceId { get; set; }
     }
 }

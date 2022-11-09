@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\Nyris.Crdt.Transport.Grpc\Nyris.Crdt.Transport.Grpc.csproj" />
+      <ProjectReference Include="..\..\src\Nyris.Crdt.Managed\Nyris.Crdt.Managed.csproj" />
+      <ProjectReference Include="..\..\src\Nyris.Crdt.Serialization.MessagePack\Nyris.Crdt.Serialization.MessagePack.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Nyris.Model.Ids" Version="1.4.2" />
+    </ItemGroup>
+
+</Project>
