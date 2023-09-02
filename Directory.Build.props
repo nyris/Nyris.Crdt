@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <PropertyGroup>
+        <Company>Nyris GmbH</Company>
+        <Authors>Shafiq Ahmad; Nikita Chizhov</Authors>
+        <PackageTags>Extensions;Cache-Control</PackageTags>
+        <PackageLicenseExpression>EUPL-1.2</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>logo.png</PackageIcon>
+        <PublishRelease>true</PublishRelease>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <PackageProjectUrl Condition="'$(GITHUB_ACTIONS)' != 'true'">https://git.nyris.io/nyris/experiments/Nyris.Crdt</PackageProjectUrl>
+        <PackageProjectUrl Condition="'$(GITHUB_ACTIONS)' == 'true'">https://github.com/nyris/Nyris.Crdt</PackageProjectUrl>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <RepositoryUrl>$(PackageProjectUrl).git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <LangVersion>11.0</LangVersion>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <!-- CI/CD builds -->
+    <PropertyGroup Condition="'$(CI)' == 'true'">
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
+
+    <!-- Internal builds (i.e., not on GitHub) -->
+    <ItemGroup Condition="'$(GITHUB_ACTIONS)' != 'true'">
+        <PackageReference Include="SourceLink.Embed.AllSourceFiles" Version="[2.8.3,3.0.0)" PrivateAssets="All" />
+    </ItemGroup>
+
+    <!-- GitHub -->
+    <ItemGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+        <!-- <PackageReference Include="Microsoft.SourceLink.GitHub" Version="[1.1.1,2.0.0)" PrivateAssets="All" /> -->
+        <!-- <PackageReference Include="GitVersion.MsBuild" Version="[5.12.0,6.0.0)" PrivateAssets="All" /> -->
+    </ItemGroup>
+
+    <PropertyGroup>
+        <SolutionDir Condition="'$(SolutionDir)'==''">$(MSBuildThisFileDirectory)</SolutionDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(SolutionDir)\README.md" Pack="true" Visible="false" PackagePath="" />
+        <None Include="$(SolutionDir)\LICENSE.md" Pack="true" Visible="false" PackagePath="" />
+        <None Include="$(SolutionDir)\TRADEMARKS.md" Pack="true" Visible="false" PackagePath="" />
+        <None Include="$(SolutionDir)\nuget\logo.png" Pack="true" Visible="false" PackagePath="" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <!--
+        <NoWarn>$(NoWarn);...</NoWarn>
+        <WarningsNotAsErrors>$(WarningsNotAsErrors);...</WarningsNotAsErrors>
+        -->
+    </PropertyGroup>
+
+    <!-- Code Analyzers, Linters, ... -->
+    <ItemGroup>
+        <!-- <PackageReference Include="SonarAnalyzer" Version="6.6.0.3969" PrivateAssets="All" /> -->
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+    </ItemGroup>
+</Project>

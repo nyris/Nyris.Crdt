@@ -14,6 +14,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 		GitVersion.yml = GitVersion.yml
 		prometheus.yml = prometheus.yml
 		README.md = README.md
+		LICENSE.md = LICENSE.md
+		TRADEMARKS.md = TRADEMARKS.md
+		Directory.Build.props = Directory.Build.props
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Nyris.Crdt.Distributed.SourceGenerators", "src\Nyris.Crdt.Distributed.SourceGenerators\Nyris.Crdt.Distributed.SourceGenerators.csproj", "{E7B2E8E4-BBEE-48F7-AB9F-56B41CD49BBC}"
