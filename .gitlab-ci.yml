@@ -62,7 +62,7 @@ Build:
     - v2-autobuild
     - v2-test test/Nyris.Crdt.Tests/Nyris.Crdt.Tests.csproj
     - v2-test test/Nyris.Crdt.Distributed.Test.Unit/Nyris.Crdt.Distributed.Test.Unit.csproj
-    - v3-publish-app Release alpine-x64 samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
+    - v3-publish-app-untrimmed Release alpine-x64 samples/Nyris.Crdt.AspNetExample/Nyris.Crdt.AspNetExample.csproj
     - v2-publish-nuget src/Nyris.Crdt
     - v2-publish-nuget src/Nyris.Crdt.Distributed
     - v2-publish-nuget src/Nyris.Crdt.Distributed.SourceGenerators
