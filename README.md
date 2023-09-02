@@ -1,4 +1,4 @@
-# Everything CRDTs
+# Conflict-Free Replicated Data Types (CRDTs)
 
 ## Open TODOs:
 
