@@ -32,7 +32,7 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
     public ManagedCrdtFactory(INodeSubsetSelectionStrategy nodeSubsetSelectionStrategy,
         INodeSelectionStrategy nodeSelectionStrategy,
         INodeClientFactory nodeClientFactory,
-        ISerializer serializer, 
+        ISerializer serializer,
         ILogger<ManagedCrdtFactory> logger,
         NodeInfo thisNode,
         ILoggerFactory loggerFactory)
@@ -51,8 +51,8 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
         var type = Type.GetType(typeName) ?? throw new AssumptionsViolatedException($"Could not find type {typeName}");
         return (ManagedCrdt)Create(type, instanceId, replicaDistributor);
     }
-    
-    public TCrdt Create<TCrdt>(InstanceId instanceId, IReplicaDistributor replicaDistributor) 
+
+    public TCrdt Create<TCrdt>(InstanceId instanceId, IReplicaDistributor replicaDistributor)
         => (TCrdt)Create(typeof(TCrdt), instanceId, replicaDistributor);
 
     private object Create(Type type, InstanceId instanceId, IReplicaDistributor distributor)
@@ -94,7 +94,7 @@ internal sealed class ManagedCrdtFactory : IManagedCrdtFactory
             };
         }
 
-        _logger.LogDebug("Running Activator with {Type} and constructor parameters: {Args}", 
+        _logger.LogDebug("Running Activator with {Type} and constructor parameters: {Args}",
             type, string.Join(", ", args));
         return Activator.CreateInstance(type, args) ?? throw new InvalidOperationException("Activator returned null");
     }

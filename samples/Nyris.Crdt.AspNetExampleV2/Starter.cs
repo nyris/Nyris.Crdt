@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Diagnostics;
 using Nyris.Crdt.Managed;
 using Nyris.Crdt.Managed.Model;

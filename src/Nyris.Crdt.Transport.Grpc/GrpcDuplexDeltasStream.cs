@@ -14,7 +14,7 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
     private AsyncDuplexStreamingCall<CrdtBytesMsg, CrdtBytesMsg>? _call;
     private readonly Node.NodeClient _client;
 
-    
+
     public GrpcDuplexDeltasStream(Node.NodeClient client)
     {
         _client = client;
@@ -35,7 +35,7 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
             .WithTraceId(context.TraceId);
 
         if (doNotSendDeltas) headers.DoNotSendDeltas();
-        
+
         _call = _client.Sync(headers, null, context.CancellationToken);
         var responseHeaders = await _call.ResponseHeadersAsync;
         return responseHeaders.GetTimestamp();
@@ -46,8 +46,8 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
         if (_call is null)
         {
             throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeTimestampsAsync)} method must be called before {nameof(SendDeltasAndFinishAsync)}");
-        } 
-        
+        }
+
         await foreach (var delta in deltas.WithCancellation(cancellationToken))
         {
             await _call.RequestStream.WriteAsync(new CrdtBytesMsg
@@ -64,8 +64,8 @@ internal sealed class GrpcDuplexDeltasStream : IDuplexDeltasStream
         if (_call is null)
         {
             throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeTimestampsAsync)} method must be called before {nameof(GetDeltasAsync)}");
-        } 
-        
+        }
+
         await foreach (var batch in _call.ResponseStream.ReadAllAsync(cancellationToken: cancellationToken))
         {
             yield return batch.Value.Memory;

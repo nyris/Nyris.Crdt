@@ -7,7 +7,7 @@ namespace Nyris.Crdt.Model
     {
         public readonly TActorId Actor;
         public readonly ulong Version;
-    
+
         public Dot(TActorId actor, ulong version)
         {
             Actor = actor;
@@ -25,6 +25,6 @@ namespace Nyris.Crdt.Model
         public override int GetHashCode() => HashCode.Combine(Actor, Version);
         public static bool operator ==(Dot<TActorId> left, Dot<TActorId> right) => left.Equals(right);
         public static bool operator !=(Dot<TActorId> left, Dot<TActorId> right) => !left.Equals(right);
-        
+
     }
 }

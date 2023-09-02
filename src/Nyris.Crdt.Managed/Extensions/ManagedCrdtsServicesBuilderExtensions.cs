@@ -13,7 +13,7 @@ public static class ManagedCrdtsServicesBuilderExtensions
         {
             builder.Services.AddSingleton<IDiscoveryStrategy>(new AddressListDiscoveryStrategy(addresses));
         }
-    
+
         return builder;
     }
 }

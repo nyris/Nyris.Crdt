@@ -13,14 +13,14 @@ public class ImageIdFormatter : IMessagePackFormatter<ImageId>
             writer.WriteNil();
             return;
         }
-        
+
         GuidFormatter.Instance.Serialize(ref writer, value.AsGuid, options);
     }
 
     public ImageId Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
     {
         if(reader.TryReadNil()) return ImageId.Empty;
-        
+
         var guid = GuidFormatter.Instance.Deserialize(ref reader, options);
         return new ImageId(guid);
     }

@@ -10,7 +10,7 @@ public sealed class ConcurrentSkipListMapTests
 {
     private readonly ConcurrentSkipListMap<long, double> _map = new();
     private readonly Random _random= new(1);
-    
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
@@ -43,7 +43,7 @@ public sealed class ConcurrentSkipListMapTests
         {
             var key = _random.NextInt64();
             var value = _random.NextDouble();
-            
+
             var mapResult = _map.TryAdd(key, value);
             var dictResult = dict.TryAdd(key, value);
             mapResult.Should().Be(dictResult);
@@ -70,7 +70,7 @@ public sealed class ConcurrentSkipListMapTests
             {
                 var key = _random.NextInt64(-30, 30);
                 var value = _random.NextDouble();
-            
+
                 var insertedMap = _map.TryAdd(key, value);
                 var insertedDict = dict.TryAdd(key, value);
                 insertedMap.Should().Be(insertedDict);
@@ -78,7 +78,7 @@ public sealed class ConcurrentSkipListMapTests
             else
             {
                 var key = _random.NextInt64(-30, 30);
-            
+
                 var mapResult = _map.TryRemove(key, out var value);
                 var dictResult = dict.Remove(key, out var expectedValue);
                 mapResult.Should().Be(dictResult);
@@ -110,7 +110,7 @@ public sealed class ConcurrentSkipListMapTests
         elements.Should().HaveCount(count);
         elements.Select(pair => pair.Key).Should().BeInAscendingOrder();
     }
-    
+
     [Fact]
     public void EnumerationWorksWithLimits()
     {
@@ -121,19 +121,19 @@ public sealed class ConcurrentSkipListMapTests
 
         var keys = _map.WithinRange(-1, 11).Select(pair => pair.Key).ToList();
         keys.Should().BeEquivalentTo(Enumerable.Range(0, 11));
-        
+
         keys = _map.WithinRange(0, 11).Select(pair => pair.Key).ToList();
         keys.Should().BeEquivalentTo(Enumerable.Range(0, 11));
-        
+
         keys = _map.WithinRange(1, 11).Select(pair => pair.Key).ToList();
         keys.Should().BeEquivalentTo(Enumerable.Range(1, 10));
-        
+
         keys = _map.WithinRange(1, 3).Select(pair => pair.Key).ToList();
         keys.Should().BeEquivalentTo(Enumerable.Range(1, 2));
 
         keys = _map.WithinRange(-2, 1).Select(pair => pair.Key).ToList();
         keys.Should().BeEquivalentTo(Enumerable.Range(0, 1));
-        
+
         keys = _map.WithinRange(10, 12).Select(pair => pair.Key).ToList();
         keys.Should().BeEquivalentTo(Enumerable.Range(10, 1));
     }

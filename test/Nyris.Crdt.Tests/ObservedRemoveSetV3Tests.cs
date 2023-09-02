@@ -19,7 +19,7 @@ public sealed class ObservedRemoveSetV3Tests
     {
         _output = output;
     }
-    
+
     [Theory]
     [InlineData(1, 1)]
     [InlineData(10, 1)]
@@ -32,7 +32,7 @@ public sealed class ObservedRemoveSetV3Tests
 
         AssertEquality(set, elements);
     }
-    
+
     [Theory]
     [InlineData(1, 1, 1)]
     [InlineData(10, 1, 5)]
@@ -59,7 +59,7 @@ public sealed class ObservedRemoveSetV3Tests
         AssertEquality(set2, elements);
         AssertEquality(set1, set2);
     }
-    
+
     [Theory]
     [InlineData(1, 1, 1)]
     [InlineData(10, 1, 5)]
@@ -74,7 +74,7 @@ public sealed class ObservedRemoveSetV3Tests
         AssertEquality(set2, elementsSet);
         AssertEquality(set1, set2);
     }
-    
+
     [Theory]
     [InlineData(1, 1, 0)]
     [InlineData(1, 1, 1)]
@@ -89,11 +89,11 @@ public sealed class ObservedRemoveSetV3Tests
 
         set1.Add(_random.NextDouble(), 0);
         set2.Add(_random.NextDouble(), 1);
-        
+
         Merge(set1, set2);
         AssertEquality(set1, set2);
     }
-    
+
     [Theory]
     [InlineData(2, 1, 0)]
     [InlineData(10, 1, 5)]
@@ -155,10 +155,10 @@ public sealed class ObservedRemoveSetV3Tests
         var expectedSet = new HashSet<double>();
         AddToSets(set2, expectedSet, new[] {1, 2}, 100);
         MergeToRight(set2, set1);  // observer notified about 'remote' additions
-        
+
         RemoveFromSets(set2, expectedSet, expectedSet.Count / 2);
         MergeToRight(set2, set1);  // observer notified about 'remote' removal
-        
+
         AddToSets(set1, expectedSet, new[] {3, 4}, 100); // observer notified about local additions
         RemoveFromSets(set1, expectedSet, expectedSet.Count / 2); // observer notified about local removals
 
@@ -166,7 +166,7 @@ public sealed class ObservedRemoveSetV3Tests
         AssertEquality(set1, expectedSet);
         AssertEquality(set1, observer.Values);
     }
-    
+
     [Fact]
     public void ConcurrentAddRemoveMergeWorks()
     {
@@ -180,7 +180,7 @@ public sealed class ObservedRemoveSetV3Tests
         var thread2 = new Thread(() => OperateOnSetInLoop(set2, 1, TimeSpan.FromSeconds(1)));
         var thread3 = new Thread(() => MergeSetsInLoop(set1, set2, TimeSpan.FromSeconds(1)));
         StartThreadsAndWait(thread1, thread2, thread3);
-        
+
         // assert
         Merge(set1, set2);
         AssertEquality(set1, set2);
@@ -192,7 +192,7 @@ public sealed class ObservedRemoveSetV3Tests
         {
             threads[i].Start();
         }
-        
+
         for (var i = 0; i < threads.Length; ++i)
         {
             threads[i].Join();
@@ -212,7 +212,7 @@ public sealed class ObservedRemoveSetV3Tests
             MergeToRight(set2, set1, true, true, true);
         }
     }
-    
+
     private void OperateOnSetInLoop(ObservedRemoveSetV3<int, double> set, int actor, TimeSpan duration)
     {
         var start = DateTime.Now;
@@ -251,16 +251,16 @@ public sealed class ObservedRemoveSetV3Tests
         RemoveFromSets(set, elementsSet, nRemoves);
         return set;
     }
-    private void Merge(IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> set1, 
+    private void Merge(IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> set1,
         IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> set2)
     {
         MergeToRight(set1, set2);
         MergeToRight(set2, set1);
     }
 
-    
-    private void MergeToRight(IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> left, 
-        IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> right, 
+
+    private void MergeToRight(IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> left,
+        IDeltaCrdt<ObservedRemoveCore<int, double>.DeltaDto, ObservedRemoveCore<int, double>.CausalTimestamp> right,
         bool skip = false,
         bool reorder = false,
         bool duplicate = false)
@@ -314,13 +314,13 @@ public sealed class ObservedRemoveSetV3Tests
             .ComparingRecordsByMembers()
             .WithoutStrictOrdering());
     }
-    
+
     private static void AssertEquality(ObservedRemoveSetV3<int, double> set1, ObservedRemoveSetV3<int, double> set2)
     {
         set1.Values.ToHashSet().SetEquals(set2.Values).Should().BeTrue();
         AssertDeltasEquality(set1, set2);
     }
-    
+
     private static void AssertEquality(ObservedRemoveSetV3<int, double> set, IEnumerable<double> elements)
     {
         set.Values.ToHashSet().SetEquals(elements).Should().BeTrue("we expect to find elements we added");
@@ -361,8 +361,8 @@ public sealed class ObservedRemoveSetV3Tests
 
         return elements;
     }
-    
-    
+
+
     public sealed class DummySetObserver : ISetObserver<double>
     {
         public HashSet<double> Values { get; } = new();

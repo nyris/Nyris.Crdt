@@ -33,7 +33,7 @@ internal sealed class NodeInfoProvider : INodeInfoProvider
             var uriString = Environment.GetEnvironmentVariable("DEFAULT_URI") ?? $"http://{ip}:{8080}";
             _info = new NodeInfo(new Uri(uriString), ThisNodeId);
 
-            _logger.LogInformation("This node was assigned id={ThisNodeId} and uri={uriString}", 
+            _logger.LogInformation("This node was assigned id={ThisNodeId} and uri={uriString}",
                 ThisNodeId.ToString(), uriString);
 
             return _info;

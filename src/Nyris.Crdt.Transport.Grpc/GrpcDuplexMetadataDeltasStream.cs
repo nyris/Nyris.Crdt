@@ -37,7 +37,7 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         var headers = new Metadata();
         foreach (var (kind, timestamp) in timestamps)
         {
-            // header accepts binary values as well, but only as arrays (making at least 1 copy), which it then converts to base64 anyway 
+            // header accepts binary values as well, but only as arrays (making at least 1 copy), which it then converts to base64 anyway
             headers.Add(((int)kind).ToString(), Convert.ToBase64String(timestamp.Span));
         }
 
@@ -59,8 +59,8 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         if (_call is null)
         {
             throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeMetadataTimestampsAsync)} method must be called before {nameof(SendDeltasAsync)}");
-        } 
-            
+        }
+
         await foreach (var delta in deltas.WithCancellation(cancellationToken))
         {
             await _call.RequestStream.WriteAsync(new MetadataDelta
@@ -76,8 +76,8 @@ internal sealed class GrpcDuplexMetadataDeltasStream : IDuplexMetadataDeltasStre
         if (_call is null)
         {
             throw new SynchronizationProtocolViolatedException($"{nameof(ExchangeMetadataTimestampsAsync)} method must be called before {nameof(GetDeltasAsync)}");
-        } 
-        
+        }
+
         await foreach (var batch in _call.ResponseStream.ReadAllAsync(cancellationToken: cancellationToken))
         {
             yield return ((MetadataKind)batch.Kind, batch.Deltas.Memory);

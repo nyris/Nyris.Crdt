@@ -5,15 +5,15 @@ namespace Nyris.Crdt.Managed;
 
 internal sealed partial class Cluster : IReplicaDistributor
 {
-    public ImmutableArray<NodeInfo> GetNodesWithWriteReplicas(InstanceId instanceId, ShardId shardId) 
-        => _desiredDistribution.TryGetValue(instanceId.With(shardId), out var nodes) 
-            ? nodes 
+    public ImmutableArray<NodeInfo> GetNodesWithWriteReplicas(InstanceId instanceId, ShardId shardId)
+        => _desiredDistribution.TryGetValue(instanceId.With(shardId), out var nodes)
+            ? nodes
             : ImmutableArray<NodeInfo>.Empty;
 
     public ImmutableArray<NodeInfo> GetNodesWithReadReplicas(InstanceId instanceId, ShardId shardId)
     {
         if (!_crdtInfos.TryGet(instanceId.With(shardId), crdtInfo => crdtInfo.ReadReplicas, out var replicas)
-            || replicas is null 
+            || replicas is null
             || replicas.Count == 0)
         {
             return ImmutableArray<NodeInfo>.Empty;
@@ -26,7 +26,7 @@ internal sealed partial class Cluster : IReplicaDistributor
         {
             if (nodes.TryGetValue(nodeId, out var info))
             {
-                builder.Add(info);    
+                builder.Add(info);
             }
         }
         return builder.MoveToImmutable();

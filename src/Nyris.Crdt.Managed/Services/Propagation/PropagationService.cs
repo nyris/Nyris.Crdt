@@ -9,7 +9,7 @@ internal sealed class PropagationService : IPropagationService
     private readonly IReplicaDistributor _distributor;
     private readonly INodeSubsetSelectionStrategy _selectionStrategy;
     private readonly INodeClientFactory _clientFactory;
-    
+
     public PropagationService(IReplicaDistributor distributor,
         INodeSubsetSelectionStrategy selectionStrategy,
         INodeClientFactory clientFactory)
@@ -27,12 +27,12 @@ internal sealed class PropagationService : IPropagationService
         {
             // never propagate to a node, which is the origin of data being propagated
             if (nodeInfo.Id == context.Origin) continue;
-            
+
             var nNodes = context.AwaitPropagationToNNodes;
             if (nNodes != 0)
             {
                 var client = _clientFactory.GetClient(nodeInfo);
-                await client.MergeAsync(instanceId, shardId, data, context with {AwaitPropagationToNNodes = nNodes - 1});    
+                await client.MergeAsync(instanceId, shardId, data, context with {AwaitPropagationToNNodes = nNodes - 1});
             }
             else
             {

@@ -1,6 +1,6 @@
 namespace Nyris.Crdt.Managed.Model;
 
-public enum MetadataKind 
+public enum MetadataKind
 {
     NodeSet = 1,
     CrdtInfos = 2,

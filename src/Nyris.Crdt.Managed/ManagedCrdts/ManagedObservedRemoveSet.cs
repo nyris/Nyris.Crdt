@@ -7,21 +7,21 @@ using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.Managed.ManagedCrdts;
 
-public class ManagedObservedRemoveSet<TItem> 
+public class ManagedObservedRemoveSet<TItem>
     : ManagedCrdt<
         OptimizedObservedRemoveSetV2<NodeId, TItem>,
-        ObservedRemoveDtos<NodeId, TItem>.DeltaDto, 
+        ObservedRemoveDtos<NodeId, TItem>.DeltaDto,
         ObservedRemoveDtos<NodeId, TItem>.CausalTimestamp>
     where TItem : IEquatable<TItem>, IComparable<TItem>
 {
     private readonly NodeId _thisNode;
     private ulong _counter;
-    
+
     public ManagedObservedRemoveSet(InstanceId instanceId,
-        NodeId thisNode, 
-        ISerializer serializer, 
+        NodeId thisNode,
+        ISerializer serializer,
         IPropagationService propagationService,
-        ILogger logger) 
+        ILogger logger)
         : base(instanceId, serializer, propagationService)
     {
         _thisNode = thisNode;
@@ -32,11 +32,11 @@ public class ManagedObservedRemoveSet<TItem>
         // Logger.LogDebug("Adding {Item} to set", item.ToString());
         var shardId = ShardId.FromUint((uint)Math.Abs(item.GetHashCode()) % 3);
         ImmutableArray<ObservedRemoveDtos<NodeId, TItem>.DeltaDto> deltas;
-        
+
         await WriteLock.WaitAsync(cancellationToken);
         try
         {
-            // for addition we can always accept write locally, it will be relocated later if necessary 
+            // for addition we can always accept write locally, it will be relocated later if necessary
             var (_, shard) = GetOrCreateShard(shardId);
             deltas = shard.Add(item, _thisNode);
         }
@@ -54,7 +54,7 @@ public class ManagedObservedRemoveSet<TItem>
     {
         var shardId = ShardId.FromUint((uint)Math.Abs(item.GetHashCode()) % 3);
         var deltas = ImmutableArray<ObservedRemoveDtos<NodeId, TItem>.DeltaDto>.Empty;
-        
+
         await WriteLock.WaitAsync(cancellationToken);
         try
         {
@@ -66,7 +66,7 @@ public class ManagedObservedRemoveSet<TItem>
             }
             else
             {
-                // package into operation 
+                // package into operation
                 // call Reroute
             }
         }
@@ -78,7 +78,7 @@ public class ManagedObservedRemoveSet<TItem>
         if (!deltas.IsDefaultOrEmpty)
         {
             var context = new OperationContext(_thisNode, 1, GetTraceId("del"), cancellationToken);
-            await PropagateAsync(shardId, deltas, context);    
+            await PropagateAsync(shardId, deltas, context);
         }
     }
 

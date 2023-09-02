@@ -42,7 +42,7 @@ internal sealed class NodeGrpcService : Node.NodeBase
         var instanceId = InstanceId.FromString(request.InstanceId);
         if (!_crdts.TryGet(instanceId, out var crdt))
         {
-            _logger.LogWarning("TraceId '{TraceId}': Received delta batch for a non-existent crdt with instanceId '{InstanceId}', ignoring it", 
+            _logger.LogWarning("TraceId '{TraceId}': Received delta batch for a non-existent crdt with instanceId '{InstanceId}', ignoring it",
                 request.Context.TraceId, instanceId.ToString());
             return Empty;
         }
@@ -51,21 +51,21 @@ internal sealed class NodeGrpcService : Node.NodeBase
         await crdt.MergeAsync(shardId, request.Value.Memory, operationContext);
         return Empty;
     }
-    
+
     public override Task<Empty> MergeMetadataDeltas(MetadataDelta request, ServerCallContext context)
     {
         var operationContext = GetOperationContext(request.Context, context.CancellationToken);
         _clusterMetadata.MergeAsync((MetadataKind)request.Kind, request.Deltas.Memory, operationContext);
         return Task.FromResult(Empty);
     }
-    
+
     public override async Task Sync(IAsyncStreamReader<CrdtBytesMsg> requestStream, IServerStreamWriter<CrdtBytesMsg> responseStream, ServerCallContext context)
     {
         // first exchange headers
         var headers = context.RequestHeaders;
         var traceId = headers.GetTraceId();
         var instanceId = headers.GetInstanceId();
-        
+
         if (!_crdts.TryGet(instanceId, out var crdt))
         {
             throw new KeyNotFoundException($"TraceId '{traceId}': Received instance id was not found");
@@ -89,11 +89,11 @@ internal sealed class NodeGrpcService : Node.NodeBase
     public override async Task SyncMetadata(IAsyncStreamReader<MetadataDelta> requestStream, IServerStreamWriter<MetadataDelta> responseStream, ServerCallContext context)
     {
         var headers = context.RequestHeaders;
-        var operationContext = new OperationContext(headers.GetOrigin(), 
+        var operationContext = new OperationContext(headers.GetOrigin(),
             0,
             headers.GetTraceId(),
             context.CancellationToken);
-        
+
         // first exchange headers
         var timestamps = GrpcDuplexMetadataDeltasStream.TimestampsFromHeaders(context.RequestHeaders);
         var myTimestamps = _clusterMetadata.GetCausalTimestamps(context.CancellationToken);
@@ -101,7 +101,7 @@ internal sealed class NodeGrpcService : Node.NodeBase
         await context.WriteResponseHeadersAsync(responseHeaders);
 
         // then exchange deltas
-        await Task.WhenAll(MergeIncomingMetadataDeltas(requestStream, operationContext), 
+        await Task.WhenAll(MergeIncomingMetadataDeltas(requestStream, operationContext),
             WriteMetadataDeltasToResponse(responseStream, timestamps, context.CancellationToken));
     }
 
@@ -136,12 +136,12 @@ internal sealed class NodeGrpcService : Node.NodeBase
     {
         await foreach (var deltas in requestStream.ReadAllAsync(cancellationToken: context.CancellationToken))
         {
-            _logger.LogDebug("TraceId '{TraceId}': Received delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes", 
+            _logger.LogDebug("TraceId '{TraceId}': Received delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes",
                 context.TraceId, instanceId.ToString(), shardId.ToString(), deltas.Value.Length.ToString());
             await crdt.MergeAsync(shardId, deltas.Value.Memory, context);
         }
     }
-    
+
     private async Task WriteDeltasToResponse(IAsyncStreamWriter<CrdtBytesMsg> responseStream,
         IManagedCrdt crdt,
         InstanceId instanceId,
@@ -152,7 +152,7 @@ internal sealed class NodeGrpcService : Node.NodeBase
     {
         await foreach (var deltas in crdt.EnumerateDeltaBatchesAsync(shardId, timestamp, cancellationToken))
         {
-            _logger.LogDebug("TraceId '{TraceId}': Writing to stream a delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes", 
+            _logger.LogDebug("TraceId '{TraceId}': Writing to stream a delta batch for crdt ({InstanceId}, {ShardId}) of size {Size} bytes",
                 traceId, instanceId.ToString(), shardId.ToString(), deltas.Length.ToString());
             await responseStream.WriteAsync(new CrdtBytesMsg
             {
@@ -160,7 +160,7 @@ internal sealed class NodeGrpcService : Node.NodeBase
             }, cancellationToken);
         }
     }
-    
+
     private async Task MergeIncomingMetadataDeltas(IAsyncStreamReader<MetadataDelta> requestStream, OperationContext context)
     {
         await foreach (var deltas in requestStream.ReadAllAsync())

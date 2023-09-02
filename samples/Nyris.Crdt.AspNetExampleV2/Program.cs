@@ -27,7 +27,7 @@ builder.Services
         .WithMessagePackSerialization()
         .WithAddressListDiscovery(new[]
         {
-            new Uri("http://nyriscrdt_node-0_1:8080"), 
+            new Uri("http://nyriscrdt_node-0_1:8080"),
             new Uri("http://nyriscrdt_node-1_1:8080")
         }
         .Where(uri => !uri.AbsoluteUri.Contains(Environment.GetEnvironmentVariable("NODE_NAME") ?? "&&illegal&&"))

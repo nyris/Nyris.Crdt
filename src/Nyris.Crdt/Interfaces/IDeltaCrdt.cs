@@ -8,9 +8,9 @@ namespace Nyris.Crdt.Interfaces
         TTimestamp GetLastKnownTimestamp();
         IEnumerable<TDeltaDto> EnumerateDeltaDtos(TTimestamp? timestamp = default);
         DeltaMergeResult Merge(TDeltaDto delta);
-        
+
         /// <summary>
-        /// Attempts to remove all traces of an applied delta. If can't, state should not be updated and false should be returned. 
+        /// Attempts to remove all traces of an applied delta. If can't, state should not be updated and false should be returned.
         /// </summary>
         /// <param name="deltaDto"></param>
         /// <returns></returns>

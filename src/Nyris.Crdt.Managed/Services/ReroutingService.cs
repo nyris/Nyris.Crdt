@@ -27,7 +27,7 @@ internal sealed class ReroutingService : IReroutingService
         {
             throw new RoutingException($"TraceId '{context.TraceId}': can not reroute - read replicas list is empty");
         }
-        
+
         var targetNode = _selectionStrategy.SelectNode(nodesThatShouldHaveReplica);
 
         if (targetNode == _thisNode)
@@ -40,9 +40,9 @@ internal sealed class ReroutingService : IReroutingService
             throw new RoutingException($"TraceId '{context.TraceId}': cycle detected during rerouting, " +
                                        $"must not reroute to origin {context.Origin.ToString()}");
         }
-        
+
         var client = _clientFactory.GetClient(targetNode);
-        
+
         // TODO: wrap grpc exceptions into transport exceptions and catch them here
         return await client.RerouteAsync(instanceId, shardId, operation, context);
     }

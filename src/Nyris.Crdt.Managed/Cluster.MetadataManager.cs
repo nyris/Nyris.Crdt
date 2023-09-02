@@ -1,8 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Nyris.Crdt.Exceptions;
 using Nyris.Crdt.Managed.Metadata;
 using Nyris.Crdt.Managed.Model;

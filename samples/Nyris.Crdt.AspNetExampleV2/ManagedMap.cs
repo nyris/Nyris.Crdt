@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using Newtonsoft.Json;
-using Nyris.Crdt.Managed.Exceptions;
 using Nyris.Crdt.Managed.ManagedCrdts;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Managed.Services;
@@ -11,7 +9,7 @@ using Nyris.Model.Ids;
 
 namespace Nyris.Crdt.AspNetExampleV2;
 
-public sealed class ManagedMap 
+public sealed class ManagedMap
     : ManagedCrdt<
         ObservedRemoveMapV2<NodeId, ImageId, DatedValue<float[]>, DatedValue<float[]>.Delta, DateTime>,
         ObservedRemoveMapV2<NodeId, ImageId, DatedValue<float[]>, DatedValue<float[]>.Delta, DateTime>.DeltaDto,
@@ -25,15 +23,15 @@ public sealed class ManagedMap
     private readonly ILogger<ManagedMap> _logger;
     private static readonly Empty EmptyResult = new();
 
-    // hardcode 3 shards for demo purposes 
+    // hardcode 3 shards for demo purposes
     private readonly ShardId[] _allShards = { ShardId.FromUint(0), ShardId.FromUint(1), ShardId.FromUint(2) };
-    
+
     public ManagedMap(InstanceId instanceId,
         NodeId thisNode,
         ISerializer serializer,
         IPropagationService propagationService,
         IReroutingService reroutingService,
-        ILogger<ManagedMap> logger) 
+        ILogger<ManagedMap> logger)
         : base(instanceId, serializer, propagationService, reroutingService)
     {
         _thisNode = thisNode;
@@ -46,7 +44,7 @@ public sealed class ManagedMap
         var context = new OperationContext(_thisNode, 1, "add", cancellationToken);
         await AddAsync(shardId, id, vector, context);
     }
-    
+
     public async Task<bool> RemoveAsync(ImageId id, CancellationToken cancellationToken)
     {
         var shardId = GetShardId(id);
@@ -65,8 +63,8 @@ public sealed class ManagedMap
         }
 
         var result = dotProducts.MaxBy(tuple => tuple.DotProduct);
-        
-        _logger.LogInformation("Search aggregation found imageId {ImageId}, dotProduct: {DotProduct}", 
+
+        _logger.LogInformation("Search aggregation found imageId {ImageId}, dotProduct: {DotProduct}",
             result.Id, result.DotProduct);
         return result;
     }
@@ -78,7 +76,7 @@ public sealed class ManagedMap
             && _indexes.TryGetValue(shardId, out var index))
         {
             var foundId = index.Find(vector, out var dotProduct);
-            _logger.LogInformation("Local search found imageId {ImageId}, dotProduct: {DotProduct}", 
+            _logger.LogInformation("Local search found imageId {ImageId}, dotProduct: {DotProduct}",
                 foundId, dotProduct);
             return (foundId, dotProduct);
         }
@@ -87,7 +85,7 @@ public sealed class ManagedMap
         var result = await RerouteAsync<SearchResult>(shardId, operation, context);
         return (result.Id, result.DotProduct);
     }
-    
+
     private static ShardId GetShardId(ImageId id) => ShardId.FromUint((uint)(Math.Abs(id.GetHashCode()) % 3));
 
     private async Task AddAsync(ShardId shardId, ImageId id, float[] vector, OperationContext context)
@@ -95,7 +93,7 @@ public sealed class ManagedMap
         ImmutableArray<ObservedRemoveMapV2<NodeId, ImageId, DatedValue<float[]>, DatedValue<float[]>.Delta, DateTime>.DeltaDto> deltas;
         await WriteLock.WaitAsync(context.CancellationToken);
         try
-        { 
+        {
             var (_, shard) = GetOrCreateShard(shardId);
             deltas = shard.AddOrMerge(_thisNode, id, new DatedValue<float[]>(vector));
         }
@@ -103,7 +101,7 @@ public sealed class ManagedMap
         {
             WriteLock.Release();
         }
-        
+
         if(!deltas.IsDefaultOrEmpty) await PropagateAsync(shardId, deltas, context);
     }
 
@@ -158,7 +156,7 @@ public sealed class ManagedMap
                 throw new ArgumentOutOfRangeException(nameof(operation));
         }
     }
-    
+
     protected override Task DropShardAsync(in ShardId shardId)
     {
         _indexes.TryRemove(shardId, out _);
@@ -169,10 +167,10 @@ public sealed class ManagedMap
     {
         var shard = new ObservedRemoveMapV2<NodeId, ImageId, DatedValue<float[]>, DatedValue<float[]>.Delta, DateTime>();
         var index = new BruteForceIndex();
-        
+
         shard.SubscribeToChanges(index);
         _indexes[shardId] = index;
-        
+
         return shard;
     }
 }

@@ -17,7 +17,7 @@ public abstract record MapOperation;
 [Union(2, typeof(SearchResult))]
 public abstract record MapOperationResult;
 
-[MessagePackObject] 
+[MessagePackObject]
 public sealed record SearchResult([property: Key(0)] ImageId Id, [property: Key(1)] float DotProduct) : MapOperationResult;
 
 [MessagePackObject] public sealed record RemovalResult([property: Key(0)] bool Success) : MapOperationResult;

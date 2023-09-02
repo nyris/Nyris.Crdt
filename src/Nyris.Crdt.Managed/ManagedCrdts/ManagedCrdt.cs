@@ -6,12 +6,12 @@ namespace Nyris.Crdt.Managed.ManagedCrdts;
 public abstract class ManagedCrdt : IManagedCrdt
 {
     protected internal readonly SemaphoreSlim WriteLock = new(1, 1);
-    
+
     protected ManagedCrdt(InstanceId instanceId)
     {
         InstanceId = instanceId;
     }
-    
+
     public InstanceId InstanceId { get; }
     internal abstract ICollection<ShardId> ShardIds { get; }
     internal abstract Dictionary<ShardId, int> GetShardSizes();

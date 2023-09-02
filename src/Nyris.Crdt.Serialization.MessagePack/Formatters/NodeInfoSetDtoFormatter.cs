@@ -13,12 +13,12 @@ public sealed class NodeInfoSetDtoFormatter : IMessagePackFormatter<ObservedRemo
     public void Serialize(ref MessagePackWriter writer, ObservedRemoveDtos<NodeId, NodeInfo>.Dto value, MessagePackSerializerOptions options)
     {
         writer.WriteArrayHeader(2);
-        
+
         var versionContextFormatter = options.Resolver
             .GetFormatterWithVerify<ImmutableDictionary<NodeId, ImmutableArray<Range>>>();
         var itemsFormatter = options.Resolver
             .GetFormatterWithVerify<ImmutableDictionary<NodeId, ImmutableDictionary<NodeInfo, ulong>>>();
-        
+
         versionContextFormatter.Serialize(ref writer, value.VersionContext, options);
         itemsFormatter.Serialize(ref writer, value.Items, options);
     }

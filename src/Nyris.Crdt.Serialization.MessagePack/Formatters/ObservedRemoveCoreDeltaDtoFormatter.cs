@@ -4,15 +4,15 @@ using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
-public class ObservedRemoveCoreDeltaDtoFormatter<TActorId, TValue> 
-    : IMessagePackFormatter<ObservedRemoveCore<TActorId, TValue>.DeltaDto> 
-    where TActorId : IEquatable<TActorId>, IComparable<TActorId> 
+public class ObservedRemoveCoreDeltaDtoFormatter<TActorId, TValue>
+    : IMessagePackFormatter<ObservedRemoveCore<TActorId, TValue>.DeltaDto>
+    where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     where TValue : IEquatable<TValue>
 {
     private const byte AdditionDelta = 1;
     private const byte RemovalDelta = 2;
     private const byte RemovalRangeDelta = 3;
-    
+
     public void Serialize(ref MessagePackWriter writer, ObservedRemoveCore<TActorId, TValue>.DeltaDto value, MessagePackSerializerOptions options)
     {
         var actorFormatter = options.Resolver.GetFormatterWithVerify<TActorId>();
@@ -64,7 +64,7 @@ public class ObservedRemoveCoreDeltaDtoFormatter<TActorId, TValue>
                     var range = new Range(reader.ReadUInt64(), reader.ReadUInt64());
                     return ObservedRemoveCore<TActorId, TValue>.DeltaDto.Removed(actorId, range);
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(typeByte), 
+                    throw new ArgumentOutOfRangeException(nameof(typeByte),
                         $"Type byte of a serialized deltaDto has an unknown value of {typeByte}");
             }
         }

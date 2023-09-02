@@ -20,7 +20,7 @@ internal sealed class CrdtConfig : IDeltaCrdt<CrdtConfigDelta, CrdtConfigCausalT
         get => _uintValues.GetValueOrDefault(ConfigFields.RequestedReplicasCount);
         set => _uintValues[ConfigFields.RequestedReplicasCount] = new TimestampedValue<uint>(value, DateTime.UtcNow);
     }
-    
+
     public uint NumberOfShards
     {
         get => _uintValues.GetValueOrDefault(ConfigFields.NumberOfShards);

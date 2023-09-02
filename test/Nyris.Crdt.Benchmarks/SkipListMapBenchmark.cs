@@ -6,11 +6,11 @@ namespace Nyris.Crdt.Benchmarks;
 public class SkipListMapBenchmark
 {
     private readonly Random _random = new(1);
-    
+
     private readonly ConcurrentSkipListMap<long, double> _map = new();
     private readonly SortedDictionary<long, double> _dict = new();
     private readonly SortedList<long, double> _list = new();
-    
+
     [Params(500, 2000, 8000, 32000, 128000)]
     public int Size { get; set; }
 
@@ -24,7 +24,7 @@ public class SkipListMapBenchmark
             _list.Add(i, i);
         }
     }
-    
+
     [Benchmark]
     public void InsertSequential_SortedDict()
     {
@@ -34,7 +34,7 @@ public class SkipListMapBenchmark
             dict.Add(i, i);
         }
     }
-    
+
     [Benchmark]
     public void InsertSequential_SortedList()
     {
@@ -44,7 +44,7 @@ public class SkipListMapBenchmark
             list.Add(i, i);
         }
     }
-    
+
     [Benchmark]
     public void InsertSequential_SkipList()
     {
@@ -54,7 +54,7 @@ public class SkipListMapBenchmark
             map.TryAdd(i, i);
         }
     }
-    
+
     [Benchmark]
     public void InsertRandom_SortedDict()
     {
@@ -64,7 +64,7 @@ public class SkipListMapBenchmark
             dict.Add(_random.NextInt64(), _random.NextDouble());
         }
     }
-    
+
     [Benchmark]
     public void InsertRandom_SortedList()
     {
@@ -74,7 +74,7 @@ public class SkipListMapBenchmark
             list.Add(_random.NextInt64(), _random.NextDouble());
         }
     }
-    
+
     [Benchmark]
     public void InsertRandom_SkipList()
     {

@@ -32,13 +32,13 @@ public readonly struct ShardId : IComparable<ShardId>, IEquatable<ShardId>
     public static bool operator >(ShardId lhs, ShardId rhs) => lhs.CompareTo(rhs) > 0;
     public static bool operator <=(ShardId lhs, ShardId rhs) => lhs.CompareTo(rhs) <= 0;
     public static bool operator >=(ShardId lhs, ShardId rhs) => lhs.CompareTo(rhs) >= 0;
-    
+
     public class ShardIdSystemTextJsonConverter : JsonConverter<ShardId>
     {
-        public override ShardId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) 
+        public override ShardId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             => new(reader.GetUInt32());
 
-        public override void Write(Utf8JsonWriter writer, ShardId value, JsonSerializerOptions options) 
+        public override void Write(Utf8JsonWriter writer, ShardId value, JsonSerializerOptions options)
             => writer.WriteNumberValue(value._id);
     }
 }

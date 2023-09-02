@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Nyris.Crdt.Managed.Model;
 
-[StronglyTypedId(backingType: StronglyTypedIdBackingType.String, 
+[StronglyTypedId(backingType: StronglyTypedIdBackingType.String,
     jsonConverter: StronglyTypedIdJsonConverter.NewtonsoftJson | StronglyTypedIdJsonConverter.SystemTextJson)]
 public readonly partial struct NodeId
 {

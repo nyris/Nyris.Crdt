@@ -65,7 +65,7 @@ public sealed class ObservedRemoveSetV2Tests
         var expectedValues = new Dictionary<int, double>(Enumerable
             .Range(0, nElements)
             .Select(i => new KeyValuePair<int, double>(i, _random.NextDouble())));
-        
+
         var start = DateTime.Now;
         for (var i = 0; i < nElements; ++i)
         {
@@ -82,7 +82,7 @@ public sealed class ObservedRemoveSetV2Tests
                 indexToDelete = indexToDelete > 0 ? indexToDelete - 1 : nElements - 1;
             }
             var valueToDelete = expectedValues[indexToDelete];
-            
+
             set1.Remove(valueToDelete);
             expectedValues.Remove(indexToDelete);
         }
@@ -140,10 +140,10 @@ public sealed class ObservedRemoveSetV2Tests
                 indexToDelete = indexToDelete > 0 ? indexToDelete - 1 : nElements - 1;
             }
             var valueToDelete = expectedValues[indexToDelete];
-            
+
             if(set1.Values.Contains(valueToDelete)) set1.Remove(valueToDelete);
             else set2.Remove(valueToDelete);
-            
+
             expectedValues.Remove(indexToDelete);
         }
         _output.WriteLine($"Deletes done in {DateTime.Now - start}");
@@ -157,12 +157,12 @@ public sealed class ObservedRemoveSetV2Tests
         set1.Values.SetEquals(expectedValues.Values).Should().BeTrue(
             $"expected {expectedValues.Count} items, but this were not found: " +
             $"{string.Join(";", expectedValues.Values.Except(set1.Values))}");
-        
+
         AssertSetEquality(set1, set2);
         _output.WriteLine($"Assertions done in {DateTime.Now - start}");
     }
 
-    
+
     [Theory]
     [InlineData(1, 100)]
     [InlineData(3, 100)]
@@ -193,7 +193,7 @@ public sealed class ObservedRemoveSetV2Tests
         set1.Add(1.0, actors[0]);
         if(deltaMerge) DeltaMerge(set1, set2);
         else Merge(set1, set2);
-        
+
         for (var i = 0; i < nOperations; ++i)
         {
             switch (_random.NextDouble())
@@ -214,7 +214,7 @@ public sealed class ObservedRemoveSetV2Tests
             if(deltaMerge) DeltaMerge(set1, set2);
             else Merge(set1, set2);
         }
-        
+
         set1.Values.SetEquals(set2.Values).Should().BeTrue();
         AssertSetEquality(set1, set2);
 
@@ -251,7 +251,7 @@ public sealed class ObservedRemoveSetV2Tests
 
         var actors = sets.Select(_ => Guid.NewGuid()).ToList();
         var expectedValues = Enumerable.Range(0, nElements).Select(_ => _random.NextDouble()).ToList();
-        
+
         for (var i = 0; i < sets.Count; ++i)
         {
             // first add all values to all sets
@@ -274,8 +274,8 @@ public sealed class ObservedRemoveSetV2Tests
         });
 
         sets[0].Values.SetEquals(expectedValues).Should().BeTrue();
-        
-        // merge second time to propagate updates to all sets, not just 0-th 
+
+        // merge second time to propagate updates to all sets, not just 0-th
         Parallel.For(1, sets.Count, i =>
         {
             if(deltaMerge) DeltaMerge(sets[i], sets[0]);
@@ -325,20 +325,20 @@ public sealed class ObservedRemoveSetV2Tests
 
         var actors = sets.Select(_ => Guid.NewGuid()).ToList();
         var expectedValues = Enumerable.Range(0, nElements).Select(_ => _random.NextDouble()).ToList();
-            
+
         var tasks = new Task[sets.Count * 2];
         var start = DateTime.Now;
         for (var i = 0; i < sets.Count; ++i)
         {
             var next = i > 0 ? i - 1 : sets.Count - 1;
-            
+
             // Distribute all elements between actors (include element if [element index] % [n actors] == [actor index])
             // But also add some other elements where that condition is not met, so that there is overlap
             var actorsElements = expectedValues
                 .Where((_, j) => j % nSets == i || _random.NextDouble() < 0.2)
                 .ToList();
-            
-            tasks[i] = DeltaMergeContinuouslyAsync(sets[i], sets[next], 
+
+            tasks[i] = DeltaMergeContinuouslyAsync(sets[i], sets[next],
                 TimeSpan.FromMilliseconds(800),
                 TimeSpan.FromMilliseconds(10));
 
@@ -347,14 +347,14 @@ public sealed class ObservedRemoveSetV2Tests
                 _output.WriteLine("Starting an add-remove task with elements: {0}", string.Join(", ", actorsElements));
             }
             tasks[sets.Count + i] = AddAndRemoveContinuouslyAsync(sets[i], actorsElements, actors[i],
-                TimeSpan.FromMilliseconds(800), 
-                TimeSpan.FromMilliseconds(10), 
+                TimeSpan.FromMilliseconds(800),
+                TimeSpan.FromMilliseconds(10),
                 deletes);
         }
 
         await Task.WhenAll(tasks);
         _output.WriteLine($"All tasks awaited in {DateTime.Now - start}");
-        
+
         start = DateTime.Now;
         for (var i = 0; i < sets.Count; ++i)
         for (var j = i + 1; j < sets.Count; ++j)
@@ -431,7 +431,7 @@ public sealed class ObservedRemoveSetV2Tests
         _output.WriteLine($"Repeated AddRemove of {items.Count} items finished, {counter} cycles executed," +
                           $" average duration is {avg}");
     }
-    
+
     private async Task DeltaMergeContinuouslyAsync<TActorId, TItem>(OptimizedObservedRemoveSetV2<TActorId, TItem> set1,
         OptimizedObservedRemoveSetV2<TActorId, TItem> set2,
         TimeSpan duration,
@@ -447,7 +447,7 @@ public sealed class ObservedRemoveSetV2Tests
             DeltaMerge(set1, set2, true);
             ++counter;
         }
-        
+
         var avg = (DateTime.Now - start) / counter - pauseLength;
         _output.WriteLine($"Repeated delta merges is finished, {counter} cycles executed," +
                           $" average 2-sided merge duration is {avg}");
@@ -462,7 +462,7 @@ public sealed class ObservedRemoveSetV2Tests
         set1.Merge(set2.ToDto());
         set2.Merge(dto1);
     }
-    
+
     private void DeltaMerge<TActorId, TItem>(OptimizedObservedRemoveSetV2<TActorId, TItem> set1,
         OptimizedObservedRemoveSetV2<TActorId, TItem> set2,
         bool networkProblems = false)
@@ -522,7 +522,7 @@ public sealed class ObservedRemoveSetV2Tests
 
         _random.Shuffle(delayedMessagesTo1);
         _random.Shuffle(delayedMessagesTo2);
-        
+
         foreach (var dto in delayedMessagesTo1)
         {
             set1.Merge(dto);

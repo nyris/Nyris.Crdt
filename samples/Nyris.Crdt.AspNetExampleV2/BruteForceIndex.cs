@@ -17,8 +17,8 @@ public sealed class BruteForceIndex : IMapObserver<ImageId, DatedValue<float[]>>
             {
                 dotProduct = float.MinValue;
                 return ImageId.Empty;
-            } 
-                
+            }
+
             dotProduct = float.MinValue;
             var index = 0;
 
@@ -52,7 +52,7 @@ public sealed class BruteForceIndex : IMapObserver<ImageId, DatedValue<float[]>>
 
         return product;
     }
-    
+
     public void ElementAdded(ImageId key, DatedValue<float[]> value)
     {
         _lock.EnterWriteLock();

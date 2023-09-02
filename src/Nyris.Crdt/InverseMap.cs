@@ -28,9 +28,9 @@ namespace Nyris.Crdt
         // 8. If balanced tree is used, AVL tree is probably superior due to sequential adds
         //    (source - https://refactoringlightly.wordpress.com/2017/10/29/performance-of-avl-red-black-trees-in-java/)
         //
-        // 9. Contention pressure due to additions and removal are relatively low  
-        
-        
+        // 9. Contention pressure due to additions and removal are relatively low
+
+
         public bool TryInsert(ulong version, TValue value);
         public bool TryGet(ulong version, out TValue value);
         public bool TryRemove(ulong version, out TValue value);
@@ -38,11 +38,11 @@ namespace Nyris.Crdt
         IEnumerator<KeyValuePair<ulong, TValue>> EnumerateKeysOutsideRanges(ImmutableArray<Range> ranges);
         void RemoveRange(Range range, out IEnumerable<KeyValuePair<ulong, TValue>> removed);
     }
-    
+
     [SuppressMessage("ReSharper", "ArrangeMethodOrOperatorBody", Justification = "Annoying")]
     public sealed class InverseMap<TValue>
     {
-        
+
 
         public bool TryInsert(ulong version, TValue value)
         {

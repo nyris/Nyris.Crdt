@@ -1,4 +1,3 @@
-using MessagePack.Formatters;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Managed.Model.Deltas;
 using Nyris.Crdt.Serialization.MessagePack.Formatters;
@@ -23,7 +22,7 @@ public static class CustomResolverGetFormatterHelper
         {typeof(ReplicaId), new GlobalShardIdFormatter()},
         {typeof(InstanceId), new InstanceIdFormatter()}
     };
-    
+
     private static readonly Dictionary<Type, Type> GenericFormatters = new()
     {
         [typeof(ObservedRemoveDtos<,>.DeltaDto)] = typeof(ObservedRemoveSetDeltaDtoFormatter<,>),
@@ -46,7 +45,7 @@ public static class CustomResolverGetFormatterHelper
         {
             return Activator.CreateInstance(formatterType.MakeGenericType(t.GetGenericArguments()));
         }
-        
+
         return null;
     }
 }

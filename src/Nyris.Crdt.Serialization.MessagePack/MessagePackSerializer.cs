@@ -8,7 +8,7 @@ public sealed class MessagePackSerializer : ISerializer
 {
     private static readonly MessagePackSerializerOptions Options = MessagePackSerializerOptions.Standard
         .WithResolver(CompositeResolver.Create(CustomResolver.Instance, StandardResolver.Instance));
-    
+
     public T Deserialize<T>(ReadOnlyMemory<byte> bytes)
     {
         return global::MessagePack.MessagePackSerializer.Deserialize<T>(bytes, Options);

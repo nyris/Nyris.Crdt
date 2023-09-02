@@ -24,7 +24,7 @@ namespace Nyris.Crdt.Extensions
         {
             // if (list.Count == 0 || list.Keys[0].CompareTo(key) >= 0) return 0;
             // if (list.Keys[^1].CompareTo(key) < 0) return list.Count;
-            
+
             var l = 0;
             var r = list.Count - 1;
             var keys = list.Keys;
@@ -32,8 +32,8 @@ namespace Nyris.Crdt.Extensions
             while (l <= r)
             {
                 var mid = (l + r) / 2;
-                switch (keys[mid].CompareTo(key))  // in case you are wondering like I was - using CompareTo somehow 
-                {                                  // turns out to be ~10% faster than using >, <, == operators  
+                switch (keys[mid].CompareTo(key))  // in case you are wondering like I was - using CompareTo somehow
+                {                                  // turns out to be ~10% faster than using >, <, == operators
                     case 0:
                         return mid;
                     case > 0:
@@ -44,7 +44,7 @@ namespace Nyris.Crdt.Extensions
                         break;
                 }
             }
-            
+
             return l;
         }
 
@@ -52,7 +52,7 @@ namespace Nyris.Crdt.Extensions
         {
             Debug.Assert(knownRanges.IsDisjointAndInIncreasingOrder());
             if (knownRanges.Length == 0) return ImmutableArray<Range>.Empty;
-            
+
             var ranges = ImmutableArray.CreateBuilder<Range>();
             var versions = inverse.Keys;
             if (versions.Count == 0)
@@ -73,7 +73,7 @@ namespace Nyris.Crdt.Extensions
             {
                 var start = versions[i - 1] + 1;
                 var end = versions[i];
-                 
+
                 if (start == end)
                 {
                     ++i;

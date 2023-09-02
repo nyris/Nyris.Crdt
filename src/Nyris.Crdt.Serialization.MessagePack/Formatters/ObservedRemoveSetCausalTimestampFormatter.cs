@@ -5,9 +5,9 @@ using Nyris.Crdt.Sets;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
-public class ObservedRemoveSetCausalTimestampFormatter<TActorId, TValue> 
-    : IMessagePackFormatter<ObservedRemoveDtos<TActorId, TValue>.CausalTimestamp> 
-    where TActorId : IEquatable<TActorId>, IComparable<TActorId> 
+public class ObservedRemoveSetCausalTimestampFormatter<TActorId, TValue>
+    : IMessagePackFormatter<ObservedRemoveDtos<TActorId, TValue>.CausalTimestamp>
+    where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     where TValue : IEquatable<TValue>
 {
     public void Serialize(ref MessagePackWriter writer, ObservedRemoveDtos<TActorId, TValue>.CausalTimestamp value, MessagePackSerializerOptions options)

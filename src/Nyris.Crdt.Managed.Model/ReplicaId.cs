@@ -23,7 +23,7 @@ public readonly struct ReplicaId : IComparable<ReplicaId>, IEquatable<ReplicaId>
     public static bool operator >(ReplicaId lhs, ReplicaId rhs) => lhs.CompareTo(rhs) > 0;
     public static bool operator <=(ReplicaId lhs, ReplicaId rhs) => lhs.CompareTo(rhs) <= 0;
     public static bool operator >=(ReplicaId lhs, ReplicaId rhs) => lhs.CompareTo(rhs) >= 0;
-    
+
     public int CompareTo(ReplicaId other)
     {
         var instanceIdComparison = InstanceId.CompareTo(other.InstanceId);

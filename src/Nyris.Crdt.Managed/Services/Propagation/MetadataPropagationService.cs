@@ -25,7 +25,7 @@ internal sealed class MetadataPropagationService : IMetadataPropagationService
         foreach (var nodeInfo in targetNodes)
         {
             if(nodeInfo.Id == context.Origin) continue;
-            
+
             var client = _clientFactory.GetClient(nodeInfo);
             await client.MergeMetadataAsync(kind, data, context);
         }

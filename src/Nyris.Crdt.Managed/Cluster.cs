@@ -10,7 +10,7 @@ namespace Nyris.Crdt.Managed;
 
 internal sealed partial class Cluster : ICluster, IManagedCrdtProvider
 {
-    public bool TryGet<TCrdt>(InstanceId instanceId, [NotNullWhen(true)] out TCrdt? crdt) 
+    public bool TryGet<TCrdt>(InstanceId instanceId, [NotNullWhen(true)] out TCrdt? crdt)
         where TCrdt : ManagedCrdt
     {
         var result = _crdts.TryGetValue(instanceId, out var managedCrdt);
@@ -35,9 +35,9 @@ internal sealed partial class Cluster : ICluster, IManagedCrdtProvider
 
         // TODO: allow user to specify number of shards and replication factor
         var replicaIds = new[]
-        { 
+        {
             instanceId.With(ShardId.FromUint(0)),
-            instanceId.With(ShardId.FromUint(1)), 
+            instanceId.With(ShardId.FromUint(1)),
             instanceId.With(ShardId.FromUint(2))
         };
 
@@ -48,7 +48,7 @@ internal sealed partial class Cluster : ICluster, IManagedCrdtProvider
         {
             crdt.MarkLocalShardAsReadReplica(replicaId.ShardId);
         }
-        
+
         await Task.WhenAll(
             AddConfigAndPropagateAsync<TCrdt>(instanceId, context),
             AddInfosAndPropagateAsync(replicaIds, context));
@@ -56,7 +56,7 @@ internal sealed partial class Cluster : ICluster, IManagedCrdtProvider
 
         return crdt;
     }
-    
+
     private async Task AddConfigAndPropagateAsync<TCrdt>(InstanceId instanceId, OperationContext context)
     {
         ImmutableArray<CrdtConfigs.DeltaDto> deltas;
@@ -72,7 +72,7 @@ internal sealed partial class Cluster : ICluster, IManagedCrdtProvider
         }
         finally
         {
-            _semaphore.Release(); 
+            _semaphore.Release();
         }
         var deltasBin = _serializer.Serialize(deltas);
         var nodes = _nodeSet.Values.ToImmutableArray();

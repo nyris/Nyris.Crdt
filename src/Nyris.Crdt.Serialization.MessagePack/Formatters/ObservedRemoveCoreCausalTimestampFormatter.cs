@@ -4,9 +4,9 @@ using MessagePack.Formatters;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
-public class ObservedRemoveCoreCausalTimestampFormatter<TActorId, TValue> 
-    : IMessagePackFormatter<ObservedRemoveCore<TActorId, TValue>.CausalTimestamp> 
-    where TActorId : IEquatable<TActorId>, IComparable<TActorId> 
+public class ObservedRemoveCoreCausalTimestampFormatter<TActorId, TValue>
+    : IMessagePackFormatter<ObservedRemoveCore<TActorId, TValue>.CausalTimestamp>
+    where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     where TValue : IEquatable<TValue>
 {
     public void Serialize(ref MessagePackWriter writer, ObservedRemoveCore<TActorId, TValue>.CausalTimestamp value, MessagePackSerializerOptions options)

@@ -18,8 +18,8 @@ internal sealed class DiscoveryService : BackgroundService
     /// <inheritdoc />
     public DiscoveryService(IEnumerable<IDiscoveryStrategy> strategies,
         ILogger<DiscoveryService> logger,
-        NodeInfo thisNode, 
-        IClusterMetadataManager clusterMetadata, 
+        NodeInfo thisNode,
+        IClusterMetadataManager clusterMetadata,
         INodeClientFactory nodeClientFactory)
     {
         _strategies = strategies.ToList();
@@ -41,14 +41,14 @@ internal sealed class DiscoveryService : BackgroundService
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "TraceId '{TraceId}': Unhandled exception in {ServiceName}", 
+            _logger.LogError(e, "TraceId '{TraceId}': Unhandled exception in {ServiceName}",
                 traceId, nameof(DiscoveryService));
         }
     }
 
     private async Task TryExecutingAsync(OperationContext context)
     {
-        _logger.LogDebug("TraceId '{TraceId}': {ServiceName} executing", 
+        _logger.LogDebug("TraceId '{TraceId}': {ServiceName} executing",
              context.TraceId, nameof(DiscoveryService));
 
         await foreach (var (address, name) in GetAllUris(context.CancellationToken))
@@ -69,7 +69,7 @@ internal sealed class DiscoveryService : BackgroundService
 
     private async Task TryConnectingToNodeAsync(Uri address, string name, OperationContext context)
     {
-        _logger.LogDebug("TraceId '{TraceId}': Attempting to connect to {NodeName} at {NodeAddress}", 
+        _logger.LogDebug("TraceId '{TraceId}': Attempting to connect to {NodeName} at {NodeAddress}",
             context.TraceId, name, address);
 
         var client = _nodeClientFactory.GetClientForNodeCandidate(address);

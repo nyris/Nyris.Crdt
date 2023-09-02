@@ -17,7 +17,7 @@ public sealed class DotRangesTests
             new Range(1, 2),
             new[] { new Range(1, 2) }
         };
-        
+
         var singleRange = new[] { new Range(2, 5) };
 
         yield return new object[]
@@ -66,7 +66,7 @@ public sealed class DotRangesTests
 
         // ################################  two ranges ################################
         var twoRanges = new[] { new Range(3, 5), new Range(7, 10) };
-        
+
         // starts before all
         yield return new object[]
         {
@@ -110,7 +110,7 @@ public sealed class DotRangesTests
             new Range(1, 12),
             new[] { new Range(1, 12) }
         };
-        
+
         // starts in the middle of first range
         yield return new object[]
         {
@@ -136,7 +136,7 @@ public sealed class DotRangesTests
             new Range(4, 11),
             new[] { new Range(3, 11) }
         };
-        
+
         // starts at the end of first range
         yield return new object[]
         {
@@ -162,7 +162,7 @@ public sealed class DotRangesTests
             new Range(5, 12),
             new[] { new Range(3, 12) }
         };
-        
+
         // starts in between of two ranges
         yield return new object[]
         {
@@ -182,7 +182,7 @@ public sealed class DotRangesTests
             new Range(6, 11),
             new[] { new Range(3, 5), new Range(6, 11) }
         };
-        
+
         // starts at the start of second range
         yield return new object[]
         {
@@ -196,7 +196,7 @@ public sealed class DotRangesTests
             new Range(7, 11),
             new[] { new Range(3, 5), new Range(7, 11) }
         };
-        
+
         // starts at the end of second range
         yield return new object[]
         {
@@ -204,7 +204,7 @@ public sealed class DotRangesTests
             new Range(10, 12),
             new[] { new Range(3, 5), new Range(7, 12) }
         };
-        
+
         // start after second range
         yield return new object[]
         {
@@ -212,11 +212,11 @@ public sealed class DotRangesTests
             new Range(11, 12),
             twoRanges.Append(new Range(11, 12))
         };
-        
+
         // ###############################################################################
         // ################################  three ranges ################################
         var threeRanges = new[] { new Range(3, 5), new Range(6, 8), new Range(13, 20) };
-        
+
         // starts before all
         yield return new object[]
         {
@@ -272,7 +272,7 @@ public sealed class DotRangesTests
             new Range(1, 21),
             new[] { new Range(1, 21) }
         };
-        
+
         // starts in the middle of first range
         yield return new object[]
         {
@@ -304,7 +304,7 @@ public sealed class DotRangesTests
             new Range(4, 23),
             new[] { new Range(3, 23) }
         };
-        
+
         // starts at the end of first range
         yield return new object[]
         {
@@ -348,7 +348,7 @@ public sealed class DotRangesTests
             new Range(5, 22),
             new[] { new Range(3, 22) }
         };
-        
+
         // starts at the start of second range
         yield return new object[]
         {
@@ -380,7 +380,7 @@ public sealed class DotRangesTests
             new Range(6, 25),
             new[] { new Range(3, 5), new Range(6, 25) }
         };
-        
+
         // starts in the middle of second range
         yield return new object[]
         {
@@ -418,7 +418,7 @@ public sealed class DotRangesTests
             new Range(7, 24),
             new[] { new Range(3, 5), new Range(6, 24) }
         };
-        
+
         // starts at the end of second range
         yield return new object[]
         {
@@ -444,7 +444,7 @@ public sealed class DotRangesTests
             new Range(8, 21),
             new[] { new Range(3, 5), new Range(6, 21) }
         };
-        
+
         // start between second and third range
         yield return new object[]
         {
@@ -470,7 +470,7 @@ public sealed class DotRangesTests
             new Range(9, 22),
             new[] { new Range(3, 5), new Range(6, 8), new Range(9, 22) }
         };
-        
+
         // start at the start of third range
         yield return new object[]
         {
@@ -484,8 +484,8 @@ public sealed class DotRangesTests
             new Range(13, 21),
             new[] { new Range(3, 5), new Range(6, 8), new Range(13, 21) }
         };
-        
-        
+
+
         // start in the middle of third range
         yield return new object[]
         {
@@ -499,7 +499,7 @@ public sealed class DotRangesTests
             new Range(15, 21),
             new[] { new Range(3, 5), new Range(6, 8), new Range(13, 21) }
         };
-        
+
         // start at the end of third range
         yield return new object[]
         {
@@ -507,7 +507,7 @@ public sealed class DotRangesTests
             new Range(20, 24),
             new[] { new Range(3, 5), new Range(6, 8), new Range(13, 24) }
         };
-        
+
         // start after third range
         yield return new object[]
         {
@@ -515,16 +515,16 @@ public sealed class DotRangesTests
             new Range(21, 22),
             threeRanges.Append(new Range(21, 22))
         };
-        
+
         // ###############################################################################
         // ##################################  5 ranges ##################################
         // ###############################################################################
-        
+
         var fiveRanges = new[]
         {
             new Range(3, 5), new Range(6, 8), new Range(13, 15), new Range(17, 20), new Range(22, 25)
         };
-        
+
         // starts before all
         yield return new object[]
         {
@@ -658,7 +658,7 @@ public sealed class DotRangesTests
                 new Range(1, 30)
             }
         };
-        
+
         // starts at the end of 1st
         yield return new object[]
         {
@@ -759,7 +759,7 @@ public sealed class DotRangesTests
                 new Range(3, 27)
             }
         };
-        
+
         // starts in 2-nd
         yield return new object[]
         {
@@ -842,7 +842,7 @@ public sealed class DotRangesTests
                 new Range(3, 5), new Range(6, 29)
             }
         };
-        
+
         // starts after 2nd
         yield return new object[]
         {
@@ -916,7 +916,7 @@ public sealed class DotRangesTests
                 new Range(3, 5), new Range(6, 8), new Range(9, 28)
             }
         };
-        
+
         // starts after in the middle of 3-rd
         yield return new object[]
         {
@@ -981,7 +981,7 @@ public sealed class DotRangesTests
                 new Range(3, 5), new Range(6, 8), new Range(13, 26)
             }
         };
-        
+
         // ##### caught during debugging #####
         yield return new object[]
         {
@@ -1008,7 +1008,7 @@ public sealed class DotRangesTests
         ranges.Merge(range);
         ranges.ToArray().Should().BeEquivalentTo(expectedResult);
     }
-    
+
     [Fact]
     public void DotRanges_GetNewWorks()
     {
@@ -1018,7 +1018,7 @@ public sealed class DotRangesTests
         ranges.GetNew().Should().Be(2);
         ranges.GetNew().Should().Be(3);
     }
-    
+
     [Fact]
     public void DotRanges_GetNewInParallelWorks()
     {
@@ -1027,10 +1027,10 @@ public sealed class DotRangesTests
         {
             ranges.GetNew();
         });
-        
+
         ranges.GetNew().Should().Be(1001);
     }
-    
+
     [Fact]
     public void DotRanges_MergeWorks()
     {
@@ -1038,12 +1038,12 @@ public sealed class DotRangesTests
 
         ranges.Merge(1);
         ranges.GetNew().Should().Be(2);
-        
+
         ranges.Merge(5);
         ranges.Merge(4);
         ranges.GetNew().Should().Be(6);
     }
-    
+
     [Fact]
     public void DotRanges_ParallelMergesWorks()
     {
@@ -1052,10 +1052,10 @@ public sealed class DotRangesTests
         {
             ranges.Merge((ulong)i);
         });
-        
+
         ranges.GetNew().Should().Be(1000);
     }
-    
+
     [Fact]
     public void DotRanges_ConnectingMergeWorks()
     {
@@ -1063,17 +1063,17 @@ public sealed class DotRangesTests
 
         ranges.Merge(2);
         ranges.ToArray().Should().Contain(new Range(2, 3)).And.HaveCount(1);
-        
+
         ranges.Merge(5);
         ranges.Merge(4);
         ranges.ToArray().Should()
             .Contain(new Range(2, 3))
             .And.Contain(new Range(4, 6))
             .And.HaveCount(2);
-        
+
         ranges.Merge(3);
         ranges.ToArray().Should().Contain(new Range(2, 6)).And.HaveCount(1);
-        
+
         ranges.Merge(1);
         ranges.ToArray().Should().Contain(new Range(1, 6)).And.HaveCount(1);
     }

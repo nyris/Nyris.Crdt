@@ -6,9 +6,9 @@ using Range = Nyris.Crdt.Model.Range;
 
 namespace Nyris.Crdt.Serialization.MessagePack.Formatters;
 
-public class ObservedRemoveMapDeltaDtoFormatter<TActorId, TKey, TValue, TValueDelta, TValueTimestamp> 
-    : IMessagePackFormatter<ObservedRemoveMap<TActorId, TKey, TValue, TValueDelta, TValueTimestamp>.DeltaDto> 
-    where TActorId : IEquatable<TActorId>, IComparable<TActorId> 
+public class ObservedRemoveMapDeltaDtoFormatter<TActorId, TKey, TValue, TValueDelta, TValueTimestamp>
+    : IMessagePackFormatter<ObservedRemoveMap<TActorId, TKey, TValue, TValueDelta, TValueTimestamp>.DeltaDto>
+    where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     where TValue : class, IDeltaCrdt<TValueDelta, TValueTimestamp>, new()
     where TKey : IEquatable<TKey>
 {
@@ -26,10 +26,10 @@ public class ObservedRemoveMapDeltaDtoFormatter<TActorId, TKey, TValue, TValueDe
 
                 actorFormatter.Serialize(ref writer, actorId, options);
                 writer.WriteUInt64(version);
-                
+
                 var keyFormatter = options.Resolver.GetFormatterWithVerify<TKey>();
                 keyFormatter.Serialize(ref writer, key, options);
-                
+
                 var deltasFormatter = options.Resolver.GetFormatterWithVerify<ImmutableArray<TValueDelta>>();
                 deltasFormatter.Serialize(ref writer, valueDeltas, options);
                 break;
@@ -50,7 +50,7 @@ public class ObservedRemoveMapDeltaDtoFormatter<TActorId, TKey, TValue, TValueDe
     }
 
     public ObservedRemoveMap<TActorId, TKey, TValue, TValueDelta, TValueTimestamp>.DeltaDto Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
-    { 
+    {
         var actorFormatter = options.Resolver.GetFormatterWithVerify<TActorId>();
         var typeByte = reader.ReadByte();
         switch (typeByte)
@@ -58,10 +58,10 @@ public class ObservedRemoveMapDeltaDtoFormatter<TActorId, TKey, TValue, TValueDe
             case AdditionDelta:
                 var actorId = actorFormatter.Deserialize(ref reader, options);
                 var version = reader.ReadUInt64();
-                
+
                 var keyFormatter = options.Resolver.GetFormatterWithVerify<TKey>();
                 var key = keyFormatter.Deserialize(ref reader, options);
-                
+
                 var deltasFormatter = options.Resolver.GetFormatterWithVerify<ImmutableArray<TValueDelta>>();
                 var valueDeltas = deltasFormatter.Deserialize(ref reader, options);
                 return ObservedRemoveMap<TActorId, TKey, TValue, TValueDelta, TValueTimestamp>.DeltaDto.Added(actorId, version, key, valueDeltas);
@@ -74,7 +74,7 @@ public class ObservedRemoveMapDeltaDtoFormatter<TActorId, TKey, TValue, TValueDe
                 var range = new Range(reader.ReadUInt64(), reader.ReadUInt64());
                 return ObservedRemoveMap<TActorId, TKey, TValue, TValueDelta, TValueTimestamp>.DeltaDto.Removed(actorId, range);
             default:
-                throw new ArgumentOutOfRangeException(nameof(typeByte), 
+                throw new ArgumentOutOfRangeException(nameof(typeByte),
                     $"Type byte of a serialized deltaDto has an unknown value of {typeByte}");
         }
     }

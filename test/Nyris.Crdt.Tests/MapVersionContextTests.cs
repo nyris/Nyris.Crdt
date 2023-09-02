@@ -15,10 +15,10 @@ public sealed class MapVersionContextTests
 
         var v1 = context.GetNewVersion(1);
         context.GetNewVersion(2);
-        
+
         var v3 = context.GetNewVersion(1);
         context.MaybeClearVersion(v1);
-        
+
         context.GetNewVersion(3);
         context.GetNewVersion(1);
 
@@ -34,7 +34,7 @@ public sealed class MapVersionContextTests
 
         var except = ImmutableArray.Create(new Range(1, 2), new Range(5, 6));
         var keys = new List<int>();
-        foreach (var key in context.EnumerateKeysOutsideRanges(except)) 
+        foreach (var key in context.EnumerateKeysOutsideRanges(except))
         {
             keys.Add(key);
         }

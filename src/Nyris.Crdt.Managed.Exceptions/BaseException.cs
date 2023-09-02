@@ -4,7 +4,7 @@ using Nyris.Contracts.Exceptions;
 namespace Nyris.Crdt.Managed.Exceptions;
 
 [Serializable]
-public abstract class BaseException : NyrisException 
+public abstract class BaseException : NyrisException
 {
     protected BaseException()
     {

@@ -19,7 +19,7 @@ internal sealed class DistributionStrategy : IDistributionStrategy
     private static readonly ObjectPool<Dictionary<int, int>> DictionaryPool =
         new DefaultObjectPool<Dictionary<int, int>>(new DictionaryPoolPolicy());
 
-    // Dict<int, int> mean - in a sorted array of nodes, which index (key) have how many shards (value) 
+    // Dict<int, int> mean - in a sorted array of nodes, which index (key) have how many shards (value)
     private readonly Dictionary<InstanceId, Dictionary<int, int>> _instanceIdsToNodeIndexesToReplicaCounts = new();
 
     public ImmutableDictionary<ReplicaId, ImmutableArray<NodeInfo>> Distribute(in ImmutableArray<ReplicaInfo> orderedReplicaInfos, in ImmutableArray<NodeInfo> orderedNodes)
@@ -39,23 +39,23 @@ internal sealed class DistributionStrategy : IDistributionStrategy
         //    We then take next {NumberOfDesiredReplicas} nodes from sorted nodeIds list
         // 3. Finally, we need to do additional fine-tuning that takes into account sizes
         //    and spreads shards of same crdts to different nodes:
-        // 3.1  Ensure that different shards of the same InstanceId are on different nodes 
-        
+        // 3.1  Ensure that different shards of the same InstanceId are on different nodes
+
         var builder = ImmutableDictionary.CreateBuilder<ReplicaId, ImmutableArray<NodeInfo>>();
 
         // keep allocations to a minimum with ArrayPools
         // first get a sorted copy of NodeInfo array
         var length = orderedNodes.Length;
-        
+
         // then calculate hashes in the same sorted order
         var orderedNodeIdHashes = ArrayPool<ulong>.Shared.Rent(length);
         GetNodeHashes(orderedNodes, orderedNodeIdHashes);
-        
+
         foreach (var replicaInfo in orderedReplicaInfos)
-        { 
+        {
             var replicaId = replicaInfo.Id;
             var requestedReplicaCount = replicaInfo.RequestedReplicaCount;
-            
+
             // 1st phase - replicas that should be on all nodes (0) and those that request more replicas then nodes
             if (requestedReplicaCount == 0 || requestedReplicaCount >= length)
             {
@@ -63,26 +63,26 @@ internal sealed class DistributionStrategy : IDistributionStrategy
                 continue;
             }
 
-            // 2nd phase 
+            // 2nd phase
             // get hash and find index of a closest nodeId in the ordered array
             var replicaIdHash = GetHash(replicaId);
             var minIndex = FindClosestNodeIndex(replicaIdHash, orderedNodeIdHashes, orderedNodes);
-            
+
             // 3.1 phase - we want to spread different shards of a single InstanceId to different nodes if possible.
             minIndex = EnsureReplicasAreSpreadAcrossNodes(replicaId, minIndex, length);
-            
+
             // 3.2: TODO: how to take size into account? Should we?
-            
+
             var nodesForShard = CopyNodeRingSection(orderedNodes, minIndex, requestedReplicaCount);
             builder.Add(replicaId, nodesForShard);
         }
-        
+
         // return all rented objects to pools
         ArrayPool<ulong>.Shared.Return(orderedNodeIdHashes);
 
         foreach (var dictionary in _instanceIdsToNodeIndexesToReplicaCounts.Values) DictionaryPool.Return(dictionary);
         _instanceIdsToNodeIndexesToReplicaCounts.Clear();
-        
+
         return builder.ToImmutable();
     }
 
@@ -105,7 +105,7 @@ internal sealed class DistributionStrategy : IDistributionStrategy
             for (var j = 0; j < length; ++j)
             {
                 var i = (minIndex + j) % length;
-                // if i-th node contains strictly less replicas, save it. 
+                // if i-th node contains strictly less replicas, save it.
                 var replicaCountOfIthNode = nodeIndexToReplicaCounts.GetValueOrDefault(i);
                 if (replicaCountOfIthNode < minCount)
                 {
@@ -135,7 +135,7 @@ internal sealed class DistributionStrategy : IDistributionStrategy
         for (var i = 0; i < nodesForReplica.Length; ++i)
         {
             nodesForReplica[i] = orderedNodes[startIndex];
-            startIndex = startIndex < nodeMaxIndex ? startIndex + 1 : 0; 
+            startIndex = startIndex < nodeMaxIndex ? startIndex + 1 : 0;
         }
 
         return Unsafe.As<NodeInfo[], ImmutableArray<NodeInfo>>(ref nodesForReplica);
@@ -168,7 +168,7 @@ internal sealed class DistributionStrategy : IDistributionStrategy
         Pool.Return(hash);
         return hashedShardId;
     }
-    
+
     private static void GetNodeHashes(in ImmutableArray<NodeInfo> nodes, ulong[] nodeIdHashes)
     {
         for (var i = 0; i < nodes.Length; i++)

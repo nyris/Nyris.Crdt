@@ -77,7 +77,7 @@ namespace Nyris.Crdt.Extensions
                         ++_i;
                         return true;
                     }
-                    
+
                     var current = _ranges[_i];
                     if (_nextFrom >= current.From)
                     {

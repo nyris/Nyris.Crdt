@@ -3,7 +3,7 @@ using Nyris.Crdt.Serialization.Abstractions;
 
 namespace Nyris.Crdt.AspNetExampleV2;
 
-  
+
 /// <summary>
 /// If you need custom types be usable within Managed Crdt, they need to be serializable with <see cref="ISerializer"/>
 /// If you are using default <see cref="Nyris.Crdt.Serialization.MessagePack.MessagePackSerializer"/>, then its enough
@@ -15,7 +15,7 @@ namespace Nyris.Crdt.AspNetExampleV2;
 public abstract record SetOperation;
 
 [MessagePackObject]
-public sealed record Contains([property: Key(0)] double Value) : SetOperation; 
+public sealed record Contains([property: Key(0)] double Value) : SetOperation;
 
 [MessagePackObject]
 public sealed record Remove([property: Key(0)] double Value) : SetOperation;

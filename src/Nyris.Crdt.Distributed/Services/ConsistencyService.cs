@@ -64,7 +64,7 @@ internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
     {
         // We need to a type name here for node-to-node communication. Specifically, even though InstanceId
         // is enough to identify an instance of CRDT, it is not possible to have a instanceId-to-type mapping
-        // available statically. See ManagedCrdtServiceTemplate.sbntxt for details 
+        // available statically. See ManagedCrdtServiceTemplate.sbntxt for details
         var typeName = TypeNameCompressor.GetName<TCrdt>();
 
         foreach (var instanceId in _context.GetInstanceIds<TCrdt>())
@@ -76,7 +76,7 @@ internal sealed class ConsistencyService<TCrdt, TDto> : BackgroundService
 
             // if this instance was removed globally (i.e. no nodes should have a replica)
             // or if this particular node should not have a replica
-            // then local replica may be deleted 
+            // then local replica may be deleted
             var markForDeletion = nodesThatShouldHaveReplica.Count == 0
                                   || nodesThatShouldHaveReplica.All(ni => ni.Id != _thisNodeId);
 

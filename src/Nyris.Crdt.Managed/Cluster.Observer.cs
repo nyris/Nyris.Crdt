@@ -27,7 +27,7 @@ internal sealed partial class Cluster : INodeFailureObserver
             var nodeInfo = _nodeSet.Values.FirstOrDefault(ni => ni.Id == nodeId);
             if (nodeInfo is null) return;
 
-            _logger.LogInformation("TraceId '{TraceId}': Failure in node '{NodeId}' detected, removing from NodeSet", 
+            _logger.LogInformation("TraceId '{TraceId}': Failure in node '{NodeId}' detected, removing from NodeSet",
                 traceId, nodeId);
             nodesDeltas = _nodeSet.Remove(nodeInfo);
             foreach (var replicaId in _crdtInfos.Keys)
@@ -42,7 +42,7 @@ internal sealed partial class Cluster : INodeFailureObserver
         {
             _semaphore.Release();
         }
-        
+
         await PropagateNodeDeltasAsync(nodesDeltas, _nodeSet.Values.ToImmutableArray(), context);
         await PropagateInfosAsync(infosDeltas.SelectMany(deltas => deltas), context);
         await DistributeShardsAsync(cancellationToken);

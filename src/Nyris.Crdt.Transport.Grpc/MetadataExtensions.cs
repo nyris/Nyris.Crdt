@@ -11,7 +11,7 @@ internal static class MetadataExtensions
     private const string InstanceIdHeaderKey = "i";
     private const string ShardIdHeaderKey = "s";
     private static readonly Metadata.Entry DoNotSendDeltasEntry = new("f", "1");
-    
+
     public static Metadata WithTimestamp(this Metadata headers, in ReadOnlyMemory<byte> value)
     {
         headers.Add(TimestampHeaderKey, Convert.ToBase64String(value.Span));
@@ -27,7 +27,7 @@ internal static class MetadataExtensions
         headers.Add(DoNotSendDeltasEntry);
         return headers;
     }
-    
+
     public static ReadOnlyMemory<byte> GetTimestamp(this Metadata headers)
     {
         var value = headers.GetValue(TimestampHeaderKey);
@@ -35,7 +35,7 @@ internal static class MetadataExtensions
     }
 
     public static bool DeltasRequested(this Metadata headers) => !headers.Contains(DoNotSendDeltasEntry);
-    
+
     public static string GetTraceId(this Metadata headers) => headers.GetString(TraceIdHeaderKey);
     public static NodeId GetOrigin(this Metadata headers) => NodeId.FromString(headers.GetString(NodeIdHeaderKey));
     public static InstanceId GetInstanceId(this Metadata headers) => InstanceId.FromString(headers.GetString(InstanceIdHeaderKey));
@@ -46,7 +46,7 @@ internal static class MetadataExtensions
         var val = headers.GetValue(key);
         return val is null ? "" : Uri.UnescapeDataString(val);
     }
-    
+
     private static Metadata With(this Metadata headers, string key, string value)
     {
         var valueSafe = Uri.EscapeDataString(value);

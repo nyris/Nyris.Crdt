@@ -17,33 +17,33 @@ namespace Nyris.Crdt
         private static readonly Random Random = new();
         private readonly IComparer<TKey> _comparer = Comparer<TKey>.Default;
         private readonly object _heightChangeLock = new();
-        
+
         // We start the state with a dummy Index and a dummy Node.
-        // This leftmost Node does not contain a valid key-value pair 
+        // This leftmost Node does not contain a valid key-value pair
         // Whichever height we reached, leftmost Node always has a maximum number of Indexes.
         private readonly Node _leftMostDummyNode = new(default!, default!, null);
         private volatile Index _head;
-        
+
         private int _height = 1;
         private int _highLengthLimit = 4;
         private int _lowLengthLimit;
         private int _length;
 
         // Array pool is beneficial as we require to use arrays for each insertion and deletion
-        // to keep track of Indexes that must be updated. 
+        // to keep track of Indexes that must be updated.
         private readonly ArrayPool<Index> Pool = ArrayPool<Index>.Create(64, 10);
 
         public ConcurrentSkipListMap()
         {
             _head = new Index(_leftMostDummyNode, null, null);
         }
-        
+
         public ConcurrentSkipListMap(IComparer<TKey> comparer)
         {
             _head = new Index(_leftMostDummyNode, null, null);
             _comparer = comparer;
         }
-        
+
         public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue? value)
         {
             var found = GetLastNodeLessOrEqualTo(key);
@@ -57,17 +57,17 @@ namespace Nyris.Crdt
             value = found.Value!;
             return true;
         }
-        
+
         public bool TryRemove(TKey key, [NotNullWhen(true)] out TValue? value)
         {
-            // save node with which we start. It may be overwritten during traversing Indexes 
+            // save node with which we start. It may be overwritten during traversing Indexes
             Node startingNode;
-            
+
             lock (_heightChangeLock)
             {
                 var head = _head;
                 // Need to traverse indexes while holding lock cause during height growth another Index layer may be added,
-                // linking it to current top layer. If we don't lock, this new top layer may end up pointing to a removed indexes and node  
+                // linking it to current top layer. If we don't lock, this new top layer may end up pointing to a removed indexes and node
                 startingNode = TraverseAndRemoveIndexesEqualTo(key, head);
             }
 
@@ -97,13 +97,13 @@ namespace Nyris.Crdt
                 currentNode = current.Node;
                 height = _height;
             }
-            
+
             var heightOfInserted = GetRandomHeight(height);
-            
+
             // Index is a reference type, so rent an array
             var lockedIndexes = Pool.Rent(heightOfInserted);
-            
-            // bool on the other hand can be allocated on the stack. Height is logarithmic from number of items, so it will always be small  
+
+            // bool on the other hand can be allocated on the stack. Height is logarithmic from number of items, so it will always be small
             Span<bool> lockedIndexesBooleans = stackalloc bool[heightOfInserted];
 
             try
@@ -111,7 +111,7 @@ namespace Nyris.Crdt
                 // Traverse indexes and lock the ones that we will update
                 currentNode = TraverseAndLockBelowHeight(key, current, height, heightOfInserted, lockedIndexesBooleans, lockedIndexes);
 
-                // Find and lock a node that needs to be updated. This returns false if key is already present in map 
+                // Find and lock a node that needs to be updated. This returns false if key is already present in map
                 if (Compare(currentNode, key) == 0 || !FindAndLockNode(key, ref currentNode, ref currentNodeLocked))
                 {
                     return false;
@@ -122,7 +122,7 @@ namespace Nyris.Crdt
                 var insertedNode = new Node(key, value, nextNode);
                 currentNode.RightNode = insertedNode;
 
-                // insert all new indexes 
+                // insert all new indexes
                 var newIndex = (Index?)null;
                 for (var i = 0; i < heightOfInserted; ++i)
                 {
@@ -159,7 +159,7 @@ namespace Nyris.Crdt
                 indexToKey[i] = node.Key;
                 keyToIndex[node.Key] = i++;
             }
-            
+
             var current = _head;
             var counter = 0;
             var levels = 0;
@@ -203,7 +203,7 @@ namespace Nyris.Crdt
                     ++levels;
                     continue;
                 }
-                
+
                 current = current.Right;
             }
 
@@ -212,12 +212,12 @@ namespace Nyris.Crdt
             {
                 builder.Append(node.Key).Append(' ');
             }
-            
+
             return builder.ToString();
         }
 
         public Enumerator GetEnumerator() => new(_leftMostDummyNode, _leftMostDummyNode, _comparer);
-        
+
         public Enumerator WithinRange(TKey fromInclusive, TKey toExclusive)
         {
             Debug.Assert(_comparer.Compare(fromInclusive, toExclusive) < 0);
@@ -240,12 +240,12 @@ namespace Nyris.Crdt
 
             return currentRight;
         }
-        
+
         private void MoveRightWhileNodesKeyIsLessOrEqual<T>(ref T current, TKey key) where T : INode<T>
         {
             // We need local copy of currentRight because loop checks on two conditions (not null and compare).
             // We can't use current.Right in those conditions, because Right pointer might change in between checks
-            
+
             for(var currentRight = current.Right; currentRight is not null && currentRight.CompareTo(key, _leftMostDummyNode, _comparer) <= 0; currentRight = current.Right)
             {
                 current = currentRight;
@@ -257,10 +257,10 @@ namespace Nyris.Crdt
             // Traverse indexes.
             var current = _head;
             var currentNode = current.Node;
-            
+
             while (current is not null)
             {
-                // Move to right until end or index with greater key. 
+                // Move to right until end or index with greater key.
                 MoveRightWhileNodesKeyIsLessOrEqual(ref current, key);
 
                 // if there are no Down pointer, we already traversed every layer, only Nodes themselves are left
@@ -269,15 +269,15 @@ namespace Nyris.Crdt
                     currentNode = current.Node;
                     break;
                 }
-                
+
                 current = current.Down;
             }
-            
+
             // traverse nodes
             MoveRightWhileNodesKeyIsLessOrEqual(ref currentNode, key);
             return currentNode;
         }
-        
+
         private Node GetLastNodeLessThen(TKey key)
         {
             // Traverse indexes.
@@ -286,7 +286,7 @@ namespace Nyris.Crdt
 
             while (current is not null)
             {
-                // Move to right until end or index with greater key. 
+                // Move to right until end or index with greater key.
                 MoveRightWhileNodesKeyIsLess(ref current, key);
 
                 // if there are no Down pointer, we already traversed every layer, only Nodes themselves are left
@@ -295,15 +295,15 @@ namespace Nyris.Crdt
                     currentNode = current.Node;
                     break;
                 }
-                
+
                 current = current.Down;
             }
-            
+
             // traverse nodes
             MoveRightWhileNodesKeyIsLess(ref currentNode, key);
             return currentNode;
         }
-        
+
         private Node TraverseAndRemoveIndexesEqualTo(TKey key, Index current)
         {
             while (current is not null)
@@ -317,11 +317,11 @@ namespace Nyris.Crdt
                     lock (currentRight)
                     {
                         // Current got updated before we could lock it (could have been deleted or another index could have been inserted after)
-                        // Unlock and continue search from current 
+                        // Unlock and continue search from current
                         if (!ReferenceEquals(current.Right, currentRight)) continue;
 
                         // remove currentRight by overwriting current.Right;
-                        // Set currentRight.Right to point "left" cause it's convenient for picking up after contentious lock was acquired (see TryAdd) 
+                        // Set currentRight.Right to point "left" cause it's convenient for picking up after contentious lock was acquired (see TryAdd)
                         current.RightIndex = currentRight.Right;
                         currentRight.RightIndex = current;
                     }
@@ -356,7 +356,7 @@ namespace Nyris.Crdt
                         if (!ReferenceEquals(currentNode.RightNode, currentNodeRight)) continue;
 
                         // remove currentRight by overwriting current.Right;
-                        // Set currentRight.Right to point "left" cause it's convenient for picking up after contentious lock was acquired (see TryAdd) 
+                        // Set currentRight.Right to point "left" cause it's convenient for picking up after contentious lock was acquired (see TryAdd)
                         currentNode.RightNode = currentNodeRight.RightNode;
                         currentNodeRight.RightNode = currentNode;
                         value = currentNodeRight.Value!;
@@ -376,7 +376,7 @@ namespace Nyris.Crdt
             {
                 MoveRightWhileNodesKeyIsLessOrEqual(ref currentNode, key);
 
-                // If key already present, return immediately to avoid excessive locking 
+                // If key already present, return immediately to avoid excessive locking
                 if (Compare(currentNode, key) == 0)
                 {
                     return false;
@@ -389,9 +389,9 @@ namespace Nyris.Crdt
                 {
                     return true;
                 }
- 
+
                 // If condition is not valid anymore (currentNode.RightNode is not null and its key is less or equal to the one being inserted)
-                // then try to unlock and search again. 
+                // then try to unlock and search again.
                 if (currentNodeLocked)
                 {
                     Monitor.Exit(currentNode);
@@ -400,7 +400,7 @@ namespace Nyris.Crdt
             }
         }
 
-        
+
         private Node TraverseAndLockBelowHeight(TKey key,
                                                 Index current,
                                                 int currentHeight,
@@ -411,17 +411,17 @@ namespace Nyris.Crdt
             while (current is not null)
             {
                 MoveRightWhileNodesKeyIsLessOrEqual(ref current, key);
-                
+
                 // early termination to avoid excessive locking (insert fails if key already exists)
                 if (Compare(current, key) == 0) return current.Node;
-                
+
                 // using short-circuit evaluation of &&
                 if (currentHeight <= heightOfInserted && !TryLockAndSave(key, current, currentHeight - 1, lockedIndexesBooleans, lockedIndexes))
                 {
                     continue;
                 }
-                
-                // If Down is null, it means we reached the bottom-most Index layer and can start iterating the Nodes 
+
+                // If Down is null, it means we reached the bottom-most Index layer and can start iterating the Nodes
                 if (current.Down is null)
                 {
                     return current.Node;
@@ -430,7 +430,7 @@ namespace Nyris.Crdt
                 current = current.Down;
                 --currentHeight;
             }
-            
+
             throw new AssumptionsViolatedException("Should not be reachable - it should always be possible to reach an Index with no Down pointer");
         }
 
@@ -444,7 +444,7 @@ namespace Nyris.Crdt
             // While we waited for the lock, another thread might have inserted something ahead.
             // Check that condition for stopping still holds (current.Right is null or greater then key) and resume the loop otherwise.
             // This behaviour is utilized by TryRemove in an interesting way - when removing an Index, its Right pointer is
-            // changed to point backwards, to a previous/left Index. This "if" condition is then triggered and we "circle back"  
+            // changed to point backwards, to a previous/left Index. This "if" condition is then triggered and we "circle back"
             if (current.Right is null || Compare(current.Right, key) > 0)
             {
                 return true;
@@ -452,7 +452,7 @@ namespace Nyris.Crdt
 
             // Release lock. Note that we can't wrap this in try-catch here because if previous if is triggered we want to return
             // without unlocking. We also can't outsource this particular unlocking to an outer try-catch because lockedIndexes[i]
-            // will be overwritten 
+            // will be overwritten
             if (lockedIndexesBooleans[i])
             {
                 Monitor.Exit(current);
@@ -461,7 +461,7 @@ namespace Nyris.Crdt
 
             return false;
         }
-        
+
         private void DecreaseLength()
         {
             if (Interlocked.Decrement(ref _length) >= _lowLengthLimit) return;
@@ -470,13 +470,13 @@ namespace Nyris.Crdt
             {
                 // check if condition still holds. Prevents multiple decreases due to lock contention
                 if (_length >= _lowLengthLimit) return;
-                
+
                 // by simply forgetting about the pointer to current head, the entire top layer can be garbage collected eventually
                 _head = _head.Down!;
-                
+
                 --_height;
                 Debug.Assert(_height >= 1);
-                
+
                 _lowLengthLimit = _height == 1 ? 0 : (1 << (_height - 1));
                 _highLengthLimit = 1 << (_height + 1);
             }
@@ -485,20 +485,20 @@ namespace Nyris.Crdt
         private void IncreaseLength()
         {
             if (Interlocked.Increment(ref _length) < _highLengthLimit) return;
-            
+
             lock(_heightChangeLock)
             {
                 // check if condition still holds. Prevents multiple increases due to lock contention
-                if (_length < _highLengthLimit) return; 
-                
+                if (_length < _highLengthLimit) return;
+
                 // move through top layer, each time flip a coin. 50% of the time we add another Index on top.
-                // one exception - first one is a dummy, so we always create new Index for it 
+                // one exception - first one is a dummy, so we always create new Index for it
                 var currentInNewTopLayer = new Index(_head.Node, _head, null);
 
-                // save first Index from old top layer, then overwrite _head   
+                // save first Index from old top layer, then overwrite _head
                 var currentInOldTopLayer = _head.Right;
                 _head = currentInNewTopLayer;
-                
+
                 while (currentInOldTopLayer != null)
                 {
                     if (CoinFlip())
@@ -526,9 +526,9 @@ namespace Nyris.Crdt
 
             return maxHeight;
         }
-        
+
         private static bool CoinFlip() => (Random.Next() & 1) == 0;
-        
+
         private int Compare<T>(T node, TKey key) where T : INode<T> => node.CompareTo(key, _leftMostDummyNode, _comparer);
 
         public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>, IEnumerable<KeyValuePair<TKey, TValue>>
@@ -540,7 +540,7 @@ namespace Nyris.Crdt
             private Node _currentNode;
 
             /// <summary>
-            /// Enumerate all key-value pairs from linked list that have keys strictly less then <see cref="lessThen"/> 
+            /// Enumerate all key-value pairs from linked list that have keys strictly less then <see cref="lessThen"/>
             /// </summary>
             /// <param name="nodeBeforeFirst"></param>
             /// <param name="lessThen"></param>
@@ -554,7 +554,7 @@ namespace Nyris.Crdt
                 _leftMostDummyNode = leftMostDummyNode;
                 _upperLimitExists = true;
             }
-            
+
             /// <summary>
             /// Enumerate all key-value pairs from linked list
             /// </summary>
@@ -573,10 +573,10 @@ namespace Nyris.Crdt
             public bool MoveNext()
             {
                 if (_currentNode.RightNode is null) return false;
-                
+
                 var current = _currentNode;
-                
-                // Move to right until next node is greater then last key we yielded. This is usually just one step, however 
+
+                // Move to right until next node is greater then last key we yielded. This is usually just one step, however
                 // a loop is necessary due to how deletions are implemented (Right pointer looped back to a previous node)
                 do
                 {
@@ -600,7 +600,7 @@ namespace Nyris.Crdt
             {
                 // nothing to dispose
             }
-            
+
             public Enumerator GetEnumerator() => this;
             IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator() => GetEnumerator();
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -610,7 +610,7 @@ namespace Nyris.Crdt
                 if (ReferenceEquals(node, _leftMostDummyNode)) return -1;
                 return _comparer.Compare(node.Key, key);
             }
-            
+
             private int Compare(Node x, Node y)
             {
                 if (ReferenceEquals(x, _leftMostDummyNode)) return -1;
@@ -618,7 +618,7 @@ namespace Nyris.Crdt
                 return _comparer.Compare(x.Key, y.Key);
             }
         }
-        
+
         public sealed class Node : INode<Node>
         {
             public volatile Node? RightNode;
@@ -649,7 +649,7 @@ namespace Nyris.Crdt
 
             int CompareTo(TKey key, Node leftMostDummyNode, IComparer<TKey> comparer);
         }
-        
+
         private sealed class Index : INode<Index>
         {
             public volatile Index? RightIndex;
@@ -667,8 +667,8 @@ namespace Nyris.Crdt
             public int CompareTo(TKey key, Node leftMostDummyNode, IComparer<TKey> comparer)
             {
                 // the intuition is - if current Index is leftMostIndex, we always want to move away from it,
-                // so we say it's less then whichever node is to the right 
-                // we can't skip this because Key of the leftMostNode has default value (think of value types like int - default will be 0) 
+                // so we say it's less then whichever node is to the right
+                // we can't skip this because Key of the leftMostNode has default value (think of value types like int - default will be 0)
                 if (ReferenceEquals(Node, leftMostDummyNode)) return -1;
                 return comparer.Compare(Node.Key, key);
             }

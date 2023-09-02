@@ -11,12 +11,12 @@ public class ObservedRemoveSetV3<TActorId, TItem> : ObservedRemoveCore<TActorId,
     where TActorId : IEquatable<TActorId>
 {
     // keep everything in array for slightly faster indexing - it is assumed that adding observers
-    // is a very rare operation, while notifications happen all the time 
+    // is a very rare operation, while notifications happen all the time
     private ISetObserver<TItem>[] _observers = Array.Empty<ISetObserver<TItem>>();
     private readonly object _observersLock = new();
 
-    // I hate using both lock and concurrent dictionary. However, it's very inconvenient to 
-    // constrain all updates to ConcurrentDictionary methods (hence - lock). 
+    // I hate using both lock and concurrent dictionary. However, it's very inconvenient to
+    // constrain all updates to ConcurrentDictionary methods (hence - lock).
     // But if I were to use normal Dictionary, allowing public enumeration of keys is a pain
     // Proper fully optimized version would look similar to internals of ConcurrentDictionary
     private readonly ConcurrentDictionary<TItem, List<Dot<TActorId>>> _items = new();
@@ -35,7 +35,7 @@ public class ObservedRemoveSetV3<TActorId, TItem> : ObservedRemoveCore<TActorId,
             AddDot(actorId, version, item);
             AddToContextAndInverse(actorId, version, item);
         }
-        
+
         return ImmutableArray.Create(DeltaDto.Added(item, actorId, version));
     }
 
@@ -63,7 +63,7 @@ public class ObservedRemoveSetV3<TActorId, TItem> : ObservedRemoveCore<TActorId,
         NotifyRemoved(item);
         return deltas;
     }
-    
+
     public void SubscribeToChanges(ISetObserver<TItem> observer)
     {
         lock(_observersLock)
@@ -74,7 +74,7 @@ public class ObservedRemoveSetV3<TActorId, TItem> : ObservedRemoveCore<TActorId,
             _observers = newArray;
         }
     }
-    
+
     protected sealed override ulong? AddDot(TActorId actorId, ulong version, TItem item)
     {
         var dots = _items.GetOrAdd(item, _ => new List<Dot<TActorId>>(1));
@@ -102,7 +102,7 @@ public class ObservedRemoveSetV3<TActorId, TItem> : ObservedRemoveCore<TActorId,
                 removed = _items.TryRemove(item, out _);
             }
         }
-        
+
         if(removed) NotifyRemoved(item);
     }
 
@@ -115,7 +115,7 @@ public class ObservedRemoveSetV3<TActorId, TItem> : ObservedRemoveCore<TActorId,
     {
         foreach (var observer in _observers) observer.ElementRemoved(item);
     }
-    
+
     private static ulong? AddOrUpdateDot(List<Dot<TActorId>> dots, TActorId actorId, ulong version)
     {
         var i = GetDotIndex(dots, actorId);

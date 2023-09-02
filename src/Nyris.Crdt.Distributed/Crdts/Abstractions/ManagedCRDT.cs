@@ -86,7 +86,7 @@ public abstract class ManagedCRDT<TDto>
         // _logger?.LogDebug("TraceId: {TraceId}, enqueueing dto after state was changed", traceId);
         var enqueueTask = _scheduler.EnqueueAsync(dtoMessage, cancellationToken);
 
-        // TODO: instead, calls "fromMerge" should be queued into a second queue 
+        // TODO: instead, calls "fromMerge" should be queued into a second queue
         if (!fromMerge) await enqueueTask;
 
         if (_dependentCrdts.IsEmpty)

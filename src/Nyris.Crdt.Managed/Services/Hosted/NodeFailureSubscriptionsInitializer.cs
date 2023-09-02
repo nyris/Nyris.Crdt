@@ -12,7 +12,7 @@ internal sealed class NodeFailureSubscriptionsInitializer : IHostedService
             notifier.SubscribeToNodeFailures(observer);
         }
     }
-    
+
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

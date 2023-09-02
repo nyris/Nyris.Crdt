@@ -17,7 +17,7 @@ internal sealed class NodeGrpcClient : INodeClient
     }
 
     public async IAsyncEnumerable<(MetadataKind, ReadOnlyMemory<byte>)> JoinToClusterAsync(
-        NodeInfo nodeInfo, 
+        NodeInfo nodeInfo,
         OperationContext context)
     {
         var response = _client.JoinToCluster(new AddNodeMessage
@@ -32,7 +32,7 @@ internal sealed class NodeGrpcClient : INodeClient
             yield return ((MetadataKind)delta.Kind, delta.Deltas.Memory);
         }
     }
-    
+
     public async Task MergeAsync(InstanceId instanceId, ShardId shardId, ReadOnlyMemory<byte> deltas,
         OperationContext context)
     {

@@ -31,11 +31,11 @@ namespace Nyris.Crdt.Model
         }
         public ICollection<TActorId> Actors => _ranges.Keys;
 
-        public bool TryGetValue(TActorId actorId, [NotNullWhen(true)] out ConcurrentVersionRanges? ranges) 
+        public bool TryGetValue(TActorId actorId, [NotNullWhen(true)] out ConcurrentVersionRanges? ranges)
             => _ranges.TryGetValue(actorId, out ranges);
 
         public ConcurrentVersionRanges GetOrAdd(TActorId actorId) => _ranges.GetOrAdd(actorId, _ => new ConcurrentVersionRanges());
-        
+
         public void Merge(TActorId actorId, ulong other)
         {
             // TODO: is allocating closures better then using a lock?
@@ -63,7 +63,7 @@ namespace Nyris.Crdt.Model
                 current.Merge(range);
                 return current;
             });
-            
+
         }
 
         public ulong Increment(TActorId actorId)
@@ -72,10 +72,10 @@ namespace Nyris.Crdt.Model
             return ranges.GetNew();
         }
 
-        public Dictionary<TActorId, Range[]> ToDictionary() 
+        public Dictionary<TActorId, Range[]> ToDictionary()
             => _ranges.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
-        
-        public ImmutableDictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, ConcurrentVersionRanges>, T> valueFunc) 
+
+        public ImmutableDictionary<TActorId, T> ToDictionary<T>(Func<KeyValuePair<TActorId, ConcurrentVersionRanges>, T> valueFunc)
             => _ranges.ToImmutableDictionary(pair => pair.Key, valueFunc);
 
         private string DebuggerDisplayString

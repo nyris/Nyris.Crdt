@@ -19,22 +19,22 @@ internal sealed class CrdtInfo : IDeltaCrdt<CrdtInfoDelta, CrdtInfoCausalTimesta
     public ImmutableArray<CrdtInfoDelta> AddNodeAsHoldingReadReplica(NodeId nodeId, NodeId actor)
     {
         var deltas = _nodesWithReadReplica.Add(nodeId, actor);
-        return deltas.IsEmpty 
-            ? ImmutableArray<CrdtInfoDelta>.Empty 
+        return deltas.IsEmpty
+            ? ImmutableArray<CrdtInfoDelta>.Empty
             : ImmutableArray.Create<CrdtInfoDelta>(new CrdtInfoNodesWithReplicaDelta(deltas));
     }
 
     public ImmutableArray<CrdtInfoDelta> RemoveNodeFromReadReplicas(NodeId nodeId)
     {
         var deltas = _nodesWithReadReplica.Remove(nodeId);
-        return deltas.IsEmpty 
-            ? ImmutableArray<CrdtInfoDelta>.Empty 
+        return deltas.IsEmpty
+            ? ImmutableArray<CrdtInfoDelta>.Empty
             : ImmutableArray.Create<CrdtInfoDelta>(new CrdtInfoNodesWithReplicaDelta(deltas));
     }
 
     public bool DoesNodeHaveReadReplica(NodeId nodeId) => _nodesWithReadReplica.Contains(nodeId);
 
-    public CrdtInfoCausalTimestamp GetLastKnownTimestamp() 
+    public CrdtInfoCausalTimestamp GetLastKnownTimestamp()
         => new(_storageSize.DateTime, _nodesWithReadReplica.GetLastKnownTimestamp());
 
     public IEnumerable<CrdtInfoDelta> EnumerateDeltaDtos(CrdtInfoCausalTimestamp? since = default)
@@ -49,7 +49,7 @@ internal sealed class CrdtInfo : IDeltaCrdt<CrdtInfoDelta, CrdtInfoCausalTimesta
             var localRef = dto;
             yield return new CrdtInfoNodesWithReplicaDelta(
                 Unsafe.As<
-                    ObservedRemoveCore<NodeId, NodeId>.DeltaDto[], 
+                    ObservedRemoveCore<NodeId, NodeId>.DeltaDto[],
                     ImmutableArray<ObservedRemoveCore<NodeId, NodeId>.DeltaDto>>(ref localRef));
         }
     }
@@ -62,7 +62,7 @@ internal sealed class CrdtInfo : IDeltaCrdt<CrdtInfoDelta, CrdtInfoCausalTimesta
                 return _nodesWithReadReplica.Merge(nodesWithReplicaDto.Delta);
             case CrdtInfoStorageSizeDelta storageSizeDto:
                 if (_storageSize.DateTime >= storageSizeDto.DateTime) return DeltaMergeResult.StateNotChanged;
-                
+
                 _storageSize = new TimestampedValue<ulong>(storageSizeDto.Value, storageSizeDto.DateTime);
                 return DeltaMergeResult.StateUpdated;
             default:

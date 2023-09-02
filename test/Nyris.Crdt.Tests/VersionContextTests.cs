@@ -25,7 +25,7 @@ public sealed class VersionContextTests
         Parallel.For(0, 1000, _ => vv.Increment(actorId));
         vv.Increment(actorId).Should().Be(1001);
     }
-    
+
     [Fact]
     public void ConcurrentMergesWork()
     {
@@ -38,7 +38,7 @@ public sealed class VersionContextTests
         });
         vv.Increment(actorId).Should().Be(1001);
     }
-    
+
     [Fact]
     public void ConcurrentIncrementsAndMergesOnSeparateActorsWork()
     {

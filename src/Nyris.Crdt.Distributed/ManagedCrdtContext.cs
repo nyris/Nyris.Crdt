@@ -64,7 +64,7 @@ namespace Nyris.Crdt.Distributed
                                                            "already added. Make sure instanceId " +
                                                            "is unique withing crdts of the same type.");
             }
-            
+
             if (crdt is ICreateAndDeleteManagedCrdtsInside compoundCrdt)
             {
                 compoundCrdt.ManagedCrdtContext = this;

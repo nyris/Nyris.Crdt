@@ -1,4 +1,3 @@
-using Nyris.Crdt.Exceptions;
 using Nyris.Crdt.Interfaces;
 using Nyris.Crdt.Managed.Model;
 using Nyris.Crdt.Managed.Services;
@@ -12,11 +11,11 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp, TOperation, TOperat
 {
     private readonly ISerializer _serializer;
     private readonly IReroutingService _reroutingService;
-    
+
     protected ManagedCrdt(InstanceId instanceId,
         ISerializer serializer,
         IPropagationService propagationService,
-        IReroutingService reroutingService) 
+        IReroutingService reroutingService)
         : base(instanceId, serializer, propagationService)
     {
         _serializer = serializer;
@@ -34,11 +33,11 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp, TOperation, TOperat
 
     protected Task<TOperationResult> RerouteAsync(ShardId shardId, TOperation operation, OperationContext context)
         => RerouteAsync<TOperationResult>(shardId, operation, context);
-    
+
     protected async Task<T> RerouteAsync<T>(ShardId shardId, TOperation operation, OperationContext context) where T : TOperationResult
     {
         var result = await _reroutingService.RerouteAsync(InstanceId, shardId, _serializer.Serialize(operation), context);
-        
+
         // cannot deserialize directly into T, because we serialized it as TOperationResult
         return (T)_serializer.Deserialize<TOperationResult>(result)! ?? throw new InvalidOperationException();
     }
