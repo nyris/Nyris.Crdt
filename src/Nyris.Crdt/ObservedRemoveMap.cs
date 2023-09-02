@@ -29,7 +29,8 @@ namespace Nyris.Crdt;
 [Obsolete("Please use ObservedRemoveMapV2 instead", false)]
 public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>
     : IDeltaCrdt<ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.DeltaDto,
-        ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.CausalTimestamp>
+        ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestamp>.CausalTimestamp>,
+      IDisposable
     where TKey : IEquatable<TKey>
     where TValue : class, IDeltaCrdt<TValueDto, TValueTimestamp>, new()
     where TActorId : IEquatable<TActorId>
@@ -71,7 +72,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
                 context.ClearVersion(oldVersion.Value);
                 return ImmutableArray.Create(DeltaDto.Added(actorId, newVersion, key, valueDeltas),
                                              DeltaDto.Removed(actorId, oldVersion.Value));
-            } 
+            }
             else // if the key is new one, simply add the value and get all it's dtos into one array
             {
                 var valueDeltas = value.EnumerateDeltaDtos().ToImmutableArray();
@@ -140,7 +141,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
                 delta = ImmutableArray.Create(DeltaDto.Added(actorId, newVersion, key, valueDeltas));
                 return true;
             }
-                
+
             context.ClearVersion(oldVersion.Value);
             delta = ImmutableArray.Create(DeltaDto.Added(actorId, newVersion, key, valueDeltas),
                                           DeltaDto.Removed(actorId, oldVersion.Value));
@@ -177,16 +178,16 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
         return true;
     }
 
-    public CausalTimestamp GetLastKnownTimestamp() 
+    public CausalTimestamp GetLastKnownTimestamp()
         => new(_context
-                   .ToImmutableDictionary(pair => pair.Key, 
+                   .ToImmutableDictionary(pair => pair.Key,
                                           pair => pair.Value.GetRanges()));
 
     public IEnumerable<DeltaDto> EnumerateDeltaDtos(CausalTimestamp? timestamp = default)
     {
         var since = timestamp?.Since ?? ImmutableDictionary<TActorId, ImmutableArray<Range>>.Empty;
         var deltas = new List<DeltaDto>();
-            
+
         _lock.EnterReadLock();
         try
         {
@@ -233,7 +234,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
             _lock.ExitWriteLock();
         }
     }
-        
+
     public DeltaMergeResult Merge(DeltaDto[] deltas)
     {
         _lock.EnterWriteLock();
@@ -252,7 +253,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
             _lock.ExitWriteLock();
         }
     }
-        
+
     private DeltaMergeResult MergeInternal(DeltaDto delta)
     {
         var actorId = delta.Actor;
@@ -262,31 +263,31 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
             case DeltaDtoAddition deltaDtoAddition:
                 var (_, version, key, valueDeltas) = deltaDtoAddition;
                 if (!context.TryInsert(key, version)) return DeltaMergeResult.StateNotChanged; // if context already observed this dot - do nothing
-                    
+
                 var dottedValue = _items.GetOrAdd(key, _ => new DottedValue(new TValue()));   // abstract AddDot(TItem item, TActorId a, ulong v, out long? oldVersion)
-                dottedValue.Merge(actorId, version, valueDeltas, out var oldVersion);              // ^ 
+                dottedValue.Merge(actorId, version, valueDeltas, out var oldVersion);              // ^
                 context.MaybeClearVersion(oldVersion);
                 return DeltaMergeResult.StateUpdated;
             case DeltaDtoDeletedDot deltaDtoDeletedDot:
                 version = deltaDtoDeletedDot.Version;
                 // either dot was new, or there is a non-null key
-                var removedKey = context.ObserveAndClear(version, out var newVersionWasInserted);   
+                var removedKey = context.ObserveAndClear(version, out var newVersionWasInserted);
                 if (removedKey is null || removedKey.Equals(default))
                 {
-                    return newVersionWasInserted ? DeltaMergeResult.StateUpdated : DeltaMergeResult.StateNotChanged; 
-                } 
+                    return newVersionWasInserted ? DeltaMergeResult.StateUpdated : DeltaMergeResult.StateNotChanged;
+                }
 
-                dottedValue = _items.GetOrAdd(removedKey, _ => new DottedValue(new TValue()));   // abstract RemoveDot(TItem item, TActorId a, ulong v)  
+                dottedValue = _items.GetOrAdd(removedKey, _ => new DottedValue(new TValue()));   // abstract RemoveDot(TItem item, TActorId a, ulong v)
                 dottedValue.RemoveDot(actorId, version);
                 return DeltaMergeResult.StateUpdated;
-            case DeltaDtoDeletedRange deltaDtoDeletedRange: 
+            case DeltaDtoDeletedRange deltaDtoDeletedRange:
                 var range = deltaDtoDeletedRange.Range;
                 var candidateKeysToDrop = context.ObserveAndClear(range, out newVersionWasInserted);
                 foreach (var (candidateKey, v) in candidateKeysToDrop)
                 {
                     // remove the dot from a respective dottedValue. If there are no more dots after this, key-value
                     // pair can be dropped entirely
-                    if (_items.TryGetValue(candidateKey, out dottedValue) 
+                    if (_items.TryGetValue(candidateKey, out dottedValue)
                         && dottedValue.ClearRangeAndCheckIsEmpty(actorId, range))
                     {
                         _items.TryRemove(candidateKey, out _);
@@ -299,7 +300,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
     }
 
     private MapVersionContext<TKey> GetOrCreateContext(TActorId actorId)
-        => _context.GetOrAdd(actorId, _ => new MapVersionContext<TKey>()); 
+        => _context.GetOrAdd(actorId, _ => new MapVersionContext<TKey>());
 
     private readonly struct DotWithDeltas
     {
@@ -321,14 +322,14 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
             deltas = Deltas;
         }
     }
-        
+
     /// <summary>
     /// See https://www.notion.so/Quest-for-Delta-CRDT-Map-7e97492a57a64a48885d54cd5fe00859#acd5ab9a0f2b4370b01492dce7828873
     /// </summary>
     private sealed class DottedValue
     {
         private bool _conflictingDeltas;
-            
+
         public DottedValue(TValue value)
         {
             Value = value;
@@ -354,7 +355,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
                     deltas.Add(DeltaDto.Added(dotActor, version, key, valueDtos));
                 }
             }
-                
+
             return deltas;
         }
 
@@ -371,7 +372,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
 
             return Dots.Count == 0;
         }
-            
+
         public ImmutableArray<TValueDto> MutateValueAndUpdateDot(
             TActorId actorId,
             Func<TValue, ImmutableArray<TValueDto>> func,
@@ -383,17 +384,17 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
             TryAddAndMaybeConcatDeltas(actorId, newVersion, deltas, true, out oldVersion);
             return deltas;
         }
-            
+
         public ImmutableArray<TValueDto> MergeValueAndUpdateDot(TActorId actorId, TValue value, ulong newVersion, out ulong? oldVersion)
         {
             Debug.Assert(newVersion is not 0);
             Debug.Assert(value is not null);
-                
+
             var myTimestamp = Value.GetLastKnownTimestamp();
             var deltas = value.EnumerateDeltaDtos(myTimestamp).ToImmutableArray();
-                
+
             TryAddAndMaybeConcatDeltas(actorId, newVersion, deltas, true, out oldVersion);
-                
+
             Value.Merge(deltas);
             return deltas;
         }
@@ -462,7 +463,7 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
 
             return -1;
         }
-            
+
         private bool TryAddOrUpdate(TActorId actorId, ulong newVersion, ImmutableArray<TValueDto> deltas, out ulong? oldVersion)
         {
             var i = FindDot(actorId);
@@ -475,18 +476,18 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
                     return false;
                 }
 
-                    
+
                 Dots.Add(new DotWithDeltas(actorId, newVersion, deltas));
                 RemoveDotAt(i);
                 oldVersion = savedVersion;
                 return true;
             }
-                
+
             Dots.Add(new DotWithDeltas(actorId, newVersion, deltas));
             oldVersion = default;
             return true;
         }
-            
+
         private bool TryAddAndMaybeConcatDeltas(TActorId actorId,
                                                 ulong newVersion,
                                                 ImmutableArray<TValueDto> deltas,
@@ -508,24 +509,24 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
                     oldVersion = default;
                     return false;
                 }
-                    
+
                 var oldDeltas = Dots[i].Deltas;
                 var newDeltas = ImmutableArray.CreateBuilder<TValueDto>(oldDeltas.Length + deltas.Length);
-                    
+
                 foreach (var delta in oldDeltas) newDeltas.Add(delta);
                 foreach (var delta in deltas) newDeltas.Add(delta);
-                    
+
                 Dots[i] = new DotWithDeltas(actorId, newVersion, newDeltas.MoveToImmutable());
                 oldVersion = savedVersion;
                 return true;
             }
-                
+
             Dots.Add(new DotWithDeltas(actorId, newVersion, deltas));
             oldVersion = default;
             return true;
         }
     }
-        
+
     public sealed record CausalTimestamp(ImmutableDictionary<TActorId, ImmutableArray<Range>> Since);
 
     public abstract record DeltaDto(TActorId Actor)
@@ -533,14 +534,14 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
         public static DeltaDto Added(TActorId actor,
                                      ulong version,
                                      TKey key,
-                                     ImmutableArray<TValueDto> valueDtos) 
+                                     ImmutableArray<TValueDto> valueDtos)
             => new DeltaDtoAddition(actor, version, key, valueDtos);
-        public static DeltaDto Removed(TActorId actor, Range range) 
+        public static DeltaDto Removed(TActorId actor, Range range)
             => new DeltaDtoDeletedRange(actor, range);
-        public static DeltaDto Removed(TActorId actor, ulong version) 
+        public static DeltaDto Removed(TActorId actor, ulong version)
             => new DeltaDtoDeletedDot(actor, version);
     }
-        
+
     public sealed record DeltaDtoAddition(
         TActorId Actor,
         ulong Version,
@@ -548,4 +549,16 @@ public class ObservedRemoveMap<TActorId, TKey, TValue, TValueDto, TValueTimestam
         ImmutableArray<TValueDto> ValueDtos) : DeltaDto(Actor);
     public sealed record DeltaDtoDeletedDot(TActorId Actor, ulong Version) : DeltaDto(Actor);
     public sealed record DeltaDtoDeletedRange(TActorId Actor, Range Range) : DeltaDto(Actor);
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing) return;
+        _lock.Dispose();
+    }
 }

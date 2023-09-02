@@ -8,7 +8,7 @@
 
     <PropertyGroup>
         <Title>Nyris.Crdt</Title>
-        <Authors>Shafiq Ahmad</Authors>
+        <Authors>Shafiq Ahmad; Nikita Chizhov</Authors>
         <Description>This library contains different CRDTs that are meant to be used locally for in process purposes.</Description>
     </PropertyGroup>
 

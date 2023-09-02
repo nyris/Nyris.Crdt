@@ -43,7 +43,8 @@ public sealed class LargeTests
     {
         0 => _clientA,
         1 => _clientB,
-        2 => _clientC
+        2 => _clientC,
+        _ => throw new ArgumentOutOfRangeException()
     };
 
     [Theory]

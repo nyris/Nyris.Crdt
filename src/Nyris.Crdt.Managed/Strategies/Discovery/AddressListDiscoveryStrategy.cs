@@ -2,6 +2,8 @@ using System.Runtime.CompilerServices;
 using Nyris.Crdt.Managed.Discovery.Abstractions;
 using Nyris.Crdt.Managed.Model;
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+
 namespace Nyris.Crdt.Managed.Strategies.Discovery;
 
 public sealed class AddressListDiscoveryStrategy : IDiscoveryStrategy

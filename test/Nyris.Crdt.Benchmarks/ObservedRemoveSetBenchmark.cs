@@ -30,7 +30,7 @@ public class ObservedRemoveSetBenchmark
     // public int NumberOfActors;
 
     // private Guid[] _actors = Array.Empty<Guid>();
-    
+
     // [GlobalSetup]
     // public void InitializeData()
     // {
@@ -47,7 +47,7 @@ public class ObservedRemoveSetBenchmark
     //         _setV2HalfRemoved.Add(value, actor);
     //         _setV3HalfRemoved.Add(value, actor);
     //     }
-    //     
+    //
     //     Random.Shared.Shuffle(addedElements);
     //
     //     for (var i = 0; i < Count / 2; ++i)
@@ -64,7 +64,7 @@ public class ObservedRemoveSetBenchmark
     //
     // [Benchmark]
     // public OptimizedObservedRemoveSetV3<Guid, double> CreateV3() => new();
-    
+
     // [Benchmark]
     // public void AddV2()
     // {
@@ -141,7 +141,7 @@ public class ObservedRemoveSetBenchmark
     // [Benchmark]
     // public int EnumerateDeltasV3_HalfRemoved() => _setV3HalfRemoved.EnumerateDeltaDtos().Count();
 
-    
+
     [Benchmark]
     public void AddAndMergeConcurrentlyV2()
     {
@@ -154,7 +154,7 @@ public class ObservedRemoveSetBenchmark
         var thread3 = new Thread(() => MergeSetsInLoop(set1, set2, ref finished1, ref finished2));
         StartThreadsAndWait(thread1, thread2, thread3);
     }
-    
+
     [Benchmark]
     public void AddAndMergeConcurrentlyV3()
     {
@@ -167,14 +167,14 @@ public class ObservedRemoveSetBenchmark
         var thread3 = new Thread(() => MergeSetsInLoop(set1, set2, ref finished1, ref finished2));
         StartThreadsAndWait(thread1, thread2, thread3);
     }
-    
+
     private static void StartThreadsAndWait(params Thread[] threads)
     {
         for (var i = 0; i < threads.Length; ++i)
         {
             threads[i].Start();
         }
-        
+
         for (var i = 0; i < threads.Length; ++i)
         {
             threads[i].Join();
@@ -185,8 +185,8 @@ public class ObservedRemoveSetBenchmark
         IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto,
             ObservedRemoveCore<Guid, double>.CausalTimestamp> set1,
         IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto,
-            ObservedRemoveCore<Guid, double>.CausalTimestamp> set2, 
-        ref bool finished1, 
+            ObservedRemoveCore<Guid, double>.CausalTimestamp> set2,
+        ref bool finished1,
         ref bool finished2)
     {
         while(!finished1 || !finished2)
@@ -195,7 +195,7 @@ public class ObservedRemoveSetBenchmark
             MergeToRight(set2, set1);
         }
     }
-    
+
     private void OperateOnSetInLoop(ObservedRemoveSetV3<Guid, double> set, Guid actor, ref bool finished)
     {
         for (var i = 0; i < Count; ++i)
@@ -209,7 +209,7 @@ public class ObservedRemoveSetBenchmark
                     }
                     break;
                 default:
-                    var toAdd = Random.Shared.NextDouble(); 
+                    var toAdd = Random.Shared.NextDouble();
                     set.Add(toAdd, actor);
                     _referenceBag.Add(toAdd);
                     break;
@@ -218,8 +218,8 @@ public class ObservedRemoveSetBenchmark
 
         finished = true;
     }
-    
-    private static void MergeToRight(IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto, ObservedRemoveCore<Guid, double>.CausalTimestamp> left, 
+
+    private static void MergeToRight(IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto, ObservedRemoveCore<Guid, double>.CausalTimestamp> left,
         IDeltaCrdt<ObservedRemoveCore<Guid, double>.DeltaDto, ObservedRemoveCore<Guid, double>.CausalTimestamp> right)
     {
         foreach (var delta in left.EnumerateDeltaDtos(right.GetLastKnownTimestamp()))
@@ -227,14 +227,14 @@ public class ObservedRemoveSetBenchmark
             right.Merge(delta);
         }
     }
-    
-    
+
+
     private void MergeSetsInLoop(
         IDeltaCrdt<ObservedRemoveDtos<Guid, double>.DeltaDto,
             ObservedRemoveDtos<Guid, double>.CausalTimestamp> set1,
         IDeltaCrdt<ObservedRemoveDtos<Guid, double>.DeltaDto,
-            ObservedRemoveDtos<Guid, double>.CausalTimestamp> set2, 
-        ref bool finished1, 
+            ObservedRemoveDtos<Guid, double>.CausalTimestamp> set2,
+        ref bool finished1,
         ref bool finished2)
     {
         while(!finished1 || !finished2)
@@ -244,7 +244,7 @@ public class ObservedRemoveSetBenchmark
             MergeToRight(set2, set1);
         }
     }
-    
+
     private void OperateOnSetInLoop(OptimizedObservedRemoveSetV2<Guid, double> set, Guid actor, ref bool finished)
     {
         for (var i = 0; i < Count; ++i)
@@ -258,7 +258,7 @@ public class ObservedRemoveSetBenchmark
                     }
                     break;
                 default:
-                    var toAdd = Random.Shared.NextDouble(); 
+                    var toAdd = Random.Shared.NextDouble();
                     set.Add(toAdd, actor);
                     _referenceBag.Add(toAdd);
                     break;
@@ -267,8 +267,8 @@ public class ObservedRemoveSetBenchmark
 
         finished = true;
     }
-    
-    private static void MergeToRight(IDeltaCrdt<ObservedRemoveDtos<Guid, double>.DeltaDto, ObservedRemoveDtos<Guid, double>.CausalTimestamp> left, 
+
+    private static void MergeToRight(IDeltaCrdt<ObservedRemoveDtos<Guid, double>.DeltaDto, ObservedRemoveDtos<Guid, double>.CausalTimestamp> left,
         IDeltaCrdt<ObservedRemoveDtos<Guid, double>.DeltaDto, ObservedRemoveDtos<Guid, double>.CausalTimestamp> right)
     {
         foreach (var delta in left.EnumerateDeltaDtos(right.GetLastKnownTimestamp()))

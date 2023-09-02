@@ -52,7 +52,7 @@ internal sealed class NodeGrpcClientFactory : INodeClientFactory, INodeFailureNo
 
     public INodeClient GetClient(NodeInfo nodeInfo)
     {
-        // we want to touch the channel even if the client is cached 
+        // we want to touch the channel even if the client is cached
         var channel = GetOrCreateChannel(nodeInfo.Address);
         return _cache.GetOrCreate(nodeInfo.Id, entry =>
         {
@@ -85,7 +85,6 @@ internal sealed class NodeGrpcClientFactory : INodeClientFactory, INodeFailureNo
         private readonly ConcurrentBag<INodeFailureObserver> _subscribers;
 
         private const int TolerateErrorsTimes = 0;
-        private int _failures;
 
         /// <inheritdoc />
         public FailureInterceptor(NodeId nodeId, ConcurrentBag<INodeFailureObserver> subscribers)

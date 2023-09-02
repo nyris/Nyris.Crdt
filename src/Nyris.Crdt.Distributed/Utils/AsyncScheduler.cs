@@ -1,3 +1,4 @@
+using System;
 using Nyris.Contracts.Exceptions;
 using System.Collections.Generic;
 using System.Threading;
@@ -10,7 +11,7 @@ namespace Nyris.Crdt.Distributed.Utils;
 /// Taken almost as-is from https://stackoverflow.com/questions/7863573/awaitable-task-based-queue
 /// </summary>
 /// <typeparam name="T">The type of the queued element.</typeparam>
-internal sealed class AsyncScheduler<T> : IAsyncScheduler<T>
+internal sealed class AsyncScheduler<T> : IAsyncScheduler<T>, IDisposable
 {
     private long _queueLength;
     private readonly SemaphoreSlim _enumerationSemaphore = new(1);

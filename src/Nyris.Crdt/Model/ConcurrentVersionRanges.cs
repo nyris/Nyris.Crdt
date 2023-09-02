@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -8,7 +9,7 @@ using Nyris.Crdt.Extensions;
 namespace Nyris.Crdt.Model
 {
     [DebuggerDisplay("{string.Join(\", \", _ranges)}")]
-    public sealed class ConcurrentVersionRanges
+    public sealed class ConcurrentVersionRanges : IDisposable
     {
         private readonly List<Range> _ranges = new();
         private readonly ReaderWriterLockSlim _lock = new();
@@ -112,6 +113,11 @@ namespace Nyris.Crdt.Model
             {
                 _lock.ExitReadLock();
             }
+        }
+
+        public void Dispose()
+        {
+            _lock.Dispose();
         }
 
         /// <summary>

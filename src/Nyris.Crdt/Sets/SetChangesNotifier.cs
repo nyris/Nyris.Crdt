@@ -5,10 +5,10 @@ namespace Nyris.Crdt.Sets
     public abstract class SetChangesNotifier<TItem> : ISetChangesNotifier<TItem>
     {
         // keep everything in array for slightly faster indexing - it is assumed that adding observers
-        // is a very rare operation, while notifications happen all the time 
+        // is a very rare operation, while notifications happen all the time
         private ISetObserver<TItem>[] _observers = Array.Empty<ISetObserver<TItem>>();
         private readonly object _lock = new();
-        
+
         public void SubscribeToChanges(ISetObserver<TItem> observer)
         {
             lock(_lock)

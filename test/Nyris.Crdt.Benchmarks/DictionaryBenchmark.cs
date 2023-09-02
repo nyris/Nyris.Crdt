@@ -9,8 +9,8 @@ public class DictionaryBenchmark
     [Params(1, 2, 4, 6, 8)]
     public int Capacity { get; set; }
 
-    private Dictionary<Guid, long> _dict;
-    private List<(Guid, long)> _list;
+    private Dictionary<Guid, long> _dict = null!;
+    private List<(Guid, long)> _list = null!;
     private readonly Guid _searchId = Guid.NewGuid();
 
     [GlobalSetup]
@@ -19,7 +19,7 @@ public class DictionaryBenchmark
         _dict = new Dictionary<Guid, long>(Capacity);
         _list = new List<(Guid, long)>(Capacity);
         _list.AddRange(Enumerable.Range(0, Capacity).Select(_ => (Guid.Empty, 0L)));
-        
+
         var randomI = Random.Shared.Next(0, Capacity);
         for (var i = 0; i < Capacity; ++i)
         {
@@ -31,13 +31,13 @@ public class DictionaryBenchmark
         _list[randomI] = (_searchId, randomI);
         _dict[_searchId] = randomI;
     }
-    
+
     [Benchmark]
     public Dictionary<Guid, long> CreateDictionary()
     {
         return new Dictionary<Guid, long>(Capacity);
     }
-    
+
     [Benchmark]
     public List<(Guid, long)> CreateList()
     {

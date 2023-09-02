@@ -13,7 +13,7 @@ using Range = Nyris.Crdt.Model.Range;
 namespace Nyris.Crdt
 {
     [DebuggerDisplay("{DebuggerDisplayString,nq}")]
-    internal sealed class MapVersionContext<TKey> 
+    internal sealed class MapVersionContext<TKey> : IDisposable
         where TKey : IEquatable<TKey>
     {
         private readonly VersionRanges _ranges = new();
@@ -35,7 +35,7 @@ namespace Nyris.Crdt
                 _lock.ExitWriteLock();
             }
         }
-        
+
         public TKey? ObserveAndClear(ulong version, out bool newVersionWasInserted)
         {
             _lock.EnterWriteLock();
@@ -46,10 +46,10 @@ namespace Nyris.Crdt
             }
             finally
             {
-                _lock.ExitWriteLock();   
+                _lock.ExitWriteLock();
             }
         }
-        
+
         public ImmutableArray<(TKey Key, ulong Version)> ObserveAndClear(Range range, out bool newVersionsWasInserted)
         {
             _lock.EnterWriteLock();
@@ -87,7 +87,7 @@ namespace Nyris.Crdt
                 _lock.ExitWriteLock();
             }
         }
-        
+
         public bool TryInsert(TKey key, ulong version)
         {
             _lock.EnterWriteLock();
@@ -102,7 +102,7 @@ namespace Nyris.Crdt
                 _lock.ExitWriteLock();
             }
         }
-        
+
         public ulong GetNewVersion(TKey key)
         {
             _lock.EnterWriteLock();
@@ -117,7 +117,7 @@ namespace Nyris.Crdt
                 _lock.ExitWriteLock();
             }
         }
-        
+
         [Pure]
         public ImmutableArray<Range> GetEmptyRanges()
         {
@@ -131,7 +131,7 @@ namespace Nyris.Crdt
                 _lock.ExitReadLock();
             }
         }
-        
+
         [Pure]
         public ImmutableArray<Range> GetRanges()
         {
@@ -152,7 +152,7 @@ namespace Nyris.Crdt
             if (!oldVersion.HasValue) return;
             ClearVersion(oldVersion.Value);
         }
-            
+
         public void ClearVersion(ulong oldVersion)
         {
             _lock.EnterWriteLock();
@@ -166,6 +166,10 @@ namespace Nyris.Crdt
             }
         }
 
+        public void Dispose()
+        {
+            _lock.Dispose();
+        }
 
         public Enumerator EnumerateKeysOutsideRanges(ImmutableArray<Range> except) => new(except, _inverse, _lock);
 
@@ -196,14 +200,14 @@ namespace Nyris.Crdt
                     {
                         var nextVersion = _inverse.Keys[_versionPosition];
                         var (from, to) = _except[_rangePosition];
-                        if (from > nextVersion) // if 'except' range starts after version, then respected key is of interest to us 
+                        if (from > nextVersion) // if 'except' range starts after version, then respected key is of interest to us
                         {
                             Current = _inverse.Values[_versionPosition];
                             ++_versionPosition;
                             return true;
                         }
 
-                        if (to > nextVersion) // if nextVersion is within one of 'except' ranges, it should be skipped - advance version pointer and try again 
+                        if (to > nextVersion) // if nextVersion is within one of 'except' ranges, it should be skipped - advance version pointer and try again
                         {
                             ++_versionPosition;
                         }
@@ -239,7 +243,7 @@ namespace Nyris.Crdt
 
             public Enumerator GetEnumerator() => this;
         }
-        
+
         private string DebuggerDisplayString => _ranges.ToString();
     }
 }

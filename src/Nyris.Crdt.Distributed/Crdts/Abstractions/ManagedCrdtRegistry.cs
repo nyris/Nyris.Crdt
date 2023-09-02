@@ -33,7 +33,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemValueDto, TItemValueFactory>
     : ManagedCrdtRegistryBase<TItemKey, TItemValue, ManagedCrdtRegistry<TActorId, TItemKey, TItemValue,
           TItemValueDto, TItemValueFactory>.RegistryDto>,
-      ICreateAndDeleteManagedCrdtsInside
+      ICreateAndDeleteManagedCrdtsInside,
+      IDisposable
     where TItemKey : IEquatable<TItemKey>, IComparable<TItemKey>, IHashable
     where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
     where TItemValue : ManagedCRDT<TItemValueDto>
@@ -299,5 +300,17 @@ public abstract class ManagedCrdtRegistry<TActorId, TItemKey, TItemValue, TItemV
 
         [ProtoMember(2)]
         public Dictionary<TItemKey, InstanceId>? InstanceIds { get; set; }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing) return;
+        _semaphore.Dispose();
     }
 }

@@ -20,7 +20,8 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 
 public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>
     : ManagedCrdtRegistryBase<TKey, TValue,
-        ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>
+        ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp>.LastWriteWinsDto>,
+      IDisposable
     where TValue : IHashable
     where TKey : IEquatable<TKey>, IComparable<TKey>
     where TTimeStamp : IComparable<TTimeStamp>, IEquatable<TTimeStamp>
@@ -274,5 +275,17 @@ public abstract class ManagedLastWriteWinsDeltaRegistry<TKey, TValue, TTimeStamp
     {
         [ProtoMember(1)]
         public Dictionary<TKey, TimeStampedItem<TValue, TTimeStamp>>? Items { get; set; }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing) return;
+        _semaphore.Dispose();
     }
 }

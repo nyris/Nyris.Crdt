@@ -13,6 +13,6 @@ internal static class Program
 
         var time = DateTime.Now;
         var type = Type.GetType("Node1.Program");
-        Console.WriteLine($"After type: {type}, took {DateTime.Now - time}");
+        await Console.Out.WriteLineAsync($"After type: {type}, took {DateTime.Now - time}");
     }
 }

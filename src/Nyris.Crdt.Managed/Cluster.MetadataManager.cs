@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Nyris.Crdt.Exceptions;
@@ -51,14 +52,14 @@ internal sealed partial class Cluster : IClusterMetadataManager
 
         if (result == DeltaMergeResult.StateUpdated)
         {
-            // _logger.LogDebug("TraceId '{TraceId}': After merging {Kind} delta state was updated, propagating further", 
+            // _logger.LogDebug("TraceId '{TraceId}': After merging {Kind} delta state was updated, propagating further",
             //     context.TraceId, kind.ToString("G"));
             await _propagationService.PropagateAsync(kind, dto, nodeSetBeforeMerge, context);
             await DistributeShardsAsync(context.CancellationToken);
         }
     }
-    
-    
+
+
     public ImmutableDictionary<MetadataKind, ReadOnlyMemory<byte>> GetCausalTimestamps(
         CancellationToken cancellationToken)
     {
@@ -66,19 +67,19 @@ internal sealed partial class Cluster : IClusterMetadataManager
 
         var serialized = _serializer.Serialize(_nodeSet.GetLastKnownTimestamp());
         builder.Add(MetadataKind.NodeSet, serialized);
-        
+
         serialized = _serializer.Serialize(_crdtConfigs.GetLastKnownTimestamp());
         builder.Add(MetadataKind.CrdtConfigs, serialized);
-        
+
         serialized = _serializer.Serialize(_crdtInfos.GetLastKnownTimestamp());
         builder.Add(MetadataKind.CrdtInfos, serialized);
 
         return builder.ToImmutable();
     }
 
-    public async IAsyncEnumerable<ReadOnlyMemory<byte>> EnumerateDeltasAsync(MetadataKind kind, 
-        ReadOnlyMemory<byte> timestamp, 
-        CancellationToken cancellationToken)
+    public async IAsyncEnumerable<ReadOnlyMemory<byte>> EnumerateDeltasAsync(MetadataKind kind,
+        ReadOnlyMemory<byte> timestamp,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         switch (kind)
         {
@@ -107,7 +108,7 @@ internal sealed partial class Cluster : IClusterMetadataManager
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
         }
     }
-    
+
     private async Task<ImmutableArray<NodeInfoSet.DeltaDto>> AddNodeInfoAsync(NodeInfo nodeInfo, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
@@ -143,8 +144,8 @@ internal sealed partial class Cluster : IClusterMetadataManager
                 var configDeltas = _serializer.Deserialize<ImmutableArray<CrdtConfigs.DeltaDto>>(dto);
                 // _logger.LogDebug("TraceId '{TraceId}': Received config deltas: {Deltas}", traceId, JsonConvert.SerializeObject(configDeltas));
                 result = _crdtConfigs.Merge(configDeltas);
-                  
-                // TODO: maybe implement callback in ObservedRemoveMap instead 
+
+                // TODO: maybe implement callback in ObservedRemoveMap instead
                 if(result is DeltaMergeResult.StateUpdated) CreateNewCrdtsIfAny();
                 break;
             default:
@@ -162,7 +163,7 @@ internal sealed partial class Cluster : IClusterMetadataManager
             Debug.Assert(readReplicas is not null);
             _crdts.TryGetValue(replicaId.InstanceId, out var crdt);
             Debug.Assert(crdt is not null);
-            
+
             if (readReplicas.Contains(_thisNode.Id))
             {
                 // _logger.LogDebug("Marking local replica {ReplicaId} as read replica", replicaId);

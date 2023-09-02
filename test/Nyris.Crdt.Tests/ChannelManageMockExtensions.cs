@@ -45,7 +45,8 @@ internal static class ChannelManageMockExtensions
         TOperation,
         TResponse>(this Mock<IChannelManager> channelManagerMock,
         IList<NodeMock> nodes)
-        where TCrdt : PartiallyReplicatedCRDTRegistry<TKey,
+        where TCrdt :
+            PartiallyReplicatedCRDTRegistry<TKey,
             TCollection,
             TCollectionKey,
             TCollectionValue,
@@ -54,6 +55,7 @@ internal static class ChannelManageMockExtensions
             TCollectionOperationResponseBase,
             TCollectionFactory>
         where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
+        where TCollectionKey : notnull
         where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
         IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
         where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()

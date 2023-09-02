@@ -11,6 +11,10 @@
 <!--         <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath> -->
 <!--     </PropertyGroup> -->
 
+    <PropertyGroup>
+        <NoWarn>CS0618;CS1998</NoWarn>
+    </PropertyGroup>
+
     <ItemGroup>
         <Protobuf Include="Protos\api.proto" GrpcServices="Server" />
     </ItemGroup>

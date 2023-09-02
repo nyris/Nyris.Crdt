@@ -6,8 +6,8 @@ namespace Nyris.Crdt.AspNetExample.Mongo;
 public sealed class ImageDataSetDocument : ImageDocument
 {
     [BsonElement("iid")]
-    public string ImageId { get; set; }
+    public string ImageId { get; set; } = String.Empty;
 
     [BsonElement("d")]
-    public Uri DownloadUrl { get; set; }
+    public Uri DownloadUrl { get; set; } = null!;
 }

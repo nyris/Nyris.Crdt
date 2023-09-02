@@ -21,7 +21,7 @@ internal sealed partial class Cluster
     private readonly IMetadataPropagationService _propagationService;
     private readonly IManagedCrdtFactory _crdtFactory;
     private readonly IDistributionStrategy _distributionStrategy;
-    
+
     private readonly NodeInfo _thisNode;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private ImmutableDictionary<ReplicaId, ImmutableArray<NodeInfo>> _desiredDistribution = ImmutableDictionary<ReplicaId, ImmutableArray<NodeInfo>>.Empty;
@@ -48,17 +48,17 @@ internal sealed partial class Cluster
     }
 
     internal ICollection<InstanceId> InstanceIds => _crdts.Keys;
-    
-    internal async Task<ImmutableArray<NodeInfo>> GetNodesAsync(CancellationToken cancellationToken) 
+
+    internal async Task<ImmutableArray<NodeInfo>> GetNodesAsync(CancellationToken cancellationToken)
         => _nodeSet.Values.ToImmutableArray();
 
     /// <summary>
     /// Make sure that:
-    /// If this node holds a read replica of a provided (instanceId, shardId), then each node from syncedNodes 
+    /// If this node holds a read replica of a provided (instanceId, shardId), then each node from syncedNodes
     /// also are in the list of nodes holding a given read replica.
     ///
     /// In other words - if we have successfully run relocation on read replica,
-    /// all targets of that relocation should also be read replicas  
+    /// all targets of that relocation should also be read replicas
     /// </summary>
     /// <param name="instanceId"></param>
     /// <param name="shardId"></param>
@@ -69,7 +69,7 @@ internal sealed partial class Cluster
     {
         var deltas = new List<ImmutableArray<CrdtInfos.DeltaDto>>(syncTargets.Length);
         var replicaId = instanceId.With(shardId);
-        
+
         await _semaphore.WaitAsync(context.CancellationToken);
         try
         {
@@ -81,16 +81,16 @@ internal sealed partial class Cluster
             {
                 throw new AssumptionsViolatedException($"Should not be possible - it appears that replica {replicaId} is not within desired distribution");
             }
-            
+
             Debug.Assert(readReplicas is not null && readReplicas.Count != 0 && writeReplicas.Length != 0);
             switch (readReplicas.Contains(_thisNode.Id), writeReplicas.Contains(_thisNode))
             {
                 // Stable picture - replica is both read and write.
-                // Make sure that target nodes are also read replicas now (no op if they are already read replicas) 
+                // Make sure that target nodes are also read replicas now (no op if they are already read replicas)
                 case (true, true):
                     EnsureTargetNodesAreReadReplicas(syncTargets, replicaId, deltas);
                     break;
-                // this node is meant to hold this replica, but it was not relocated here yet. We can't 
+                // this node is meant to hold this replica, but it was not relocated here yet. We can't
                 // mark this replica as "read" - another read replica must sync 'into' this node. So do nothing
                 case (false, true):
                     break;
@@ -184,7 +184,7 @@ internal sealed partial class Cluster
 
             foreach (var (shardId, size) in sizes.OrderBy(pair => pair.Key))
             {
-                builder.Append('(').Append(instanceId).Append(", ").Append(shardId).Append("): ").Append(size).Append(", ");                
+                builder.Append('(').Append(instanceId).Append(", ").Append(shardId).Append("): ").Append(size).Append(", ");
             }
         }
         _logger.LogDebug("Actual local shards sizes: {Sizes}", builder.ToString());
@@ -214,7 +214,7 @@ internal sealed partial class Cluster
             _semaphore.Release();
         }
 
-        
+
         replicaInfosBuilder.Sort();
 
         var nodeInfosBuilder = ImmutableArray.CreateBuilder<NodeInfo>(nodes.Count);
@@ -222,20 +222,20 @@ internal sealed partial class Cluster
         nodeInfosBuilder.Sort();
         _desiredDistribution = _distributionStrategy.Distribute(replicaInfosBuilder.MoveToImmutable(), nodeInfosBuilder.MoveToImmutable());
     }
-    
 
-    private Task PropagateInfosAsync(IEnumerable<CrdtInfos.DeltaDto> deltas, OperationContext context)  
+
+    private Task PropagateInfosAsync(IEnumerable<CrdtInfos.DeltaDto> deltas, OperationContext context)
         => PropagateInfosAsync(_serializer.Serialize(deltas), context);
-    
-    private Task PropagateInfosAsync(ImmutableArray<CrdtInfos.DeltaDto> deltas, OperationContext context) 
+
+    private Task PropagateInfosAsync(ImmutableArray<CrdtInfos.DeltaDto> deltas, OperationContext context)
         => PropagateInfosAsync(_serializer.Serialize(deltas), context);
 
     private Task PropagateInfosAsync(ReadOnlyMemory<byte> deltas, OperationContext context) =>
-        _propagationService.PropagateAsync(MetadataKind.CrdtInfos, 
-            deltas, 
+        _propagationService.PropagateAsync(MetadataKind.CrdtInfos,
+            deltas,
             _nodeSet.Values.ToImmutableArray(),
             context);
-    
-    private Task PropagateNodeDeltasAsync(ImmutableArray<NodeInfoSet.DeltaDto> deltas, ImmutableArray<NodeInfo> nodes, OperationContext context) 
+
+    private Task PropagateNodeDeltasAsync(ImmutableArray<NodeInfoSet.DeltaDto> deltas, ImmutableArray<NodeInfo> nodes, OperationContext context)
         => _propagationService.PropagateAsync(MetadataKind.NodeSet, _serializer.Serialize(deltas), nodes, context);
 }

@@ -14,14 +14,14 @@ using Nyris.Crdt.Extensions;
 namespace Nyris.Crdt.Model
 {
     [DebuggerDisplay("{_dict.Count < 5 ? string.Join(',', _dict) : _dict.Count + \" items ...\"}")]
-    public sealed class VersionedItemList<TItem> : IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>
+    public sealed class VersionedItemList<TItem> : IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>, IDisposable
         where TItem : IEquatable<TItem>
     {
         private readonly Dictionary<TItem, ulong> _dict = new();
-        
+
         // Consideration about usage of sorted list:
         //
-        // 1. It is the best choice (I think?) for optimizing GetEmptyRanges and GetItems, as it allows access to a list of keys in sorted order 
+        // 1. It is the best choice (I think?) for optimizing GetEmptyRanges and GetItems, as it allows access to a list of keys in sorted order
         // 2. While complexity of adding new elements in general is O(n), but the happy path here is adding elements with
         // ever increasing dots. Which means, majority of additions will be at the end or close to the end,
         // which means actual average addition will be closer to O(log n)
@@ -30,11 +30,11 @@ namespace Nyris.Crdt.Model
         //
         // Proper benchmarks are required to check if this choice makes sense in practice.
         // Alternative solution will be to have 2 separate data structures - one Dictionary<ulong, TItems> _inverse for mapping dots to items
-        // and something like SortedSet for keeping an order of dots. As all operations are already synchronized by ReaderWriteLockSlim, 
+        // and something like SortedSet for keeping an order of dots. As all operations are already synchronized by ReaderWriteLockSlim,
         // there is no additional synchronization downside and additions/removals can be capped as O(log n)
-        
+
         // Another alternative is to use  SortedDictionary<ulong, TItems>. This gives us O(log n) guarantees on both additions and removals
-        // But it looses in enumeration. SortedDictionary does not provide range queries, even though it could.  
+        // But it looses in enumeration. SortedDictionary does not provide range queries, even though it could.
         private readonly SortedList<ulong, TItem> _inverse = new();
         private readonly ReaderWriterLockSlim _lock = new();
 
@@ -63,7 +63,7 @@ namespace Nyris.Crdt.Model
         {
             _enumerationBatchSize = enumerationBatchSize;
         }
-        
+
         public VersionedItemList(IDictionary<TItem, ulong> dict, int enumerationBatchSize = 10000)
         {
             _enumerationBatchSize = enumerationBatchSize;
@@ -86,6 +86,11 @@ namespace Nyris.Crdt.Model
             }
         }
 
+        public void Dispose()
+        {
+            _lock.Dispose();
+        }
+
         public bool TryUpdate(TItem item, ulong newDot, ulong comparisonDot)
         {
             Debug.Assert(item is not null);
@@ -95,7 +100,7 @@ namespace Nyris.Crdt.Model
             {
                 var oldDot = _dict[item];
                 if (oldDot != comparisonDot || _inverse.ContainsKey(newDot)) return false;
-                
+
                 _dict[item] = newDot;
                 _inverse.Remove(oldDot);
                 _inverse[newDot] = item;
@@ -109,7 +114,7 @@ namespace Nyris.Crdt.Model
 
         public bool TryAdd(TItem item, ulong dot, bool throwIfNotLatestDot = false)
             => TryAdd(item, dot, out _, throwIfNotLatestDot);
-        
+
         public bool TryAdd(TItem item, ulong dot, out ulong? removedDot, bool throwIfNotLatestDot)
         {
             Debug.Assert(item is not null);
@@ -122,7 +127,7 @@ namespace Nyris.Crdt.Model
                                                            $"by a different item ({savedItem}, {dot}). This can happen if same ActorId was writing items " +
                                                            "concurrently to different replicas of this set, which is not supported.");
                 }
-                
+
                 if (!_dict.TryGetValue(item, out var currentDot))
                 {
                     _dict[item] = dot;
@@ -155,7 +160,7 @@ namespace Nyris.Crdt.Model
             }
         }
 
-        
+
         public bool TryGetValue(ulong i, [NotNullWhen(true)] out TItem? item)
         {
             _lock.EnterReadLock();
@@ -183,7 +188,7 @@ namespace Nyris.Crdt.Model
         }
 
         public bool TryGetValue(in TItem item, out ulong i) => _dict.TryGetValue(item, out i);
-        
+
         public bool TryRemove(in TItem item, out ulong dot)
         {
             _lock.EnterWriteLock();
@@ -199,7 +204,7 @@ namespace Nyris.Crdt.Model
             }
         }
 
-        public ArrayBatchEnumerator GetItemsOutsideRanges(ImmutableArray<Range> except) 
+        public ArrayBatchEnumerator GetItemsOutsideRanges(ImmutableArray<Range> except)
             => new(_inverse, _lock, except);
 
         /// <summary>
@@ -222,7 +227,7 @@ namespace Nyris.Crdt.Model
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="range"></param>
         /// <param name="removedItems"></param>
@@ -243,7 +248,7 @@ namespace Nyris.Crdt.Model
                 {
                     removedItems ??= new List<TItem>(); // assuming actual removals are more rare then no-ops
                     removedItems.Add(values[i]);
-                    
+
                     result |= _dict.Remove(values[i]);
                     _inverse.RemoveAt(i); // rare occasion when end of list comes closer to i and not the other way around
                 }
@@ -255,7 +260,7 @@ namespace Nyris.Crdt.Model
                 _lock.ExitWriteLock();
             }
         }
-        
+
         public bool TryRemove(ulong dot, [NotNullWhen(true)] out TItem? item)
         {
             _lock.EnterWriteLock();
@@ -275,8 +280,8 @@ namespace Nyris.Crdt.Model
             => new MemoryBasedEnumerator(_inverse, _lock, _enumerationBatchSize);
         IEnumerator IEnumerable.GetEnumerator()
             => new MemoryBasedEnumerator(_inverse, _lock, _enumerationBatchSize);
-        
-        
+
+
         public struct ArrayBatchEnumerator : IEnumerator<ArraySegment<DottedItem<TItem>>>, IEnumerable<ArraySegment<DottedItem<TItem>>>
         {
             private readonly int _batchSize;
@@ -287,7 +292,7 @@ namespace Nyris.Crdt.Model
             private int _versionPosition;
             private int _rangePosition;
             private readonly ImmutableArray<Range> _except;
-            
+
             public ArrayBatchEnumerator(SortedList<ulong, TItem> inverse, ReaderWriterLockSlim @lock, ImmutableArray<Range> except, int batchSize = 1000)
             {
                 _inverse = inverse;
@@ -311,7 +316,7 @@ namespace Nyris.Crdt.Model
                     {
                         var nextVersion = _inverse.Keys[_versionPosition];
                         var (from, to) = _except[_rangePosition];
-                        if (from > nextVersion) // if 'except' range starts after version, then respected key is of interest to us 
+                        if (from > nextVersion) // if 'except' range starts after version, then respected key is of interest to us
                         {
                             _batch[_length] = new DottedItem<TItem>(_inverse.Values[_versionPosition], nextVersion);
                             ++_versionPosition;
@@ -320,7 +325,7 @@ namespace Nyris.Crdt.Model
                             return true;
                         }
 
-                        if (to > nextVersion) // if nextVersion is within one of 'except' ranges, it should be skipped - advance version pointer and try again 
+                        if (to > nextVersion) // if nextVersion is within one of 'except' ranges, it should be skipped - advance version pointer and try again
                         {
                             ++_versionPosition;
                         }
@@ -356,8 +361,8 @@ namespace Nyris.Crdt.Model
                 _lock.EnterReadLock();
                 try
                 {
-                    _versionPosition = _except.Length > 0 && _except[0].From == 1 
-                                           ? _inverse.GetIndexOfFirstGreaterOrEqualKey(_except[0].To) 
+                    _versionPosition = _except.Length > 0 && _except[0].From == 1
+                                           ? _inverse.GetIndexOfFirstGreaterOrEqualKey(_except[0].To)
                                            : 0;
                 }
                 finally
@@ -371,7 +376,7 @@ namespace Nyris.Crdt.Model
             IEnumerator<ArraySegment<DottedItem<TItem>>> IEnumerable<ArraySegment<DottedItem<TItem>>>.GetEnumerator() => this;
             IEnumerator IEnumerable.GetEnumerator() => this;
         }
-        
+
         public struct MemoryBasedEnumerator : IEnumerator<ReadOnlyMemory<DottedItem<TItem>>>, IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>
         {
             private readonly ReaderWriterLockSlim _lock;
@@ -438,7 +443,7 @@ namespace Nyris.Crdt.Model
                     _lock.ExitReadLock();
                 }
             }
-            
+
             public void Dispose() => _memoryOwner.Dispose();
             MemoryBasedEnumerator GetEnumerator() => this;
             IEnumerator<ReadOnlyMemory<DottedItem<TItem>>> IEnumerable<ReadOnlyMemory<DottedItem<TItem>>>.GetEnumerator() => this;

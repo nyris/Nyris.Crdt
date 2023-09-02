@@ -4,6 +4,7 @@ using Nyris.Crdt.Distributed.Model;
 using Nyris.Crdt.Distributed.Utils;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,7 +39,7 @@ namespace Nyris.Crdt.Distributed.Test.Unit.Helpers
         public override ulong StorageSize { get; }
 
         public override async IAsyncEnumerable<KeyValuePair<InstanceId, MockUserCRDT>> EnumerateItems(
-            CancellationToken cancellationToken = default
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
             yield break;

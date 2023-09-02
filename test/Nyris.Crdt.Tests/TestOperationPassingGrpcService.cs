@@ -32,6 +32,7 @@ public class TestOperationPassingGrpcService<TCrdt,
         TCollectionOperationResponseBase,
         TCollectionFactory>
     where TKey : IEquatable<TKey>, IComparable<TKey>, IHashable
+    where TCollectionKey : notnull
     where TCollection : ManagedCrdtRegistryBase<TCollectionKey, TCollectionValue, TCollectionDto>,
     IAcceptOperations<TCollectionOperationBase, TCollectionOperationResponseBase>
     where TCollectionFactory : IManagedCRDTFactory<TCollection, TCollectionDto>, new()

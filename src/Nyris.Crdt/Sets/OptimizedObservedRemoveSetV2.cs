@@ -14,7 +14,7 @@ namespace Nyris.Crdt.Sets
 {
     /// <summary>
     /// This is a performance-optimized version of <see cref="OptimizedObservedRemoveSet{TActorId,TItem}"/>
-    /// It is thread safe with supported concurrent reads. 
+    /// It is thread safe with supported concurrent reads.
     /// </summary>
     /// <typeparam name="TActorId"></typeparam>
     /// <typeparam name="TItem"></typeparam>
@@ -22,14 +22,15 @@ namespace Nyris.Crdt.Sets
     public class OptimizedObservedRemoveSetV2<TActorId, TItem>
         : SetChangesNotifier<TItem>,
           ICRDT<ObservedRemoveDtos<TActorId, TItem>.Dto>,
-          IDeltaCrdt<ObservedRemoveDtos<TActorId, TItem>.DeltaDto, ObservedRemoveDtos<TActorId, TItem>.CausalTimestamp>
+          IDeltaCrdt<ObservedRemoveDtos<TActorId, TItem>.DeltaDto, ObservedRemoveDtos<TActorId, TItem>.CausalTimestamp>,
+          IDisposable
         where TItem : IEquatable<TItem>
         where TActorId : IEquatable<TActorId>, IComparable<TActorId>
     {
         private readonly ConcurrentDictionary<TActorId, VersionedItemList<TItem>> _items = new();
         private readonly VersionContext<TActorId> _versionContext = new();
-        
-        // lock is used for operations, that rely on _items and _versionContext being in sync 
+
+        // lock is used for operations, that rely on _items and _versionContext being in sync
         private readonly ReaderWriterLockSlim _lock = new();
 
         public HashSet<TItem> Values
@@ -53,6 +54,18 @@ namespace Nyris.Crdt.Sets
         // TODO: maybe optimize this to be updated-on-write and just a constant lookup on read
         public ulong StorageSize => _items.Values.Aggregate(_versionContext.StorageSize, (current, dottedList) => current + dottedList.StorageSize);
 
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing) return;
+            _lock.Dispose();
+        }
+
         public bool Contains(TItem item)
         {
             foreach (var dottedList in _items.Values)
@@ -70,15 +83,15 @@ namespace Nyris.Crdt.Sets
             _lock.EnterWriteLock();
             try
             {
-                var itemAlreadyPresent = Contains(item); 
-                
+                var itemAlreadyPresent = Contains(item);
+
                 // we add item even if already present, cause of potential concurrent complications
                 // For example, think of a case when current item was added long time ago,
                 // AND there was a concurrent removal that was not yet propagated.
                 // In this case if we do not add an item, once removal is propagated, item will be gone.
-                // Checking if item is present in the set before operation is needed only to notify 
+                // Checking if item is present in the set before operation is needed only to notify
                 // observers about state change
-                
+
                 var version = _versionContext.Increment(actor);
                 if (!_items.TryGetValue(actor, out var actorsDottedItems))
                 {
@@ -90,10 +103,10 @@ namespace Nyris.Crdt.Sets
                 {
                     NotifyAdded(item);
                 }
-                
-                return removedVersion.HasValue 
-                           ? ImmutableArray.Create(ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Added(item, actor, version), 
-                                                   ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Removed(actor, removedVersion.Value)) 
+
+                return removedVersion.HasValue
+                           ? ImmutableArray.Create(ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Added(item, actor, version),
+                                                   ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Removed(actor, removedVersion.Value))
                            : ImmutableArray.Create(ObservedRemoveDtos<TActorId,TItem>.DeltaDto.Added(item, actor, version));
             }
             finally
@@ -105,7 +118,7 @@ namespace Nyris.Crdt.Sets
         public ImmutableArray<ObservedRemoveDtos<TActorId,TItem>.DeltaDto> Remove(TItem item)
         {
             Debug.Assert(item is not null);
-            _lock.EnterWriteLock(); // although _versionContext is not updated, we need to update multiple dottedLists atomically 
+            _lock.EnterWriteLock(); // although _versionContext is not updated, we need to update multiple dottedLists atomically
             try
             {
                 var dtos = ImmutableArray.CreateBuilder<ObservedRemoveDtos<TActorId,TItem>.DeltaDto>(_items.Count);
@@ -121,7 +134,7 @@ namespace Nyris.Crdt.Sets
                 {
                     NotifyRemoved(item);
                 }
-                
+
                 return dtos.ToImmutable();
             }
             finally
@@ -140,7 +153,7 @@ namespace Nyris.Crdt.Sets
                 foreach (var actorId in other.VersionContext.Keys)
                 {
                     var otherItems = other.Items[actorId];
-                    
+
                     // if we have not seen this actor, just take everything for this actor from other
                     if (!_versionContext.TryGetValue(actorId, out var myRange))
                     {
@@ -149,7 +162,7 @@ namespace Nyris.Crdt.Sets
                         {
                             if(!Contains(item)) newItems.Add(item);
                         }
-                        
+
                         _items[actorId] = new VersionedItemList<TItem>(otherItems);
                         foreach (var range in other.VersionContext[actorId])
                         {
@@ -168,7 +181,7 @@ namespace Nyris.Crdt.Sets
                     // check which items to add or which dots to update
                     foreach (var (item, otherDot) in otherItems)
                     {
-                        // if 'other' has items which we have not seen (i.e. their dot is bigger then value from our version vector), take that item 
+                        // if 'other' has items which we have not seen (i.e. their dot is bigger then value from our version vector), take that item
                         if (!myRange.Contains(otherDot))
                         {
                             var itemInSet = Contains(item); // check if item anywhere in set
@@ -187,7 +200,7 @@ namespace Nyris.Crdt.Sets
                     var otherRangeList = other.VersionContext[actorId];
 
                     // check which items to remove
-                    var otherRanges = new ConcurrentVersionRanges(otherRangeList);
+                    using var otherRanges = new ConcurrentVersionRanges(otherRangeList);
                     foreach (var batch in myItems)
                     {
                         var span = batch.Span;
@@ -250,10 +263,10 @@ namespace Nyris.Crdt.Sets
         public IEnumerable<ObservedRemoveDtos<TActorId,TItem>.DeltaDto> EnumerateDeltaDtos(ObservedRemoveDtos<TActorId,TItem>.CausalTimestamp? timestamp = default)
         {
             var since = timestamp?.Since ?? ImmutableDictionary<TActorId, ImmutableArray<Range>>.Empty;
-            
+
             foreach (var actorId in _versionContext.Actors)
             {
-                if (!_versionContext.TryGetValue(actorId, out var myDotRanges) 
+                if (!_versionContext.TryGetValue(actorId, out var myDotRanges)
                     || !_items.TryGetValue(actorId, out var myItems)) continue;
 
                 if (!since.TryGetValue(actorId, out var except)) except = ImmutableArray<Range>.Empty;
@@ -318,15 +331,15 @@ namespace Nyris.Crdt.Sets
             switch (delta)
             {
                 case ObservedRemoveDtos<TActorId,TItem>.DeltaDtoAddition(var item, _, var version):
-                    // first check if version is new. If already observed by context, ignore  
+                    // first check if version is new. If already observed by context, ignore
                     if (observedRanges.Contains(version)) return DeltaMergeResult.StateNotChanged;
 
-                    // item may be also "observed" by another actor - this is important for notifications 
+                    // item may be also "observed" by another actor - this is important for notifications
                     var itemAlreadyPresent = Contains(item);
-                    
+
                     actorsDottedItems.TryAdd(item, version);
                     _versionContext.Merge(actorId, version);
-                    
+
                     if(itemAlreadyPresent) NotifyAdded(item);
                     break;
                 case ObservedRemoveDtos<TActorId,TItem>.DeltaDtoDeletedDot(_, var version):
@@ -334,7 +347,7 @@ namespace Nyris.Crdt.Sets
                     // (in which case VersionContext is updated and Merge returns true)
                     var versionContextUpdated = observedRanges.Merge(version);
                     var itemRemoved = actorsDottedItems.TryRemove(version, out var removedItem);
-                    
+
                     // if item is removed from actorsDottedItems, check if it's present in another actor
                     // if not, then notify observers
                     if (itemRemoved && !Contains(removedItem!)) NotifyRemoved(removedItem!);
@@ -343,7 +356,7 @@ namespace Nyris.Crdt.Sets
                     return stateUpdated ? DeltaMergeResult.StateUpdated : DeltaMergeResult.StateNotChanged;
                 case ObservedRemoveDtos<TActorId,TItem>.DeltaDtoDeletedRange(_, var range):
                     stateUpdated = actorsDottedItems.TryRemove(range, out var removedItems) | observedRanges.Merge(range);
-                    
+
                     // this piece is probably the best argument in favor of item-centered design of the set
                     // (in contrast to actor centered used here)
                     if (removedItems is not null)
@@ -363,7 +376,7 @@ namespace Nyris.Crdt.Sets
 
         private ImmutableArray<Range> GetEmptyRanges(VersionedItemList<TItem> versionedItemList, ConcurrentVersionRanges ranges)
         {
-            _lock.EnterReadLock(); // needs to be locked, as reads from both VersionContext and items 
+            _lock.EnterReadLock(); // needs to be locked, as reads from both VersionContext and items
             try
             {
                 return versionedItemList.GetEmptyRanges(ranges.ToImmutable());

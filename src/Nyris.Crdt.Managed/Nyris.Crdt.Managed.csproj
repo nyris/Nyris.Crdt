@@ -6,6 +6,10 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <NoWarn>CS0618;CS1998</NoWarn>
+    </PropertyGroup>
+
     <ItemGroup>
       <ProjectReference Include="..\Nyris.Crdt.Managed.DependencyInjection\Nyris.Crdt.Managed.DependencyInjection.csproj" />
       <ProjectReference Include="..\Nyris.Crdt.Managed.Discovery.Abstractions\Nyris.Crdt.Managed.Discovery.Abstractions.csproj" />

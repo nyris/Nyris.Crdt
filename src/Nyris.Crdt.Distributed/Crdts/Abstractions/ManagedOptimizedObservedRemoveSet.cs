@@ -23,7 +23,7 @@ namespace Nyris.Crdt.Distributed.Crdts.Abstractions;
 /// </summary>
 [DebuggerDisplay("{_items.Count < 10 ? string.Join(';', _items) : \"... a lot of items ...\"}")]
 public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
-    : ManagedCRDT<TDto>
+    : ManagedCRDT<TDto>, IDisposable
     where TItem : IEquatable<TItem>, IHashable
     where TActorId : IEquatable<TActorId>, IComparable<TActorId>, IHashable
     where TDto : ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>.OrSetDto, new()
@@ -319,6 +319,18 @@ public abstract class ManagedOptimizedObservedRemoveSet<TActorId, TItem, TDto>
         }
 
         await StateChangedAsync();
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing) return;
+        _semaphore.Dispose();
     }
 
     public abstract class OrSetDto

@@ -31,7 +31,7 @@ public class Starter : BackgroundService
         if (Environment.GetEnvironmentVariable("NODE_NAME") == "node-0")
         {
             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
-                
+
             _logger.LogInformation("Creating a crdt here");
             var map = await _cluster.CreateAsync<ManagedMap>(InstanceId.FromString("map-1"), stoppingToken);
 
@@ -41,7 +41,7 @@ public class Starter : BackgroundService
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-                
+
                 var vector = GetRandomVector();
 
                 var result = await map.FindClosest(vector, stoppingToken);
@@ -51,13 +51,13 @@ public class Starter : BackgroundService
                 {
                     _logger.LogInformation("Miss! True search result: {ImageId}, dp {DotProduct}", actualId, actualDotProduct);
                 }
-                    
+
                 var imageId = ImageId.NewImageId();
                 allVectors.Add(imageId, vector);
                 await map.AddAsync(imageId, vector, stoppingToken);
             }
-            
-            
+
+
             // var crdt = await _cluster.CreateAsync<ManagedSet>(InstanceId.FromString("set1"), stoppingToken);
             //
             // var start = DateTime.Now;
@@ -66,18 +66,18 @@ public class Starter : BackgroundService
             // {
             //     await crdt.AddAsync(i, stoppingToken);
             // }
-            // _logger.LogInformation("Adding {max} elements done in {Duration}", 
+            // _logger.LogInformation("Adding {max} elements done in {Duration}",
             //     max, DateTime.Now - start);
             //
             // while(true)
             // {
             //     await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-            //     
+            //
             //     try
             //     {
             //         var el = (double)Random.Shared.Next(0, 100);
             //         var s = await crdt.RemoveAsync(el, stoppingToken);
-            //         
+            //
             //         el = Random.Shared.Next(0, 100);
             //         await crdt.AddAsync(el, stoppingToken);
             //     }
@@ -86,9 +86,11 @@ public class Starter : BackgroundService
             //         _logger.LogInformation("Operation could not be done. Exception: {Message}", e.Message);
             //     }
             // }
-            
+
+#pragma warning disable CS0162 // Unreachable code detected
             _logger.LogInformation("Removal finished");
             await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+#pragma warning restore CS0162 // Unreachable code detected
             // _host.StopApplication();
         }
     }
@@ -118,8 +120,8 @@ public class Starter : BackgroundService
         {
             dotProduct = float.MinValue;
             return ImageId.Empty;
-        } 
-        
+        }
+
         dotProduct = float.MinValue;
         var index = 0;
 
@@ -136,7 +138,7 @@ public class Starter : BackgroundService
 
         return list.Keys[index];
     }
-    
+
     private static float DotProduct(float[] l, float[] r)
     {
         Debug.Assert(l.Length == r.Length);
@@ -149,5 +151,3 @@ public class Starter : BackgroundService
         return product;
     }
 }
-
-

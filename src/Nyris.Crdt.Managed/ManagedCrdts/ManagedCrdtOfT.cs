@@ -14,7 +14,7 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
 {
     private readonly Dictionary<ShardId, (bool IsReadReplica, TCrdt Shard)> _shards = new();
     private readonly ReaderWriterLockSlim _shardsLock = new();
-    
+
     private readonly ISerializer _serializer;
     private readonly IPropagationService _propagationService;
 
@@ -60,11 +60,11 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if(!TryGetShard(shardId, out var crdt, out _)) yield break;
-        
-        var causalTimestamp = causalTimestampBin.IsEmpty 
-            ? default 
+
+        var causalTimestamp = causalTimestampBin.IsEmpty
+            ? default
             : _serializer.Deserialize<TTimeStamp>(causalTimestampBin);
-        
+
         foreach (var batch in crdt.EnumerateDeltaDtos(causalTimestamp).Chunk(200))
         {
             if(cancellationToken.IsCancellationRequested) yield break;
@@ -73,10 +73,10 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
     }
 
     public sealed override ReadOnlyMemory<byte> GetCausalTimestamp(in ShardId shardId) =>
-        !TryGetShard(shardId, out var crdt, out _) 
-            ? ReadOnlyMemory<byte>.Empty 
+        !TryGetShard(shardId, out var crdt, out _)
+            ? ReadOnlyMemory<byte>.Empty
             : _serializer.Serialize(crdt.GetLastKnownTimestamp());
-    
+
     internal sealed override void MarkLocalShardAsReadReplica(in ShardId shardId)
     {
         _shardsLock.EnterWriteLock();
@@ -99,7 +99,7 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
 
     internal sealed override Dictionary<ShardId, int> GetShardSizes()
     {
-        // TODO: this was used for debugging, remove 
+        // TODO: this was used for debugging, remove
         var result = new Dictionary<ShardId, int>();
 
         _shardsLock.EnterReadLock();
@@ -125,7 +125,7 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
 
         return result;
     }
-    
+
     protected internal override Task DropShardAsync(in ShardId shardId)
     {
         _shardsLock.EnterWriteLock();
@@ -140,7 +140,7 @@ public abstract class ManagedCrdt<TCrdt, TDelta, TTimeStamp> : ManagedCrdt
         return Task.CompletedTask;
     }
 
-    protected Task PropagateAsync(in ShardId shardId, in ImmutableArray<TDelta> deltas, OperationContext context) 
+    protected Task PropagateAsync(in ShardId shardId, in ImmutableArray<TDelta> deltas, OperationContext context)
         => _propagationService.PropagateAsync(InstanceId, shardId, _serializer.Serialize(deltas), context);
 
     protected (bool IsReadReplica, TCrdt Shard) GetOrCreateShard(in ShardId shardId)
